@@ -45,6 +45,26 @@ test("actor header controls use a single DOM injection path", () => {
   assert.equal((sheetSource.match(/RestService\.openRestDialog\(actor\)/g) ?? []).length, 1);
 });
 
+test("encumbrance indicator renders for non-owner player sheets", () => {
+  const actorRenderHandler = sheetSource.match(/function onRenderActorSheet[\s\S]*?[\r\n]}[\r\n]+function injectWeaponReadinessControls/)?.[0] ?? "";
+  const nonOwnerBranch = actorRenderHandler.match(/if \(!canControlSheetResources\) \{[\s\S]*?[\r\n]  \}/)?.[0] ?? "";
+
+  assert.match(actorRenderHandler, /const canControlSheetResources = actor\.isOwner \|\| game\.user\.isGM;/);
+  assert.doesNotMatch(actorRenderHandler, /if \(!actor\.isOwner && !game\.user\.isGM\) return;/);
+  assert.match(nonOwnerBranch, /injectEncumbrancePanel\(app, html, actor\);/);
+  assert.doesNotMatch(nonOwnerBranch, /hideStoredItemRows|wireContainerDragDrop|injectWeaponReadinessControls|wireInventoryItemIconUse/);
+});
+
+test("ration display renders in read-only player sheets without consolidation writes", () => {
+  const actorRenderHandler = sheetSource.match(/function onRenderActorSheet[\s\S]*?[\r\n]}[\r\n]+function injectWeaponReadinessControls/)?.[0] ?? "";
+  const nonOwnerBranch = actorRenderHandler.match(/if \(!canControlSheetResources\) \{[\s\S]*?[\r\n]  \}/)?.[0] ?? "";
+  const rationDisplay = sheetSource.match(/function updateRationQuantityDisplay[\s\S]*?[\r\n]}[\r\n]+[\r\n]function hasActorEffects/)?.[0] ?? "";
+
+  assert.match(nonOwnerBranch, /updateRationQuantityDisplay\(app, html, actor, \{ readOnly: true \}\);/);
+  assert.match(rationDisplay, /\{ readOnly = false \} = \{\}/);
+  assert.match(rationDisplay, /if \(!readOnly && RationService\.needsConsolidation\(actor\)\) \{/);
+});
+
 test("encumbrance weight watcher is stoppable and overlap guarded", () => {
   assert.match(encumbranceSource, /dynamicWeightFileWatcherBusy/);
   assert.match(encumbranceSource, /stopDynamicWeightFileWatcher/);

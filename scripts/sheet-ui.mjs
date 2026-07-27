@@ -479,12 +479,18 @@ function patchContextMenu() {
 function onRenderActorSheet(app, html) {
   const actor = app.actor ?? app.document;
   if (!isManagedActor(actor)) return;
-  if (!actor.isOwner && !game.user.isGM) return;
   if (skipDuplicateSheetRender(html, app, "actor")) return;
 
-  syncActorSheetHeaderButtons(app);
+  const canControlSheetResources = actor.isOwner || game.user.isGM;
+  if (canControlSheetResources) syncActorSheetHeaderButtons(app);
 
   if (!isPlayerActor(actor)) return;
+
+  if (!canControlSheetResources) {
+    updateRationQuantityDisplay(app, html, actor, { readOnly: true });
+    injectEncumbrancePanel(app, html, actor);
+    return;
+  }
 
   if (TenebreSettings.get("enableContainers")) {
     hideStoredItemRows(app, html, actor);
@@ -1368,13 +1374,13 @@ function updateQuiverQuantityDisplay(app, html, actor) {
 }
 
 // Injeta quantidade e usos de rações na ficha
-function updateRationQuantityDisplay(app, html, actor) {
+function updateRationQuantityDisplay(app, html, actor, { readOnly = false } = {}) {
   if (!TenebreSettings.get("enableRations")) return;
 
   const el = getRoot(html);
   if (!el) return;
 
-  if (RationService.needsConsolidation(actor)) {
+  if (!readOnly && RationService.needsConsolidation(actor)) {
     RationService.consolidate(actor).then((changed) => {
       if (changed) rerenderActorSheets(actor);
     }).catch((error) => {

@@ -120,7 +120,7 @@ test("settings can create the macro and expose the picker through the module API
 
 test("the visual picker is searchable, namespaced and shows active state", () => {
   const pickerCssStart = css.indexOf("/* Searchable status effect picker opened from the module macro. */");
-  const pickerCssEnd = css.indexOf("/* Compact presentation for the native Amoque", pickerCssStart);
+  const pickerCssEnd = css.indexOf("/* Compact presentation for selected native ability", pickerCssStart);
   const pickerCss = css.slice(pickerCssStart, pickerCssEnd);
   assert.match(source, /CONFIG\?\.statusEffects/);
   assert.match(source, /input type="search"/);
