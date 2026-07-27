@@ -41,6 +41,7 @@ const knownRitualsByActor = new Map();
 const ritualActorsByItem = new Map();
 const deletingRitualIdsByActor = new Map();
 const ritualistInjectionRetries = new WeakMap();
+const storedItemContextMenuRoots = new WeakSet();
 
 const selectedManeuversByActor = new Map();
 
@@ -951,7 +952,7 @@ function wireContainerDragDrop(app, html, actor) {
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      await ContainerService.withdrawItemPrompt(actor, item);
+      await ContainerService.withdrawItem(actor, item);
     }
 
     activeContainerDrag = null;
@@ -1203,6 +1204,8 @@ function injectContainerInlineLists(app, html, actor) {
 
     row.insertAdjacentElement("afterend", buildContainerInlineRow(actor, container, row));
   }
+
+  bindStoredItemContextMenu(el, actor);
 }
 
 function decorateContainerCapacity(row, actor, container) {
@@ -1324,7 +1327,7 @@ function buildContainerInlineItem(actor, item) {
   withdraw.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    await ContainerService.withdrawItemPrompt(actor, item);
+    await ContainerService.withdrawItem(actor, item);
   });
   row.appendChild(withdraw);
 
@@ -1336,6 +1339,37 @@ function buildContainerInlineItem(actor, item) {
   row.appendChild(edit);
 
   return row;
+}
+
+function bindStoredItemContextMenu(root, actor) {
+  if (storedItemContextMenuRoots.has(root)) return;
+
+  const BaseContextMenu = foundry.applications?.ux?.ContextMenu;
+  const ContextMenuClass = BaseContextMenu?.implementation ?? BaseContextMenu;
+  if (typeof ContextMenuClass !== "function") return;
+
+  const splitEntry = CompatibilityService.buildContextMenuEntry({
+    label: game.i18n.localize("TENEBRE.Containers.Split"),
+    icon: '<i class="fas fa-code-branch"></i>',
+    visible: (target) => {
+      const item = actor.items.get(target?.dataset?.storedItemId);
+      return ContainerService.isStored(item)
+        && item.type === "equipment"
+        && itemQuantity(item) > 1;
+    },
+    onClick: (target) => {
+      const item = actor.items.get(target?.dataset?.storedItemId);
+      if (item) void ContainerService.splitItemPrompt(actor, item);
+    }
+  });
+
+  new ContextMenuClass(
+    root,
+    ".tenebre-container-item[data-stored-item-id]",
+    [splitEntry],
+    { fixed: true, jQuery: false }
+  );
+  storedItemContextMenuRoots.add(root);
 }
 
 function rerenderActorSheets(actor) {

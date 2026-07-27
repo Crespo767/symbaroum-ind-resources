@@ -181,6 +181,7 @@ export class EncumbranceService {
         dynamicWeightFileFingerprint = fingerprintWeightConfig(getDynamicEncumbranceWeights());
         console.log("Tenebre Resources | Reloaded encumbrance weights.");
         rerenderOpenActorSheets();
+        globalThis.Hooks?.callAll?.(`${MODULE_ID}.encumbranceWeightsChanged`);
       } catch (err) {
         console.warn("Tenebre Resources | Could not watch the encumbrance weight file.", err);
       } finally {

@@ -234,9 +234,10 @@ Pre-condicoes:
 - o recipiente esta em estado `equipped` ou `active`;
 - o usuario possui permissao para alterar o Actor.
 
-Ao retirar, o Item recebe o `preStoredState` salvo e as flags de armazenamento
-sao removidas. Pilhas parciais sao divididas; pilhas equivalentes fora do
-recipiente sao combinadas quando possivel.
+Ao retirar, toda a pilha recebe o `preStoredState` salvo e as flags de
+armazenamento sao removidas. Para retirar somente uma parte, o usuario usa
+`Botao direito > Dividir` e escolhe uma quantidade menor que o total. Pilhas
+equivalentes fora do recipiente sao combinadas quando possivel.
 
 ### Recipientes dentro de recipientes
 
@@ -266,6 +267,7 @@ O menu contextual oferece, conforme o estado do Item:
 - abrir ou recolher recipiente;
 - configurar capacidade do recipiente, apenas para o GM;
 - retirar item guardado;
+- dividir uma pilha guardada, quando houver mais de uma unidade;
 - usar item.
 
 As entradas de recipiente sao condicionais: um item em `other`, um recipiente
@@ -288,7 +290,7 @@ O modulo usa um payload proprio de drag/drop contendo `actorId`, `itemId` e
 `source`:
 
 - `source: inventory`: arrastar para um recipiente inicia guardar;
-- `source: stored`: arrastar para fora da sublista inicia retirar.
+- `source: stored`: arrastar para fora da sublista retira toda a pilha.
 
 O drop e aceito apenas quando o Actor do payload corresponde ao Actor da ficha.
 O clique no icone e no nome deve continuar produzindo o mesmo fluxo; o drag nao

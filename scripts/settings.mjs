@@ -154,6 +154,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableAutomatedAnimationsIntegration",
       "enableRestButton",
       "enableClearEffectsButton",
+      "showAppliedStatusEffectChatMessages",
       "enableTokenActionHudIntegration",
       "enableBithirUtilities",
       "enableRitualCatalog",
@@ -336,6 +337,7 @@ export class TenebreSettings {
     register("enableChatItemUse", Boolean, true, "TENEBRE.Settings.EnableChatItemUse", "TENEBRE.Settings.EnableChatItemUseHint");
     register("enableAutomatedAnimationsIntegration", Boolean, true, "TENEBRE.Settings.EnableAutomatedAnimationsIntegration", "TENEBRE.Settings.EnableAutomatedAnimationsIntegrationHint");
     register("enableClearEffectsButton", Boolean, true, "TENEBRE.Settings.EnableClearEffectsButton", "TENEBRE.Settings.EnableClearEffectsButtonHint");
+    register("showAppliedStatusEffectChatMessages", Boolean, true, "TENEBRE.Settings.ShowAppliedStatusEffectChatMessages", "TENEBRE.Settings.ShowAppliedStatusEffectChatMessagesHint");
     register("enableTokenActionHudIntegration", Boolean, true, "TENEBRE.Settings.EnableTokenActionHudIntegration", "TENEBRE.Settings.EnableTokenActionHudIntegrationHint");
     register("enableBithirUtilities", Boolean, true, "TENEBRE.Settings.EnableBithirUtilities", "TENEBRE.Settings.EnableBithirUtilitiesHint");
     register("enableRitualCatalog", Boolean, true, "TENEBRE.Settings.EnableRitualCatalog", "TENEBRE.Settings.EnableRitualCatalogHint");

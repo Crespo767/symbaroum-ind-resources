@@ -87,7 +87,10 @@ export class ContainerTransferService {
         const parentId = getStoredIn(item);
         if (parentId && !idMap.has(parentId)) throw new Error(`Missing parent mapping for item ${item.id}`);
 
-        const [createdItem] = await targetActor.createEmbeddedDocuments("Item", [data], { render: false });
+        const [createdItem] = await targetActor.createEmbeddedDocuments("Item", [data], {
+          render: false,
+          [MODULE_ID]: { preserveItemState: true }
+        });
         if (!createdItem?.id) throw new Error(`Target actor did not create item ${item.name}`);
         idMap.set(item.id, createdItem.id);
         created.push(createdItem);

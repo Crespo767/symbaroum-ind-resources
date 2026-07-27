@@ -9,6 +9,7 @@ import { HotbarService } from "./hotbar.mjs";
 import { findAmmoItems, isAmmo, isRation, sumItemQuantities } from "./item-flags.mjs";
 import { VerseService } from "./verses.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
+import { EncumbranceVisualService } from "./encumbrance-visuals.mjs";
 import { HungerService } from "./hunger.mjs";
 import { ContainerService } from "./containers.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
@@ -23,6 +24,7 @@ import { WeaponReadinessService } from "./weapon-readiness.mjs";
 import { WeaponReadinessHudService } from "./weapon-readiness-hud.mjs";
 import { WeaponReadinessVisualService } from "./weapon-readiness-visuals.mjs";
 import { InventoryCleanupService } from "./inventory-cleanup.mjs";
+import { InventoryDefaultStateService } from "./inventory-default-state.mjs";
 import { GmLogService } from "./gm-log-service.mjs";
 import { GmLogUiService } from "./gm-log-ui.mjs";
 import { GroundContainerService } from "./ground-containers.mjs";
@@ -34,6 +36,7 @@ import { BerserkerChatService } from "./berserker-chat.mjs";
 import { ResistanceChatService } from "./resistance-chat.mjs";
 
 Hooks.once("init", () => {
+  InventoryDefaultStateService.registerHooks();
   TenebreSettings.register();
   CompatibilityService.register();
   MovementService.register();
@@ -90,6 +93,8 @@ Hooks.once("ready", async () => {
   WeaponReadinessService.registerHooks();
   WeaponReadinessVisualService.registerHooks();
   WeaponReadinessVisualService.refreshAllIndicators();
+  EncumbranceVisualService.registerHooks();
+  EncumbranceVisualService.refreshAllIndicators();
   WeaponReadinessHudService.register();
   patchSymbaroumRollDialogs();
   patchSymbaroumActorUsePower();
@@ -125,6 +130,7 @@ Hooks.once("ready", async () => {
     hotbar: HotbarService,
     verses: VerseService,
     encumbrance: EncumbranceService,
+    encumbranceVisuals: EncumbranceVisualService,
     hunger: HungerService,
     containers: ContainerService,
     containerTransfer: ContainerTransferService,

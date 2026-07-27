@@ -81,6 +81,10 @@ export class CompatibilityService {
     return buildVisualActiveEffectData(data);
   }
 
+  static buildContextMenuEntry(data) {
+    return buildContextMenuEntry(data);
+  }
+
   static shouldSkipBundledBithir() {
     return this.isModuleActive(COMPAT_MODULES.symbaroumBithir);
   }
@@ -331,6 +335,29 @@ export function buildVisualActiveEffectData(data, generation = getFoundryGenerat
     effect.showIcon = globalThis.CONST?.ACTIVE_EFFECT_SHOW_ICON?.ALWAYS ?? 2;
   }
   return effect;
+}
+
+export function buildContextMenuEntry(data, generation = getFoundryGeneration()) {
+  const resolveTarget = (target) => target?.[0] ?? target;
+  const visible = typeof data.visible === "function"
+    ? (target) => data.visible(resolveTarget(target))
+    : data.visible;
+
+  if (generation >= 14) {
+    return {
+      label: data.label,
+      icon: data.icon,
+      visible,
+      onClick: (event, target) => data.onClick?.(resolveTarget(target), event)
+    };
+  }
+
+  return {
+    name: data.label,
+    icon: data.icon,
+    condition: visible,
+    callback: (target) => data.onClick?.(resolveTarget(target))
+  };
 }
 
 function resolveDialogElement(value) {

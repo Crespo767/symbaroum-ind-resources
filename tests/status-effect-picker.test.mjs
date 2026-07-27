@@ -23,9 +23,11 @@ globalThis.game = {
 
 const {
   StatusEffectPickerService,
+  buildAppliedEffectChatContent,
   collectAvailableStatusEffects,
   findFirstEmptyHotbarSlot,
   isEffectActive,
+  isAppliedEffectChatEnabled,
   statusEffectValues
 } = await import("../scripts/status-effect-picker.mjs");
 
@@ -116,6 +118,41 @@ test("settings can create the macro and expose the picker through the module API
   assert.match(source, /game\.user\.assignHotbarMacro\(macro, slot\)/);
   assert.match(source, /await game\.tenebreResources\?\.statusEffects\?\.open\?\.\(\);/);
   assert.match(init, /statusEffects: StatusEffectPickerService/);
+  assert.match(settings, /register\("showAppliedStatusEffectChatMessages", Boolean, true/);
+  assert.match(template, /name="showAppliedStatusEffectChatMessages"/);
+});
+
+test("applying a condition can publish a safe descriptive chat card", () => {
+  const originalFormat = globalThis.game.i18n.format;
+  const originalLocalize = globalThis.game.i18n.localize;
+  globalThis.game.i18n.format = (_key, data) => `${data.actor} está sob a condição ${data.effect}.`;
+  globalThis.game.i18n.localize = (key) => key === "TENEBRE.StatusEffects.ChatTitle" ? "Condição aplicada" : key;
+  try {
+    const content = buildAppliedEffectChatContent(
+      { name: "Edvard <script>" },
+      { id: "blind", name: "Cego", img: "blind.svg", chatDescription: "Sem visão <b>normal</b>." }
+    );
+    assert.match(content, /tenebre-status-effect-chat/);
+    assert.match(content, /Condição aplicada/);
+    assert.match(content, /Edvard &lt;script&gt; está sob a condição Cego\./);
+    assert.match(content, /Sem visão &lt;b&gt;normal&lt;\/b&gt;\./);
+    assert.doesNotMatch(content, /<script>|<b>normal<\/b>/);
+  } finally {
+    globalThis.game.i18n.format = originalFormat;
+    globalThis.game.i18n.localize = originalLocalize;
+  }
+});
+
+test("the world setting controls condition messages and removals do not publish", () => {
+  const originalSettings = globalThis.game.settings;
+  globalThis.game.settings = { get: () => false };
+  try {
+    assert.equal(isAppliedEffectChatEnabled(), false);
+  } finally {
+    globalThis.game.settings = originalSettings;
+  }
+  assert.match(source, /if \(active\) \{[\s\S]*?publishAppliedEffectChatMessage/);
+  assert.doesNotMatch(source, /if \(!active\) \{[\s\S]*?publishAppliedEffectChatMessage/);
 });
 
 test("the visual picker is searchable, namespaced and shows active state", () => {

@@ -4,6 +4,7 @@ import { escapeHtml, normalize } from "./utils.mjs";
 const MACRO_FLAG = "statusEffectPickerMacro";
 const MACRO_COMMAND = "await game.tenebreResources?.statusEffects?.open?.();";
 const MACRO_ICON = "icons/svg/aura.svg";
+const CHAT_SETTING = "showAppliedStatusEffectChatMessages";
 
 export const StatusEffectPickerService = {
   async open() {
@@ -33,7 +34,7 @@ export const StatusEffectPickerService = {
         },
         position,
         content,
-        render: (_event, app) => activatePicker(app?.element, actor, effects),
+        render: (_event, app) => activatePicker(app?.element, token, effects),
         buttons: [{
           action: "close",
           icon: "fas fa-times",
@@ -42,7 +43,7 @@ export const StatusEffectPickerService = {
         }]
       });
       await dialog.render({ force: true });
-      activatePicker(dialog.element, actor, effects);
+      activatePicker(dialog.element, token, effects);
       return dialog;
     }
 
@@ -56,7 +57,7 @@ export const StatusEffectPickerService = {
             label: game.i18n.localize("TENEBRE.Common.Close")
           }
         },
-        render: (html) => activatePicker(html?.[0] ?? html, actor, effects)
+        render: (html) => activatePicker(html?.[0] ?? html, token, effects)
       },
       {
         classes: ["tenebre-effect-picker-window"],
@@ -111,7 +112,8 @@ export function collectAvailableStatusEffects(actor, statusEffects = globalThis.
       name,
       img: effect.img ?? effect.icon ?? "icons/svg/aura.svg",
       active,
-      description: effectDescription(effect, name, active)
+      description: effectDescription(effect, name, active),
+      chatDescription: localizeValue(effect.description ?? "")
     });
   }
 
@@ -213,7 +215,8 @@ function buildPickerContent(token, effects) {
     </section>`;
 }
 
-function activatePicker(root, actor, effects) {
+function activatePicker(root, token, effects) {
+  const actor = token?.actor;
   const picker = root?.querySelector?.(".tenebre-effect-picker");
   if (!picker || picker.dataset.activated === "true") return;
   picker.dataset.activated = "true";
@@ -257,6 +260,13 @@ function activatePicker(root, actor, effects) {
       icon?.classList.toggle("fa-plus", !active);
       const description = button.querySelector("[data-effect-description]");
       if (description) description.textContent = effect.description;
+      if (active) {
+        try {
+          await publishAppliedEffectChatMessage({ actor, token, effect });
+        } catch (error) {
+          console.warn(`${MODULE_ID} | Failed to publish the applied status effect to chat.`, error);
+        }
+      }
       notify("info", active ? "TENEBRE.StatusEffects.Applied" : "TENEBRE.StatusEffects.Removed", {
         effect: effect.name,
         actor: actor.name
@@ -269,6 +279,54 @@ function activatePicker(root, actor, effects) {
       button.disabled = false;
     }
   });
+}
+
+export function buildAppliedEffectChatContent(actor, effect) {
+  const actorName = String(actor?.name ?? "").trim();
+  const effectName = String(effect?.name ?? effect?.id ?? "").trim();
+  const image = effect?.img ?? "icons/svg/aura.svg";
+  const appliedText = game.i18n.format("TENEBRE.StatusEffects.ChatApplied", {
+    actor: actorName,
+    effect: effectName
+  });
+  const extraDescription = String(effect?.chatDescription ?? "").trim();
+
+  return `
+    <section class="symbaroum chat tenebre-status-effect-chat">
+      <header class="tenebre-status-effect-chat-header">
+        <img src="${escapeHtml(image)}" alt="">
+        <span>
+          <small>${escapeHtml(game.i18n.localize("TENEBRE.StatusEffects.ChatTitle"))}</small>
+          <strong>${escapeHtml(effectName)}</strong>
+        </span>
+      </header>
+      <p class="tenebre-status-effect-chat-applied">${escapeHtml(appliedText)}</p>
+      ${extraDescription ? `<p class="tenebre-status-effect-chat-description">${escapeHtml(extraDescription)}</p>` : ""}
+    </section>`;
+}
+
+export async function publishAppliedEffectChatMessage({ actor, token, effect } = {}) {
+  if (!actor || !effect || !isAppliedEffectChatEnabled()) return null;
+  const ChatMessageClass = globalThis.ChatMessage?.implementation ?? globalThis.ChatMessage;
+  if (!ChatMessageClass?.create) return null;
+
+  const speaker = globalThis.ChatMessage?.getSpeaker?.({
+    actor,
+    token: token?.document ?? token
+  }) ?? { actor: actor.id ?? null, token: token?.id ?? null };
+  return ChatMessageClass.create({
+    user: globalThis.game?.user?.id,
+    speaker,
+    content: buildAppliedEffectChatContent(actor, effect)
+  });
+}
+
+export function isAppliedEffectChatEnabled() {
+  try {
+    return game.settings.get(MODULE_ID, CHAT_SETTING) !== false;
+  } catch (_error) {
+    return true;
+  }
 }
 
 function pickerDialogPosition() {

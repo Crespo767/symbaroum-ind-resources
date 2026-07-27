@@ -1,5 +1,5 @@
 import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
-import { escapeHtml, promptDialog } from "./utils.mjs";
+import { escapeHtml } from "./utils.mjs";
 
 export const WEAPON_READINESS_FLAG = "weaponReadiness";
 export const WEAPON_READY_STATE = "drawn";
@@ -40,34 +40,18 @@ export const WeaponReadinessService = {
       return null;
     }
 
-    const options = weapons.map((weapon) => `
-      <label class="tenebre-weapon-readiness-option">
-        <input type="checkbox" name="drawnWeaponIds" value="${escapeHtml(weapon.id)}" ${isDrawn(weapon) ? "checked" : ""}>
-        <span class="tenebre-weapon-readiness-check" aria-hidden="true"></span>
-        <img src="${escapeHtml(weapon.img)}" alt="">
-        <span>${escapeHtml(weapon.name)}</span>
-      </label>
-    `).join("");
-
-    const content = `
-      <div class="tenebre-weapon-readiness-list">${options}</div>
-      <label class="tenebre-weapon-readiness-sheathe-all">
-        <input type="checkbox" name="sheatheAll">
-        <span class="tenebre-weapon-readiness-check" aria-hidden="true"></span>
-        <span class="tenebre-weapon-readiness-sheathe-label">${escapeHtml(game.i18n.localize("TENEBRE.WeaponReadiness.SheatheAll"))}</span>
-      </label>
-    `;
-
-    return promptDialog({
-      title: game.i18n.localize("TENEBRE.WeaponReadiness.DialogTitle"),
-      content,
-      width: 260,
-      contentClass: "tenebre-weapon-readiness-dialog",
-      callback: async (element) => {
-        const desiredIds = element.querySelector("input[name='sheatheAll']")?.checked
-          ? []
-          : Array.from(element.querySelectorAll("input[name='drawnWeaponIds']:checked"), (input) => input.value);
-        return this.setDrawnWeapons(actor, desiredIds);
+    const content = buildWeaponReadinessDialogContent(weapons);
+    return foundry.applications.api.DialogV2.wait({
+      window: { title: game.i18n.localize("TENEBRE.WeaponReadiness.DialogTitle") },
+      position: { width: 260 },
+      content: `<div class="symbaroum dialog tenebre-symbaroum-dialog tenebre-weapon-readiness-dialog">${content}</div>`,
+      buttons: [{
+        action: "close",
+        label: game.i18n.localize("TENEBRE.Common.Close")
+      }],
+      rejectClose: false,
+      render: (_event, dialog) => {
+        bindWeaponReadinessDialog(dialog.element, actor);
       }
     });
   },
@@ -113,6 +97,37 @@ export function isEligibleWeapon(item) {
 
 export function isDrawn(item) {
   return String(item?.system?.state ?? "").toLowerCase() === "active";
+}
+
+export function buildWeaponReadinessDialogContent(weapons, labels = {}) {
+  const drawLabel = labels.draw ?? game.i18n.localize("TENEBRE.WeaponReadiness.Draw");
+  const sheatheLabel = labels.sheathe ?? game.i18n.localize("TENEBRE.WeaponReadiness.Sheathe");
+  const sheatheAllLabel = labels.sheatheAll ?? game.i18n.localize("TENEBRE.WeaponReadiness.SheatheAll");
+  const options = Array.from(weapons ?? []).map((weapon) => {
+    const drawn = isDrawn(weapon);
+    const actionLabel = drawn ? sheatheLabel : drawLabel;
+    return `
+      <button
+        type="button"
+        class="tenebre-weapon-readiness-option"
+        data-weapon-id="${escapeHtml(weapon.id)}"
+        data-drawn="${drawn ? "true" : "false"}"
+        aria-pressed="${drawn ? "true" : "false"}"
+        title="${escapeHtml(`${actionLabel}: ${weapon.name}`)}"
+      >
+        <span class="tenebre-weapon-readiness-check" aria-hidden="true"></span>
+        <img src="${escapeHtml(weapon.img)}" alt="">
+        <span>${escapeHtml(weapon.name)}</span>
+      </button>
+    `;
+  }).join("");
+
+  return `
+    <div class="tenebre-weapon-readiness-list">${options}</div>
+    <button type="button" class="tenebre-weapon-readiness-sheathe-all" data-action="sheathe-all">
+      ${escapeHtml(sheatheAllLabel)}
+    </button>
+  `;
 }
 
 export function canAttackWithWeapon(item) {
@@ -297,6 +312,53 @@ function canManageActor(actor) {
   if (actor.isOwner || game.user?.isGM) return true;
   ui.notifications.warn(game.i18n.localize("TENEBRE.WeaponReadiness.NoPermission"));
   return false;
+}
+
+function bindWeaponReadinessDialog(element, actor) {
+  const content = element?.querySelector?.(".tenebre-weapon-readiness-dialog");
+  if (!content || content.dataset.bound === "true") return;
+  content.dataset.bound = "true";
+  syncWeaponReadinessDialog(content, actor);
+
+  content.addEventListener("click", async (event) => {
+    const button = event.target?.closest?.(
+      ".tenebre-weapon-readiness-option, .tenebre-weapon-readiness-sheathe-all"
+    );
+    if (!button || button.disabled) return;
+
+    setWeaponReadinessDialogBusy(content, true);
+    try {
+      if (button.matches(".tenebre-weapon-readiness-sheathe-all")) {
+        await WeaponReadinessService.setDrawnWeapons(actor, []);
+      } else {
+        const weapon = resolveWeaponItem(actor, { id: button.dataset.weaponId });
+        if (weapon) await WeaponReadinessService.setDrawn(weapon, !isDrawn(weapon));
+      }
+    } finally {
+      setWeaponReadinessDialogBusy(content, false);
+      syncWeaponReadinessDialog(content, actor);
+    }
+  });
+}
+
+function syncWeaponReadinessDialog(content, actor) {
+  for (const button of content.querySelectorAll(".tenebre-weapon-readiness-option")) {
+    const weapon = resolveWeaponItem(actor, { id: button.dataset.weaponId });
+    const drawn = Boolean(weapon && isDrawn(weapon));
+    const actionKey = drawn
+      ? "TENEBRE.WeaponReadiness.Sheathe"
+      : "TENEBRE.WeaponReadiness.Draw";
+    button.dataset.drawn = drawn ? "true" : "false";
+    button.setAttribute("aria-pressed", drawn ? "true" : "false");
+    button.title = `${game.i18n.localize(actionKey)}: ${weapon?.name ?? ""}`;
+  }
+  const sheatheAll = content.querySelector(".tenebre-weapon-readiness-sheathe-all");
+  if (sheatheAll) sheatheAll.disabled = WeaponReadinessService.getDrawnWeapons(actor).length === 0;
+}
+
+function setWeaponReadinessDialogBusy(content, busy) {
+  content.dataset.busy = busy ? "true" : "false";
+  for (const button of content.querySelectorAll("button")) button.disabled = busy;
 }
 
 function clearReadinessWhenWeaponBecomesInactive(item, changes) {

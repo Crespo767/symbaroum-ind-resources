@@ -56,5 +56,14 @@ assert.match(storedItem, /tenebre-container-name-open/, "Stored item names must 
 assert.match(storedItem, /item\.sheet\?\.render\(true\)/, "Stored item names must open View/Edit");
 assert.match(storedItem, /img\.addEventListener\("keydown"/, "Stored item images must remain keyboard accessible");
 assert.match(storedItem, /name\.addEventListener\("keydown"/, "Stored item names must remain keyboard accessible");
+assert.match(storedItem, /ContainerService\.withdrawItem\(actor, item\)/, "Withdraw must move the full stored stack without a prompt");
+
+const storedContextMenu = source.slice(
+  source.indexOf("function bindStoredItemContextMenu"),
+  source.indexOf("function rerenderActorSheets")
+);
+assert.match(storedContextMenu, /TENEBRE\.Containers\.Split/, "Stored stacks must expose the Split context action");
+assert.match(storedContextMenu, /itemQuantity\(item\) > 1/, "Split must only be offered for divisible stacks");
+assert.match(storedContextMenu, /ContainerService\.splitItemPrompt\(actor, item\)/, "Split must use the quantity prompt");
 
 console.log("inventory icon use tests passed");

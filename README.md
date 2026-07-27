@@ -509,7 +509,8 @@ Abrir ou recolher
 
 Dentro da sublista:
 
-- **Retirar** devolve o item ao inventario principal.
+- **Retirar** devolve toda a pilha ao inventario principal.
+- **Botao direito > Dividir** permite escolher quantas unidades retirar.
 - **Ver** abre a ficha do item.
 
 ### Regras de estado
@@ -525,6 +526,10 @@ Ao guardar um item, o modulo preserva seu estado anterior e o move internamente
 para **Outro**. Ao retirar, o estado original (**Equipado** ou **Ativo**) e
 restaurado. Isso evita que um item oculto continue sendo tratado pelo sistema
 como equipado fora do fluxo do recipiente.
+
+Ao importar a Adventure do modulo, armas, armaduras, equipamentos e artefatos
+das fichas que estejam em **Outro** passam a **Equipado** antes de serem salvos.
+Itens realmente guardados em recipientes preservam seu estado interno.
 
 Desativar o gerenciamento de recipientes suspende a interface especial e a
 regra de peso dos itens guardados, sem apagar os vinculos existentes. Os itens
@@ -640,8 +645,8 @@ fisicamente sacada.
 
 ### Fluxos disponiveis
 
-- **Clique esquerdo no controle:** abre a selecao de armas sacadas e permite
-  guardar todas em uma unica operacao.
+- **Clique esquerdo no controle:** abre a lista de armas; clicar em uma delas
+  saca ou guarda imediatamente, sem botao de confirmacao.
 - **Clique direito no controle:** abre a troca rapida; escolher uma arma guarda
   a atual e saca a nova atomicamente.
 - **Menu de contexto da arma:** permite sacar ou guardar diretamente pela ficha.

@@ -187,6 +187,77 @@ test("storing and withdrawing preserve the native item state", async () => {
   assert.equal(ContainerService.isStored(item), false);
 });
 
+test("default withdrawal moves the full stack while an explicit split moves only the chosen amount", async () => {
+  const actor = createActor();
+  const container = createItem(actor, { id: "bag", name: "Mochila" });
+  const fullStack = createItem(actor, {
+    id: "full-stack",
+    name: "Corda",
+    system: { number: 5, state: "other" },
+    flags: containerFlags(container.id, container.name)
+  });
+
+  assert.equal(await ContainerService.withdrawItemPrompt(actor, fullStack), true);
+  assert.equal(fullStack.system.number, 5);
+  assert.equal(fullStack.system.state, "equipped");
+  assert.equal(ContainerService.isStored(fullStack), false);
+
+  const splitStack = createItem(actor, {
+    id: "split-stack",
+    name: "Tocha",
+    system: { number: 5, state: "other" },
+    flags: containerFlags(container.id, container.name)
+  });
+
+  assert.equal(await ContainerService.withdrawItem(actor, splitStack, 2), true);
+  assert.equal(splitStack.system.number, 3);
+  assert.equal(ContainerService.isStored(splitStack), true);
+  const withdrawn = actor.items.get("created-1");
+  assert.equal(withdrawn.system.number, 2);
+  assert.equal(withdrawn.system.state, "equipped");
+  assert.equal(ContainerService.isStored(withdrawn), false);
+});
+
+test("split prompt keeps at least one unit stored and moves the selected portion", async () => {
+  const actor = createActor();
+  const container = createItem(actor, { id: "bag", name: "Mochila" });
+  const stack = createItem(actor, {
+    id: "split-prompt",
+    name: "Tocha",
+    system: { number: 5, state: "other" },
+    flags: containerFlags(container.id, container.name)
+  });
+  const originalApplications = globalThis.foundry.applications;
+  let dialogOptions;
+
+  globalThis.foundry.applications = {
+    api: {
+      DialogV2: {
+        async prompt(options) {
+          dialogOptions = options;
+          return options.ok.callback(null, null, {
+            element: {
+              querySelector: () => ({ value: "5" })
+            }
+          });
+        }
+      }
+    }
+  };
+
+  try {
+    assert.equal(await ContainerService.splitItemPrompt(actor, stack), true);
+    assert.match(dialogOptions.content, /max="4"/);
+    assert.equal(stack.system.number, 1);
+    assert.equal(ContainerService.isStored(stack), true);
+    const withdrawn = actor.items.get("created-1");
+    assert.equal(withdrawn.system.number, 4);
+    assert.equal(ContainerService.isStored(withdrawn), false);
+  } finally {
+    globalThis.foundry.applications = originalApplications;
+  }
+});
+
 test("only equivalent stacks with the same restored state merge", async () => {
   const actor = createActor();
   const container = createItem(actor, { id: "bag", name: "Mochila" });

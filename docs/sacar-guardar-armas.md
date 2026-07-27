@@ -27,7 +27,7 @@ Esta documentacao deve ser consultada antes de qualquer alteracao em:
 
 - personagens jogadores (`Actor` do tipo `player`);
 - armas e escudos elegiveis pertencentes ao Actor;
-- dialogo completo de selecao;
+- dialogo de acoes imediatas para sacar e guardar;
 - troca rapida pelo HUD;
 - controles na ficha e no menu de contexto;
 - bloqueio de ataques com arma guardada;
@@ -194,17 +194,18 @@ testavel, nunca como condicao de texto ou CSS.
 
 ## 7. Operacoes e persistencia
 
-### 7.1 Dialogo completo
+### 7.1 Dialogo de prontidao
 
 `WeaponReadinessService.open(actor)`:
 
 1. valida configuracao, tipo do Actor e permissao;
 2. coleta todos os armamentos elegiveis;
-3. marca os atualmente `active`;
-4. permite selecionar varios ou guardar todos;
-5. calcula o uso de maos;
-6. rejeita selecao acima do limite;
-7. delega a `setDrawnWeapons`.
+3. exibe cada armamento como um botao e marca os atualmente `active`;
+4. ao clicar em uma arma, alterna imediatamente entre sacar e guardar;
+5. permite montar combinacoes de arma e escudo sem uma etapa de confirmacao;
+6. permite guardar todos imediatamente;
+7. calcula o uso de maos e rejeita a nova combinacao acima do limite;
+8. delega cada alteracao a `setDrawnWeapons`.
 
 ### 7.2 Troca atomica
 
@@ -231,7 +232,7 @@ chama `setDrawnWeapons(actor, [weapon.id])`, guardando todos os demais armamento
 sacando somente o escolhido.
 
 Consequencia: a troca rapida de um unico item nao monta combinacoes de arma e
-escudo. Para uma combinacao, deve ser usado o dialogo completo.
+escudo. Para uma combinacao, deve ser usado o dialogo de prontidao.
 
 ### 7.4 Alteracoes externas
 
@@ -323,7 +324,7 @@ A aba Equipamento mostra o estado nativo e permite o ciclo original.
 - exige Actor jogador elegivel e controlavel;
 - prioriza Token controlado e usa `game.user.character` como fallback;
 - mostra quantidade sacada/total;
-- clique esquerdo abre o dialogo completo;
+- clique esquerdo abre o dialogo de prontidao com acoes imediatas;
 - clique direito abre troca rapida;
 - pode ser arrastado apos limiar de 2 px;
 - posicao e salva por cliente em `weaponReadinessButtonPosition`;

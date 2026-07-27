@@ -586,6 +586,10 @@ export class ContainerService {
   }
 
   static async withdrawItemPrompt(actor, item) {
+    return this.withdrawItem(actor, item);
+  }
+
+  static async splitItemPrompt(actor, item) {
     if (!this.isEnabled() || !isValidOwnedActorItem(actor, item) || !this.isStored(item)) return false;
     const container = actor.items.get(this.getStoredIn(item));
     if (!this.isContainer(container) || this.isStored(container)) return false;
@@ -595,29 +599,29 @@ export class ContainerService {
     }
 
     const quantity = getStorableQuantity(item);
-    if (item.type !== "equipment" || quantity <= 1) {
-      return this.withdrawItem(actor, item, quantity);
-    }
+    if (item.type !== "equipment" || quantity <= 1) return false;
+    const maximum = quantity - 1;
 
     const content = `
       <form>
-        <p>${game.i18n.format("TENEBRE.Containers.WithdrawPrompt", { item: escapeHtml(item.name) })}</p>
+        <p>${game.i18n.format("TENEBRE.Containers.SplitPrompt", { item: escapeHtml(item.name) })}</p>
         <div class="form-group">
-          <label>${game.i18n.format("TENEBRE.Containers.QuantityWithMax", { max: quantity })}</label>
-          <input type="number" name="quantity" value="${quantity}" min="1" max="${quantity}">
+          <label>${game.i18n.format("TENEBRE.Containers.QuantityWithMax", { max: maximum })}</label>
+          <input type="number" name="quantity" value="1" min="1" max="${maximum}">
         </div>
       </form>
     `;
 
     const amount = await promptDialog({
-      title: game.i18n.localize("TENEBRE.Containers.WithdrawTitle"),
+      title: game.i18n.localize("TENEBRE.Containers.SplitTitle"),
       content,
       okIcon: "fas fa-box-open",
-      callback: (element) => Number(element.querySelector('[name="quantity"]')?.value || quantity)
+      callback: (element) => Number(element.querySelector('[name="quantity"]')?.value || 1)
     });
 
     if (amount === null) return false;
-    return this.withdrawItem(actor, item, amount);
+    const splitAmount = Math.max(1, Math.min(maximum, Math.floor(Number(amount) || 1)));
+    return this.withdrawItem(actor, item, splitAmount);
   }
 
   static async withdrawItem(actor, item, quantity = null) {

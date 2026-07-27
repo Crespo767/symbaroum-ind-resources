@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  buildWeaponReadinessDialogContent,
   buildWeaponReadinessChatContent,
   buildWeaponReadinessPatches,
   canAttackWithWeapon,
@@ -61,6 +62,35 @@ test("weapon readiness messages use the native layout and escape content", () =>
   assert.match(html, /tenebre-weapon-readiness-chat/);
   assert.match(html, /weapon\.png/);
   assert.match(html, /Crespo sacou &lt;Arco&gt;\./);
+});
+
+test("weapon readiness dialog exposes immediate weapon actions without confirmation inputs", () => {
+  const sword = {
+    id: "sword",
+    name: "Espada <Longa>",
+    img: "sword.webp",
+    system: { state: "active" }
+  };
+  const dagger = {
+    id: "dagger",
+    name: "Adaga",
+    img: "dagger.webp",
+    system: { state: WEAPON_SHEATHED_STATE }
+  };
+  const html = buildWeaponReadinessDialogContent([sword, dagger], {
+    draw: "Sacar arma",
+    sheathe: "Guardar arma",
+    sheatheAll: "Guardar todas as armas"
+  });
+
+  assert.match(html, /button[\s\S]*data-weapon-id="sword"/);
+  assert.match(html, /data-weapon-id="dagger"/);
+  assert.match(html, /data-drawn="true"/);
+  assert.match(html, /aria-pressed="true"/);
+  assert.match(html, /Guardar arma: Espada &lt;Longa&gt;/);
+  assert.match(html, /data-action="sheathe-all"/);
+  assert.doesNotMatch(html, /type="checkbox"/);
+  assert.doesNotMatch(html, /drawnWeaponIds/);
 });
 
 function weapon(id, {
