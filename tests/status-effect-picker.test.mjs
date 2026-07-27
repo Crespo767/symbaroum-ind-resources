@@ -119,12 +119,15 @@ test("settings can create the macro and expose the picker through the module API
 });
 
 test("the visual picker is searchable, namespaced and shows active state", () => {
+  const pickerCssStart = css.indexOf("/* Searchable status effect picker opened from the module macro. */");
+  const pickerCssEnd = css.indexOf("/* Compact presentation for the native Amoque", pickerCssStart);
+  const pickerCss = css.slice(pickerCssStart, pickerCssEnd);
   assert.match(source, /CONFIG\?\.statusEffects/);
   assert.match(source, /input type="search"/);
   assert.match(source, /tenebre-effect-picker-card\$\{effect\.active \? " is-active"/);
-  assert.match(css, /\.tenebre-effect-picker-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-  assert.match(css, /\.tenebre-effect-picker-card\.is-active/);
-  assert.doesNotMatch(css, /#token-hud|\.token-hud/);
+  assert.match(pickerCss, /\.tenebre-effect-picker-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(pickerCss, /\.tenebre-effect-picker-card\.is-active/);
+  assert.doesNotMatch(pickerCss, /#token-hud|\.token-hud/);
 });
 
 test("the picker window is resizable while its searchable grid owns vertical scrolling", () => {

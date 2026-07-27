@@ -3122,3 +3122,23 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   line-height: 1.25;
   text-align: center;
 }
+
+#token-hud .tenebre-ground-container-transfer {
+  padding: 0;
+  overflow: hidden;
+  cursor: grab;
+}
+
+#token-hud .tenebre-ground-container-transfer:active {
+  cursor: grabbing;
+}
+
+#token-hud .tenebre-ground-container-transfer img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  object-fit: cover;
+  pointer-events: none;
+}

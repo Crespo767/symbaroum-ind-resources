@@ -78,6 +78,53 @@ test("an item flag identifies a container already represented on the canvas", ()
   assert.equal(GroundContainerService.hasGroundToken({ flags: {} }), false);
 });
 
+test("ground container HUD drag data is a standard Item payload", () => {
+  assert.deepEqual(GroundContainerService.buildItemDragData({ uuid: "Actor.pile.Item.bag-1" }), {
+    type: "Item",
+    uuid: "Actor.pile.Item.bag-1"
+  });
+});
+
+test("an Item Piles token resolves the container item stored in its actor", () => {
+  const reference = {
+    version: groundContainerConstants.version,
+    tokenId: "token-1",
+    sceneId: "scene-1",
+    actorId: "pile-actor",
+    actorUuid: "Actor.pile-actor",
+    containerId: "bag-1",
+    previousState: "equipped"
+  };
+  const actor = {
+    id: "pile-actor",
+    uuid: "Actor.pile-actor",
+    items: createCollection()
+  };
+  const item = {
+    id: "bag-1",
+    uuid: "Actor.pile-actor.Item.bag-1",
+    name: "Mochila",
+    type: "equipment",
+    parent: actor,
+    system: { state: "other" },
+    flags: { [scope]: { containerType: "backpack", groundContainer: reference } },
+    getFlag(flagScope, key) {
+      return this.flags?.[flagScope]?.[key];
+    }
+  };
+  actor.items.set(item.id, item);
+
+  const result = GroundContainerService.findGroundContainerForToken({
+    id: "token-1",
+    actor,
+    parent: { id: "scene-1" }
+  });
+
+  assert.equal(result?.item, item);
+  assert.equal(result?.actor, actor);
+  assert.equal(result?.fallback, false);
+});
+
 function createGroundReference(overrides = {}) {
   return {
     version: groundContainerConstants.version,

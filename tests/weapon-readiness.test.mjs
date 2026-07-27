@@ -14,6 +14,7 @@ import {
   isDrawn,
   isEligibleWeapon,
   resolveWeaponItem,
+  shouldBlockDrawnWeaponDeletion,
   WEAPON_READINESS_ICON,
   WEAPON_READINESS_FLAG,
   WEAPON_READINESS_LONG_MODE_FLAG,
@@ -112,6 +113,21 @@ test("drawn state follows the native Symbaroum weapon state", () => {
   assert.equal(isDrawn(drawn), true);
   assert.equal(drawn.system.state, "active");
   assert.equal(isDrawn(sheathed), false);
+});
+
+test("drawn weapons cannot be deleted until they are sheathed", () => {
+  const enabled = { get: () => true };
+  const disabled = { get: () => false };
+  const drawn = weapon("drawn", { state: "active", readiness: "drawn" });
+  const sheathed = weapon("sheathed", { state: WEAPON_SHEATHED_STATE, readiness: "sheathed" });
+  drawn.parent = { type: "player" };
+  sheathed.parent = { type: "player" };
+
+  assert.equal(shouldBlockDrawnWeaponDeletion(drawn, enabled), true);
+  assert.equal(shouldBlockDrawnWeaponDeletion(sheathed, enabled), false);
+  assert.equal(shouldBlockDrawnWeaponDeletion(drawn, disabled), false);
+  assert.equal(shouldBlockDrawnWeaponDeletion(weapon("natural", { reference: "unarmed" }), enabled), false);
+  assert.equal(shouldBlockDrawnWeaponDeletion(weapon("world-item"), enabled), false);
 });
 
 test("readiness patches move weapons between native active and equipment states", () => {

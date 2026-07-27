@@ -14,6 +14,7 @@ const actorUpdates = new Map();
 export const WeaponReadinessService = {
   registerHooks() {
     Hooks.on("preUpdateItem", clearReadinessWhenWeaponBecomesInactive);
+    Hooks.on("preDeleteItem", preventDrawnWeaponDeletion);
   },
 
   isEnabled() {
@@ -118,6 +119,18 @@ export function canAttackWithWeapon(item) {
   if (item?.type !== "weapon") return true;
   if (String(item.system?.reference ?? "").toLowerCase() === "unarmed") return true;
   return isEligibleWeapon(item) && isDrawn(item);
+}
+
+export function shouldBlockDrawnWeaponDeletion(item, settings = game.settings) {
+  let enabled = false;
+  try {
+    enabled = Boolean(settings?.get?.(MODULE_ID, "enableWeaponReadiness"));
+  } catch {
+    return false;
+  }
+  const actorType = String(item?.parent?.type ?? "").toLowerCase();
+  const belongsToPlayerActor = actorType === "player" || actorType === "character";
+  return enabled && belongsToPlayerActor && isEligibleWeapon(item) && isDrawn(item);
 }
 
 /** Return the number of hands represented by the system weapon mode. */
@@ -308,6 +321,14 @@ function clearReadinessWhenWeaponBecomesInactive(item, changes) {
 
   if (!isDrawn(item) || !leavingDrawn) return;
   foundry.utils.setProperty(changes, `flags.${FLAG_SCOPE}.${WEAPON_READINESS_FLAG}`, "sheathed");
+}
+
+function preventDrawnWeaponDeletion(item) {
+  if (!shouldBlockDrawnWeaponDeletion(item)) return true;
+  ui.notifications.warn(game.i18n.format("TENEBRE.WeaponReadiness.DeleteBlocked", {
+    weapon: item.name
+  }));
+  return false;
 }
 
 function isLongWeapon(item) {

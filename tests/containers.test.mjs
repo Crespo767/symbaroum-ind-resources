@@ -318,7 +318,7 @@ test("expanded state is client-scoped and a nonempty container cannot be deplete
   assert.equal(hookHandlers.get("preUpdateItem")(container, { "system.number": 0 }, {}, game.user.id), false);
   assert.equal(hookHandlers.get("preUpdateItem")(container, { system: { number: 0 } }, {}, game.user.id), false);
   assert.equal(hookHandlers.get("preUpdateItem")(container, { "system.number": 1 }, {}, game.user.id), true);
-  assert.equal(hookHandlers.get("preDeleteItem")(container, {}, game.user.id), false);
+  assert.equal(hookHandlers.has("preDeleteItem"), false);
 });
 
 test("camping equipment with existing contents is marked seeded without duplicating items", async () => {
@@ -389,10 +389,10 @@ test("finite capacity blocks a new slot but allows a compatible equipment merge"
   assert.equal(await ContainerService.storeItem(actor, blocked, backpack), false);
 });
 
-test("explicit container deletion can preserve contents while ordinary deletion stays blocked", () => {
+test("ordinary container deletion restores contents while transfer deletion preserves them", async () => {
   const actor = createActor();
   const backpack = createItem(actor, { id: "preserve", name: "Mochila" });
-  createItem(actor, {
+  const storedItem = createItem(actor, {
     id: "stored-preserve",
     name: "Corda",
     system: { state: "other" },
@@ -400,8 +400,13 @@ test("explicit container deletion can preserve contents while ordinary deletion 
   });
 
   ContainerService.registerHooks();
-  const handler = hookHandlers.get("preDeleteItem");
-  assert.equal(handler(backpack, {}, game.user.id), false);
-  assert.equal(handler(backpack, { [scope]: { preserveContents: true } }, game.user.id), true);
+  assert.equal(hookHandlers.has("preDeleteItem"), false);
   assert.equal(ContainerService.canPreserveContentsOnDelete(backpack, { [scope]: { preserveContents: true } }), true);
+
+  actor.items.delete(backpack.id);
+  hookHandlers.get("deleteItem")(backpack, {}, game.user.id);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(ContainerService.isStored(storedItem), false);
+  assert.equal(storedItem.system.state, "equipped");
 });

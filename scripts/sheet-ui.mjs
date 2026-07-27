@@ -956,9 +956,16 @@ function wireContainerDragDrop(app, html, actor) {
 function prepareContainerDraggables(el, actor) {
   for (const row of el.querySelectorAll(".item[data-item-id]")) {
     const item = actor.items.get(row.dataset.itemId);
-    const canDragContainer = ContainerService.isContainer(item)
+    const isContainer = ContainerService.isContainer(item);
+    const canDragContainer = isContainer
       && !ContainerService.isStored(item)
+      && ContainerService.isAccessible(item)
       && !GroundContainerService.hasGroundToken(item);
+    if (isContainer && !canDragContainer) {
+      row.draggable = false;
+      row.classList.remove("tenebre-container-draggable");
+      continue;
+    }
     if (!canDragContainer && !ContainerService.canAttemptStoreItem(item)) continue;
     row.draggable = true;
     row.classList.add("tenebre-container-draggable");
@@ -977,9 +984,10 @@ function getContainerDragStartData(event, root, actor) {
   if (!itemRow || !root.contains(itemRow)) return null;
   const item = actor.items.get(itemRow.dataset.itemId);
   if (ContainerService.isContainer(item) && !ContainerService.isStored(item)
-    && !GroundContainerService.hasGroundToken(item)) {
+    && ContainerService.isAccessible(item) && !GroundContainerService.hasGroundToken(item)) {
     return GroundContainerService.buildDragData(actor, item);
   }
+  if (ContainerService.isContainer(item)) return null;
   if (!ContainerService.canAttemptStoreItem(item)) return null;
   return { actorId: actor.id, actorUuid: actor.uuid, itemId: item.id, source: "inventory" };
 }

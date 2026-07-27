@@ -45,6 +45,15 @@
           "verified": "1.13.2.0"
         },
         "reason": "Melhora a compatibilidade quando outros módulos também modificam diálogos, fichas, rolagens, menus ou tokens."
+      },
+      {
+        "id": "item-piles-symbaroum",
+        "type": "module",
+        "compatibility": {
+          "minimum": "1.1.0",
+          "verified": "1.1.0"
+        },
+        "reason": "Permite mover recipientes completos entre fichas e pilhas no canvas preservando seus conteúdos. Não deve ser ativado junto com o Item Piles genérico."
       }
     ]
   },

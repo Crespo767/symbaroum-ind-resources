@@ -6,6 +6,8 @@ const ACCESSIBLE_STATES = new Set(["equipped", "active"]);
 const CAMPING_CONTENTS_SEEDED_FLAG = "campingContentsSeeded";
 const CONTAINER_EXPANSION_SETTING = "containerExpansionState";
 const CONTAINER_CAPACITY_FLAG = "containerCapacity";
+const TRANSFER_DELETE_FLAG = "containerTransferDelete";
+const TRANSFER_DELETE_TTL_MS = 60000;
 const STORED_ITEM_STATE = "other";
 let hooksRegistered = false;
 const sessionExpansionState = new Map();
@@ -120,12 +122,6 @@ export class ContainerService {
     if (hooksRegistered) return;
     hooksRegistered = true;
 
-    Hooks.on("preDeleteItem", (item, options, userId) => {
-      if (userId !== game.user?.id) return true;
-      if (this.canPreserveContentsOnDelete(item, options)) return true;
-      return this.canDeleteItem(item);
-    });
-
     Hooks.on("preUpdateItem", (item, changes, options, userId) => {
       if (userId !== game.user?.id) return true;
       if (!this.isContainer(item) || !this.getStoredItems(item.parent, item).length) return true;
@@ -166,6 +162,10 @@ export class ContainerService {
 
   static isStored(item) {
     return Boolean(this.getStoredIn(item));
+  }
+
+  static isAccessible(item) {
+    return isAccessibleState(item);
   }
 
   static getStoredIn(item) {
@@ -292,21 +292,10 @@ export class ContainerService {
     return actorItems(actor).filter((item) => this.getStoredIn(item) === container.id);
   }
 
-  static canDeleteItem(item) {
-    if (!item || !this.isContainer(item)) return true;
-    const storedItems = this.getStoredItems(item.parent, item);
-    if (!storedItems.length) return true;
-
-    ui.notifications.warn(game.i18n.format("TENEBRE.Containers.CannotDeleteNotEmpty", {
-      container: item.name,
-      count: storedItems.length
-    }));
-    return false;
-  }
-
   static canPreserveContentsOnDelete(item, options = {}) {
     const transferKey = itemTransferDeleteKey(item);
     if (transferKey && transferDeleteAllowlist.has(transferKey)) return true;
+    if (this.isTransferredDeleteAuthorized(item)) return true;
     return Boolean(
       options?.[MODULE_ID]?.preserveContents === true
       && item
@@ -321,6 +310,44 @@ export class ContainerService {
     transferDeleteAllowlist.add(key);
     const cleanupTimer = setTimeout(() => transferDeleteAllowlist.delete(key), 30000);
     cleanupTimer?.unref?.();
+    return true;
+  }
+
+  static isTransferredDeleteAuthorized(item, transferId = null) {
+    if (!item) return false;
+    const authorization = item.getFlag?.(FLAG_SCOPE, TRANSFER_DELETE_FLAG)
+      ?? item.flags?.[FLAG_SCOPE]?.[TRANSFER_DELETE_FLAG];
+    if (!authorization?.id || Number(authorization.expiresAt ?? 0) < Date.now()) return false;
+    return !transferId || authorization.id === transferId;
+  }
+
+  static async authorizeTransferredDeletes(actor, items, transferId) {
+    if (!actor || !transferId || !canMutateActor(actor)) return false;
+    const updates = items
+      .filter((item) => item?.id && item.parent?.id === actor.id)
+      .map((item) => ({
+        _id: item.id,
+        [`flags.${FLAG_SCOPE}.${TRANSFER_DELETE_FLAG}`]: {
+          id: transferId,
+          sourceItemId: item.id,
+          expiresAt: Date.now() + TRANSFER_DELETE_TTL_MS
+        }
+      }));
+    if (!updates.length) return true;
+    await actor.updateEmbeddedDocuments("Item", updates, { render: false });
+    return true;
+  }
+
+  static async revokeTransferredDeletes(actor, items, transferId) {
+    if (!actor || !canMutateActor(actor)) return false;
+    const updates = items
+      .filter((item) => this.isTransferredDeleteAuthorized(item, transferId))
+      .map((item) => ({
+        _id: item.id,
+        [`flags.${FLAG_SCOPE}.-=${TRANSFER_DELETE_FLAG}`]: null
+      }));
+    if (!updates.length) return true;
+    await actor.updateEmbeddedDocuments("Item", updates, { render: false });
     return true;
   }
 
@@ -473,10 +500,6 @@ export class ContainerService {
       }
     }
 
-    ui.notifications.info(game.i18n.format("TENEBRE.Containers.Stored", {
-      item: item.name,
-      container: container.name
-    }));
     return true;
   }
 

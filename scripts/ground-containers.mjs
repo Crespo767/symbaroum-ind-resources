@@ -26,6 +26,7 @@ export class GroundContainerService {
 
     Hooks.on("renderTokenHUD", (hud, html, token) => {
       this.addPickupButton(hud, html, token);
+      this.addTransferDragControl(hud, html, token);
     });
 
     Hooks.on("deleteToken", (token) => {
@@ -116,6 +117,38 @@ export class GroundContainerService {
     return Boolean(this.getItemGroundReference(item));
   }
 
+  static buildItemDragData(item) {
+    return {
+      type: "Item",
+      uuid: item?.uuid ?? ""
+    };
+  }
+
+  static findGroundContainerForToken(tokenDocument) {
+    if (!tokenDocument?.id) return null;
+
+    const tokenReference = this.getGroundReference(tokenDocument);
+    if (tokenReference) {
+      const actor = resolveActor(tokenReference);
+      const item = actor?.items?.get?.(tokenReference.containerId);
+      if (item && ContainerService.isContainer(item)) {
+        return { actor, item, reference: tokenReference, fallback: true };
+      }
+    }
+
+    const actor = tokenDocument.actor;
+    const sceneId = tokenDocument.parent?.id ?? tokenDocument.scene?.id ?? "";
+    const item = Array.from(actor?.items ?? []).find((candidate) => {
+      const reference = this.getItemGroundReference(candidate);
+      return reference?.tokenId === tokenDocument.id
+        && reference.sceneId === sceneId
+        && reference.containerId === candidate.id
+        && reference.actorUuid === actor?.uuid;
+    });
+    if (!item || !ContainerService.isContainer(item)) return null;
+    return { actor, item, reference: this.getItemGroundReference(item), fallback: false };
+  }
+
   static addPickupButton(hud, html, token) {
     const tokenDocument = token?.document ?? hud?.object?.document ?? hud?.object;
     const reference = this.getGroundReference(tokenDocument);
@@ -125,7 +158,7 @@ export class GroundContainerService {
     const scene = tokenDocument?.parent ?? hud?.object?.parent;
     if (actor?.type !== "player" || !this.canMutateGroundContainer(actor, scene)) return;
 
-    const column = html?.querySelector?.(".col.right, div.right");
+    const column = getHtmlRoot(html)?.querySelector?.(".col.right, div.right");
     if (!column || column.querySelector("[data-tenebre-ground-pickup]")) return;
 
     const button = document.createElement("button");
@@ -146,6 +179,41 @@ export class GroundContainerService {
     column.append(button);
   }
 
+  static addTransferDragControl(hud, html, token) {
+    const tokenDocument = token?.document ?? hud?.object?.document ?? hud?.object;
+    const context = this.findGroundContainerForToken(tokenDocument);
+    if (!context || !this.canDragGroundContainer(context.actor, tokenDocument)) return;
+
+    const root = getHtmlRoot(html);
+    const column = root?.querySelector?.(".col.right, div.right");
+    if (!column || column.querySelector("[data-tenebre-ground-transfer]")) return;
+
+    const control = document.createElement("div");
+    control.className = "control-icon tenebre-ground-container-transfer";
+    control.dataset.tenebreGroundTransfer = "true";
+    control.draggable = true;
+    control.title = game.i18n.localize("TENEBRE.Containers.GroundTransferDrag");
+    control.setAttribute("aria-label", control.title);
+
+    const image = document.createElement("img");
+    image.src = context.item.img || "icons/svg/item-bag.svg";
+    image.alt = context.item.name ?? "";
+    image.draggable = false;
+    control.append(image);
+
+    control.addEventListener("dragstart", (event) => {
+      const data = this.buildItemDragData(context.item);
+      if (!data.uuid || !event.dataTransfer) {
+        event.preventDefault();
+        return;
+      }
+      event.stopPropagation();
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", JSON.stringify(data));
+    });
+    column.append(control);
+  }
+
   static async dropToCanvas(canvas, data) {
     if (!this.isGroundContainerDragData(data)) return false;
     if (!ContainerService.isEnabled() || !canvas?.scene) return false;
@@ -158,6 +226,10 @@ export class GroundContainerService {
       return false;
     }
     if (!ContainerService.isContainer(container) || ContainerService.isStored(container)) return false;
+    if (!ContainerService.isAccessible(container)) {
+      notifyGroundContainer("TENEBRE.Containers.GroundDropOther");
+      return false;
+    }
     if (Number(container.system?.number ?? 0) <= 0) return false;
 
     const itemPilesResult = await ContainerTransferService.dropToItemPile(canvas, data);
@@ -448,6 +520,15 @@ export class GroundContainerService {
     }
     return Boolean(game.user?.isGM);
   }
+
+  static canDragGroundContainer(actor, tokenDocument) {
+    if (!actor || !tokenDocument) return false;
+    return Boolean(game.user?.isGM || actor.isOwner || tokenDocument.isOwner);
+  }
+}
+
+function getHtmlRoot(html) {
+  return html?.querySelector ? html : html?.[0] ?? null;
 }
 
 function referencesMatch(left, right) {
