@@ -18,6 +18,7 @@ import { RitualBrowserService, isRitualDocument } from "./ritual-browser.mjs";
 import { WeaponReadinessService } from "./weapon-readiness.mjs";
 import { GroundContainerService } from "./ground-containers.mjs";
 import { ContainerTransferService } from "./container-transfer.mjs";
+import { MoneyService } from "./money.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -503,10 +504,34 @@ function onRenderActorSheet(app, html) {
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
   injectWeaponReadinessControls(app, html, actor);
+  injectMoneyControls(app, html, actor);
   injectEncumbrancePanel(app, html, actor);
   injectManeuverPanel(app, html, actor);
   wireChatItemUseIconFallback(app, html, actor);
   wireInventoryItemIconUse(html, actor);
+}
+
+function injectMoneyControls(_app, html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  const header = el.querySelector(".gear .wrapper-right .money h1");
+  if (!header) return;
+
+  header.querySelectorAll(".tenebre-money-button").forEach((button) => button.remove());
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "tenebre-money-button";
+  button.title = game.i18n.localize("TENEBRE.Money.ButtonHint");
+  button.dataset.tooltip = game.i18n.localize("TENEBRE.Money.ButtonHint");
+  button.setAttribute("aria-label", button.title);
+  button.innerHTML = `<i class="fas fa-coins"></i>`;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void MoneyService.open(actor);
+  });
+  header.append(button);
 }
 
 function injectWeaponReadinessControls(_app, html, actor) {

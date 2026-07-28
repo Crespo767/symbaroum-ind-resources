@@ -6,8 +6,21 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const readJson = (relativePath) => JSON.parse(fs.readFileSync(path.join(root, relativePath), "utf8"));
 const moduleManifest = readJson("module.json");
+const packageManifest = readJson("package.json");
 const pt = readJson("languages/pt-BR.json");
 const en = readJson("languages/en.json");
+
+assert.equal(moduleManifest.id, "symbaroum-ind-resources");
+assert.equal(packageManifest.name, moduleManifest.id);
+assert.equal(packageManifest.version, moduleManifest.version);
+assert.equal(moduleManifest.authors.length, 2);
+assert.equal(moduleManifest.authors.every((author) => author.name && author.discord), true);
+assert.equal(moduleManifest.url, "https://github.com/Crespo767/symbaroum-ind-resources");
+assert.equal(moduleManifest.readme, "https://github.com/Crespo767/symbaroum-ind-resources#readme");
+assert.equal(moduleManifest.bugs, "https://github.com/Crespo767/symbaroum-ind-resources/issues");
+assert.equal(moduleManifest.changelog, "https://github.com/Crespo767/symbaroum-ind-resources/releases");
+assert.match(moduleManifest.manifest, /^https:\/\/raw\.githubusercontent\.com\/Crespo767\/symbaroum-ind-resources\/main\/module\.json$/);
+assert.match(moduleManifest.download, /^https:\/\/github\.com\/Crespo767\/symbaroum-ind-resources\/releases\/latest\/download\/symbaroum-ind-resources\.zip$/);
 
 for (const relativePath of [
   ...(moduleManifest.esmodules ?? []),

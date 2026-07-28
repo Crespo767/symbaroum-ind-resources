@@ -35,6 +35,7 @@ import { StatusEffectPickerService } from "./status-effect-picker.mjs";
 import { BerserkerChatService } from "./berserker-chat.mjs";
 import { ResistanceChatService } from "./resistance-chat.mjs";
 import { JournalIntegrationService } from "./journal-integration.mjs";
+import { MoneyService } from "./money.mjs";
 
 Hooks.once("init", () => {
   InventoryDefaultStateService.registerHooks();
@@ -52,6 +53,10 @@ Hooks.once("init", () => {
   HungerService.registerStatusEffect();
   ManeuverService.registerStatusEffects();
   setupBithirMod();
+});
+
+Hooks.once("setup", () => {
+  exposePublicApi();
 });
 
 Hooks.on("createItem", (item) => {
@@ -124,40 +129,7 @@ Hooks.once("ready", async () => {
   GmLogService.register();
   GmLogUiService.register();
 
-  game.tenebreResources = {
-    rations: RationService,
-    ammo: AmmoService,
-    rest: RestService,
-    hotbar: HotbarService,
-    verses: VerseService,
-    encumbrance: EncumbranceService,
-    encumbranceVisuals: EncumbranceVisualService,
-    hunger: HungerService,
-    containers: ContainerService,
-    containerTransfer: ContainerTransferService,
-    groundContainers: GroundContainerService,
-    maneuvers: ManeuverService,
-    movement: MovementService,
-    chatItemUse: ChatItemUseService,
-    rollPrivacy: RollPrivacyService,
-    ritualBrowser: RitualBrowserService,
-    weaponReadiness: WeaponReadinessService,
-    weaponReadinessHud: WeaponReadinessHudService,
-    weaponReadinessVisuals: WeaponReadinessVisualService,
-    compatibility: CompatibilityService,
-    gmLog: GmLogService,
-    inventoryCleanup: InventoryCleanupService,
-    tokenActionHud: TokenActionHudIntegration,
-    statusEffects: StatusEffectPickerService,
-    journalIntegration: JournalIntegrationService,
-    bithir: game.bithirmod,
-
-    inspectActorResources,
-    diagnostics: {
-      version: game.modules.get(MODULE_ID)?.version ?? null,
-      compatibility: CompatibilityService.refresh()
-    }
-  };
+  exposePublicApi();
 
   // Auto-atribuir slots de sobrecarga na inicialização
   if (TenebreSettings.get("enableEncumbrance")) {
@@ -213,6 +185,49 @@ Hooks.once("ready", async () => {
 
   console.log(`${MODULE_ID} | v${game.modules.get(MODULE_ID)?.version} ready.`);
 });
+
+function exposePublicApi() {
+  const api = game.tenebreResources ?? {};
+  Object.assign(api, {
+    rations: RationService,
+    ammo: AmmoService,
+    rest: RestService,
+    hotbar: HotbarService,
+    verses: VerseService,
+    encumbrance: EncumbranceService,
+    encumbranceVisuals: EncumbranceVisualService,
+    hunger: HungerService,
+    containers: ContainerService,
+    containerTransfer: ContainerTransferService,
+    groundContainers: GroundContainerService,
+    maneuvers: ManeuverService,
+    movement: MovementService,
+    chatItemUse: ChatItemUseService,
+    rollPrivacy: RollPrivacyService,
+    ritualBrowser: RitualBrowserService,
+    weaponReadiness: WeaponReadinessService,
+    weaponReadinessHud: WeaponReadinessHudService,
+    weaponReadinessVisuals: WeaponReadinessVisualService,
+    compatibility: CompatibilityService,
+    gmLog: GmLogService,
+    inventoryCleanup: InventoryCleanupService,
+    tokenActionHud: TokenActionHudIntegration,
+    statusEffects: StatusEffectPickerService,
+    money: MoneyService,
+    journalIntegration: JournalIntegrationService,
+    bithir: game.bithirmod,
+    inspectActorResources,
+    diagnostics: {
+      version: game.modules.get(MODULE_ID)?.version ?? null,
+      compatibility: CompatibilityService.refresh()
+    }
+  });
+
+  game.tenebreResources = api;
+  const module = game.modules.get(MODULE_ID);
+  if (module) module.api = api;
+  return api;
+}
 
 function inspectActorResources(actorOrId) {
   const actor = typeof actorOrId === "string"

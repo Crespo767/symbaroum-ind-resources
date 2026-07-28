@@ -12,12 +12,12 @@ Esta nota resume a leitura do modulo, do sistema Foundry `symbaroum` 6.1.6 e dos
 
 ## Referencias locais lidas
 
-- Projeto: `C:\Projetos\symbaroum-ind-resources`.
-- Foundry: `C:\Users\ruanc\OneDrive\Documentos\FoundryVTT`.
-- Sistema: `C:\Users\ruanc\OneDrive\Documentos\FoundryVTT\Data\systems\symbaroum`.
-- Livros oficiais locais: `C:\Users\ruanc\OneDrive\Documentos\Symbaroum Livros`.
-  - `C:\Users\ruanc\OneDrive\Documentos\Symbaroum Livros\Symbaroum-Livro-Basico-v4 (1) (1).txt`
-  - `C:\Users\ruanc\OneDrive\Documentos\Symbaroum Livros\Symbaroum Guia Avancado do Jogador - Kcire (2).txt`
+- O codigo do proprio modulo.
+- A instalacao local do sistema `symbaroum` 6.1.6 para Foundry VTT v13.
+- Copias locais licenciadas do Livro Basico e do Guia Avancado do Jogador.
+
+Os caminhos pessoais usados durante a pesquisa nao fazem parte do projeto
+publico. Os livros nao sao redistribuidos por este repositorio.
 
 ## Regras importantes dos livros para este modulo
 

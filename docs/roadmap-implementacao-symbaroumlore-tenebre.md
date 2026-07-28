@@ -2,8 +2,8 @@
 
 ## Objetivo
 
-Levar o conteudo dos projetos locais `C:\Projetos\Symbaroumlore` e
-`C:\Projetos\tenebre-chronicle-main` para dentro do Foundry VTT como conteudo
+Levar o conteudo dos projetos locais **Symbaroumlore** e
+**Tenebre Chronicle** para dentro do Foundry VTT como conteudo
 nativo de Journal, sem depender dos sites externos durante a mesa.
 
 O Foundry deve ser a experiencia principal para leitura, busca, edicao,

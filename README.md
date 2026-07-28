@@ -12,7 +12,7 @@ do pacote continua sendo `symbaroum-ind-resources`.
 
 O **Symbaroum Ind Resources** adiciona automacoes opcionais para mesas que querem
 controlar melhor alimentacao, fome, munição, aljavas, sobrecarga, recipientes,
-movimento, manobras e mensagens de chat.
+movimento, manobras, inventario, dinheiro, condicoes e mensagens de chat.
 
 O objetivo do modulo e manter o fluxo de jogo rapido, legivel e fiel as regras
 de Symbaroum, sem obrigar o Mestre a usar todas as funcoes ao mesmo tempo. Quase
@@ -35,6 +35,9 @@ sua explicacao detalhada:
 - [Sobrecarga e pesos por pacote](#sobrecarga)
 - [Recipientes e itens guardados](#recipientes)
 - [Documentacao tecnica de recipientes](docs/recipientes.md)
+- [Estado padrao dos itens no inventario](#estado-padrao-do-inventario)
+- [Gerenciador de dinheiro](#gerenciador-de-dinheiro)
+- [Condicoes e efeitos do token](#condicoes-e-efeitos-do-token)
 - [Limpeza automatica de itens esgotados](#limpeza-automatica-do-inventario)
 - [Regua e limites de movimento](#movimento)
 - [Sacar, guardar e trocar armas](#sacar-e-guardar-armas)
@@ -46,6 +49,7 @@ sua explicacao detalhada:
 - [Envio de itens, habilidades e rituais ao chat](#envio-de-itens-habilidades-e-rituais-ao-chat)
 - [Registro flutuante do Mestre](#registro-do-mestre)
 - [Macros, tabelas e Gerar Sombra](#macros-e-utilidades)
+- [Importador experimental de Journals](#importador-experimental-de-journals)
 - [Dice So Nice, Automated Animations e Token Action HUD](#integracoes)
 - [Compatibilidade e blindagem contra conflitos](#compatibilidade-e-blindagem)
 - [Arquivos de dados editaveis](#arquivos-de-dados-editaveis)
@@ -59,7 +63,7 @@ recursos adequados para sua mesa.
 
 | Componente | Versao |
 | --- | --- |
-| Foundry VTT | v13 |
+| Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
 | Modulo | 0.16.2 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
@@ -198,10 +202,18 @@ sempre que a API do Foundry permite.
 | Exibir botao Sacar/Guardar Armas | Mostra o controle rapido e arrastavel na interface. |
 | Exibir indicador no token | Mostra no token quando o personagem possui arma sacada. |
 | Ativar animacao ao sacar/guardar | Reproduz o feedback visual opcional durante a troca de armas. |
-| Ativar uso e envio de itens/habilidades no chat | Habilita uso manual de habilidades, poderes, rituais e itens sem acao ativa. |
 | Ativar integracao com Automated Animations | Inclui os metadados consumidos pela integracao. |
 | Exibir botao Limpar efeitos | Mostra o comando nas fichas com efeitos ativos. |
 | Ativar integracao com Token Action HUD | Adiciona as manobras ao HUD quando disponivel. |
+
+### Mensagens no Chat
+
+| Opcao | Efeito |
+| --- | --- |
+| Mensagens no Chat | Alterna entre os cards originais do sistema e a apresentacao compacta do Ind Resources. |
+| Ocultar detalhes de NPC | Na apresentacao compacta, deixa Protecao e dano efetivo de NPC visiveis somente para o Mestre. |
+| Exibir mensagens de Sacar/Guardar | Publica no chat as alteracoes de prontidao das armas. |
+| Exibir mensagens de condicoes | Publica um card descritivo ao aplicar uma condicao pela janela de efeitos. |
 
 ### Utilidades
 
@@ -212,6 +224,7 @@ sempre que a API do Foundry permite.
 | Ativar Registro do Mestre | Exibe o painel flutuante com eventos resumidos somente para usuarios GM. |
 | Remover automaticamente itens esgotados | Exclui equipamentos de Actor cuja quantidade alcance zero ou menos. |
 | Ativar macros e tabelas de utilidade | Ativa versos, inspiracao, geradores e eventos de floresta. |
+| Instalar macro Efeitos do Token | Cria ou reutiliza a macro que abre o seletor pesquisavel de condicoes para o token selecionado. |
 | Ativar Gerar Sombra | Exibe o controle Gerar Sombra nas fichas. |
 | Ocultar geracao de Sombra | Esconde o comando sem desativar as outras utilidades. |
 | Ocultar texto de Sombra | Mantem o comando, mas oculta seu texto visivel. |
@@ -428,6 +441,9 @@ Durante o descanso:
 - Testes de inanição sao resolvidos se o personagem estiver com Fome.
 - Mensagens no chat nativo informam sucesso, falha ou morte por inanição.
 
+O atalho configuravel **Ctrl+Shift+R** abre o descanso para os tokens de
+personagem selecionados pelo Mestre ou para o personagem atribuido ao jogador.
+
 ---
 
 ## Sobrecarga
@@ -440,6 +456,9 @@ O modulo implementa a regra opcional de carga baseada em **Vigoroso**.
 - Com o dom Transportador: capacidade multiplicada por 1,5.
 - Cada item acima da capacidade aplica penalidade em Defesa.
 - Acima do dobro do Vigoroso, o personagem fica imobilizado.
+- Enquanto houver sobrecarga, um efeito visual de alerta aparece no token. Ele
+  e removido automaticamente quando a carga volta ao limite ou a regra e
+  desativada.
 
 ### Estados dos itens
 
@@ -512,6 +531,22 @@ Dentro da sublista:
 - **Retirar** devolve toda a pilha ao inventario principal.
 - **Botao direito > Dividir** permite escolher quantas unidades retirar.
 - **Ver** abre a ficha do item.
+
+### Recipientes no canvas e transferencias
+
+Um recipiente acessivel pode ser arrastado da ficha para o canvas. O modulo
+cria um token que representa o recipiente no chao e conserva o vinculo com o
+item e todo o seu conteudo. No HUD desse token:
+
+- **Recolher** devolve o recipiente para a ficha e restaura seu estado anterior.
+- O controle arrastavel permite transferir o recipiente completo para outra
+  ficha compativel.
+
+O usuario precisa ser Mestre ou proprietario da ficha e tambem ter permissao
+para criar ou remover Tokens na cena. Se **Item Piles Symbaroum** estiver ativo,
+o recipiente pode ser entregue a uma pilha mantendo sua hierarquia; sem ele, o
+fluxo nativo continua disponivel entre fichas autorizadas. Transferencias sao
+integrais: um recipiente com conteudo nao e dividido no meio da operacao.
 
 ### Regras de estado
 
@@ -593,6 +628,65 @@ Depois de inicializado, esses itens aparecem dentro da sublista do recipiente.
 Para a referencia de manutencao, invariantes, flags, estados, peso, seed de
 Equipamento de Acampar e diagnostico, consulte a
 [documentacao tecnica interna de recipientes](docs/recipientes.md).
+
+---
+
+<a id="estado-padrao-do-inventario"></a>
+## Estado padrao do inventario
+
+Itens novos ou importados para uma ficha de personagem passam a **Equipado**
+quando o sistema os cria em **Outro** sem uma razao de armazenamento. Assim, o
+item entra no inventario carregado pelo personagem e participa normalmente das
+regras de peso.
+
+- Itens guardados em recipientes continuam em **Outro** internamente.
+- Estados **Ativo** e estados ja definidos nao sao substituidos.
+- A Adventure do modulo normaliza os equipamentos das fichas importadas.
+- O ajuste usa atualizacoes dos Documents e nao altera diretamente compendios.
+
+Ao retirar um item de uma mochila, a pilha inteira volta ao inventario. Para
+retirar apenas parte da quantidade, use o menu de contexto **Dividir** e informe
+quanto deve ser separado.
+
+---
+
+<a id="gerenciador-de-dinheiro"></a>
+## Gerenciador de dinheiro
+
+O botao de moedas ao lado do titulo **Dinheiro** na ficha abre uma janela para
+adicionar ou gastar moedas. O saldo e convertido automaticamente entre os tres
+valores de Symbaroum:
+
+```text
+1 Taler = 10 Xelins = 100 Ortegas
+```
+
+O jogador informa a quantidade de cada moeda e escolhe **Adicionar** ou
+**Gastar**. O resultado e normalizado de volta para Taler, Xelim e Ortega, com
+troco automatico entre as moedas. O modulo bloqueia gastos acima do saldo,
+valores negativos, numeros invalidos e totais acima do limite seguro. Somente o
+Mestre ou um proprietario da ficha pode alterar o dinheiro.
+
+---
+
+<a id="condicoes-e-efeitos-do-token"></a>
+## Condicoes e efeitos do token
+
+Em **Configurar Utilidades**, o Mestre pode instalar a macro **Efeitos do
+Token** na hotbar. Selecione exatamente um token que voce possa controlar e
+execute a macro para abrir uma janela com todas as condicoes registradas pelo
+sistema e pelos modulos ativos.
+
+A janela:
+
+- permite pesquisar por nome ou descricao;
+- possui rolagem vertical e pode ser redimensionada;
+- informa o token selecionado e quais condicoes ja estao ativas;
+- aplica ou remove a condicao com um clique;
+- usa a lista atual de `CONFIG.statusEffects`, sem manter uma copia fixa;
+- respeita a propriedade do Actor;
+- pode publicar no chat uma descricao do efeito aplicado, conforme a
+  configuracao **Exibir mensagens de condicoes**.
 
 ---
 
@@ -708,11 +802,31 @@ Quando possivel, o modulo:
 
 ## Chat nativo do Symbaroum
 
-O modulo preserva o HTML e a aparencia originais do chat do sistema Symbaroum.
-Nao existe renderer alternativo nem transformacao visual das mensagens. As
-automacoes do modulo continuam publicando pelo chat nativo e preservam Roll,
-audiencia, privacidade, criticos, resistencia, dano, efeitos, links e
-integracoes.
+Em **Configurar Mensagens no Chat**, o Mestre escolhe entre:
+
+- **Original**: conserva integralmente os cards do sistema Symbaroum.
+- **Ind Resources**: reorganiza visualmente mensagens reconhecidas, mantendo a
+  `ChatMessage`, a rolagem e a audiencia originais.
+
+Os cards compactos reconhecem:
+
+- ataques de personagem contra NPC e de NPC contra personagem;
+- retratos de atacante, arma e alvo;
+- atributo, modificador com sinal, objetivo e resultado;
+- sucesso, falha e falha critica;
+- todos os termos de dano informados pelo sistema, inclusive bonus como Amoque
+  e Robusto;
+- Protecao do NPC e dano efetivamente recebido;
+- testes de Atributo contra Atributo;
+- uso de Amoque, Imposicao de Maos, Aura Sagrada e Cascata de Enxofre;
+- nomes longos e trechos entre parenteses sem quebrar o layout.
+
+Quando **Ocultar detalhes de NPC** esta ativa, Protecao e dano efetivo ficam
+visiveis somente para o Mestre. Se o card original contiver informacao que a
+apresentacao compacta nao conseguiu representar, um indicador vermelho de
+informacao permite ao Mestre abrir o original, com as partes omitidas
+destacadas. Desativar a apresentacao compacta restaura os cards originais sem
+apagar mensagens.
 
 A documentacao tecnica do ciclo nativo esta em
 [Chat nativo do Symbaroum](docs/chat-symbaroum-nativo.md).
@@ -728,8 +842,8 @@ Crespo pode resistir ao ataque
 [Rolar resistencia]
 ```
 
-Depois que o jogador rola a resistencia, o card de ataque normal aparece logo
-abaixo com o resultado.
+Depois que o jogador rola a resistencia, o pedido e removido e o card de ataque
+normal aparece com o resultado.
 
 ### Dados 3D
 
@@ -805,19 +919,11 @@ precisa ter acesso ao ensinamento. A progressão é 1 ritual no nível Novato, m
 2 no Adepto e mais 3 no Mestre, totalizando 6. Rituais marcados como restritos
 não são escolhas livres da habilidade comum.
 
-Quando a opcao **Ativar envio de itens/habilidades para animacoes** esta ligada,
-itens e poderes que normalmente nao gerariam card podem ser enviados ao chat.
-
-Isso ajuda o **Automated Animations** a detectar:
-
-- Habilidades passivas usadas manualmente.
-- Rituais.
-- Poderes mistico.
-- Itens especiais.
-- Acoes narrativas que precisam disparar animacoes.
-
-O item enviado carrega nome, imagem, ator e dados suficientes para o modulo de
-animacao reconhecer a acao.
+O envio adicional de todos os itens e habilidades ao chat esta
+**temporariamente pausado**. O controle correspondente nao aparece nas
+configuracoes enquanto a pausa estiver ativa. As acoes que o proprio sistema
+Symbaroum ja envia ao chat continuam funcionando normalmente, inclusive os
+cards compactos reconhecidos e as integracoes que recebem seus dados.
 
 ---
 
@@ -835,6 +941,42 @@ O modulo inclui utilidades inspiradas no pacote Bithir:
 
 Quando o modulo oficial **Bithir's Symbaroum Mods** esta ativo, o Tenebre desliga
 as utilidades internas equivalentes para evitar disputa de namespace.
+
+---
+
+<a id="importador-experimental-de-journals"></a>
+## Importador experimental de Journals
+
+O checkout de desenvolvimento possui um importador de Journals acessivel apenas
+pela API. Ele valida um manifesto, apresenta um plano sem gravacao e, mediante
+comando explicito de um GM, cria ou atualiza `JournalEntry` e
+`JournalEntryPage` no mundo. O importador:
+
+- usa flags com origem e hash para evitar duplicatas;
+- preserva entradas existentes quando a atualizacao nao e autorizada;
+- separa ownership publico e privado;
+- aplica a sheet larga do Symbaroum;
+- sanitiza HTML antes de persistir;
+- consegue remover apenas arvores legadas vazias que ele reconhece.
+
+Exemplo de diagnostico sem gravacao:
+
+```js
+const api = game.modules.get("symbaroum-ind-resources").api.journalIntegration;
+const plan = await api.dryRun();
+console.table(plan.entries);
+```
+
+Importacao deliberada pelo GM:
+
+```js
+await api.importManifest({ updateExisting: false });
+```
+
+Esse recurso nao possui interface de usuario e ainda nao esta liberado para uma
+distribuicao publica: o manifesto editorial e os assets associados devem ser
+retirados ou ter autoria e direitos de redistribuicao confirmados. Faca backup
+do mundo antes de qualquer importacao em massa.
 
 ---
 
@@ -890,30 +1032,49 @@ itens ainda nao reconhecidos.
 
 ### Diagnostico
 
-No console do Foundry:
+Para integracoes, use a API do pacote:
 
 ```js
-game.tenebreResources
+game.modules.get("symbaroum-ind-resources").api
 ```
 
-Servicos principais expostos:
+O alias historico `game.tenebreResources` aponta para o mesmo objeto. A API e
+exposta durante o hook `setup`, antes da inicializacao dependente do mundo.
+
+Servicos principais expostos nos dois caminhos:
 
 - `game.tenebreResources.ammo`
+- `game.tenebreResources.chatItemUse`
+- `game.tenebreResources.compatibility`
+- `game.tenebreResources.containerTransfer`
 - `game.tenebreResources.containers`
 - `game.tenebreResources.encumbrance`
+- `game.tenebreResources.encumbranceVisuals`
+- `game.tenebreResources.gmLog`
+- `game.tenebreResources.groundContainers`
 - `game.tenebreResources.hunger`
+- `game.tenebreResources.hotbar`
+- `game.tenebreResources.inventoryCleanup`
+- `game.tenebreResources.journalIntegration`
 - `game.tenebreResources.maneuvers`
+- `game.tenebreResources.money`
 - `game.tenebreResources.movement`
 - `game.tenebreResources.rations`
 - `game.tenebreResources.rest`
 - `game.tenebreResources.rollPrivacy`
 - `game.tenebreResources.ritualBrowser`
+- `game.tenebreResources.statusEffects`
+- `game.tenebreResources.tokenActionHud`
+- `game.tenebreResources.verses`
 - `game.tenebreResources.weaponReadiness`
 - `game.tenebreResources.weaponReadinessHud`
 - `game.tenebreResources.weaponReadinessVisuals`
-- `game.tenebreResources.gmLog`
-- `game.tenebreResources.inventoryCleanup`
-- `game.tenebreResources.compatibility`
+- `game.tenebreResources.bithir`
+- `game.tenebreResources.inspectActorResources(actorOrId)`
+- `game.tenebreResources.diagnostics`
+
+Essa API e voltada a integracoes. Consumidores devem usar os metodos publicos
+dos servicos e nao alterar seu estado interno.
 
 ---
 
@@ -972,7 +1133,11 @@ Arquivos principais:
 | `scripts/encumbrance.mjs` | Calculo de sobrecarga e defesa. |
 | `scripts/encumbrance-db.mjs` | Banco de pesos e bundles. |
 | `scripts/containers.mjs` | Recipientes e itens guardados. |
+| `scripts/container-transfer.mjs` | Transferencia segura de recipientes e conteudo. |
+| `scripts/ground-containers.mjs` | Recipientes e inventarios abertos no canvas. |
 | `scripts/inventory-cleanup.mjs` | Remocao opcional de equipamentos esgotados. |
+| `scripts/inventory-default-state.mjs` | Estado inicial dos itens criados ou importados. |
+| `scripts/money.mjs` | Conversao, adicao e gasto de moedas na ficha. |
 | `scripts/maneuvers.mjs` | Manobras de combate. |
 | `scripts/movement-ruler.mjs` | Regua de movimento. |
 | `scripts/weapon-readiness.mjs` | Sacar, guardar, trocar e validar o uso de armas. |
@@ -982,6 +1147,9 @@ Arquivos principais:
 | `scripts/gm-log-ui.mjs` | Janela flutuante e controles do Registro do Mestre. |
 | `scripts/compatibility.mjs` | Blindagem contra conflitos com outros modulos. |
 | `scripts/chat-item-use.mjs` | Envio de itens/habilidades ao chat. |
+| `scripts/status-effect-picker.mjs` | Seletor pesquisavel de condicoes do token. |
+| `scripts/socket-policy.mjs` | Validacao das operacoes privilegiadas recebidas por socket. |
+| `scripts/sockets.mjs` | Registro dos handlers executados por um GM autorizado. |
 | `scripts/bithir-macros.mjs` | Utilidades e macros integradas. |
 
 ---
@@ -995,6 +1163,10 @@ Inclua:
 
 - `module.json`
 - `README.md`
+- `SECURITY.md`
+- `THIRD_PARTY_NOTICES.md`
+- a licenca principal escolhida para o modulo;
+- `licenses/`
 - `assets/`
 - `data/`
 - `languages/`
@@ -1048,14 +1220,12 @@ Depois de instalar ou atualizar:
    - Descansar.
    - Confirmar teste de inanição.
    - Remover Fome.
-9. Teste chat:
-   - Ataque.
-   - Defesa.
-   - Resistencia.
-   - Habilidade.
-   - Ritual.
-   - Manobra.
-   - Rolagem de morte.
+9. Teste chat como GM e jogador:
+   - modo Original e modo Ind Resources;
+   - ataque de personagem contra NPC e de NPC contra personagem;
+   - dano adicional, Protecao e detalhes ocultos de NPC;
+   - resistencia, habilidade, ritual, manobra e rolagem de morte;
+   - mensagem publica, privada, cega e direcionada.
 10. Abra o console e confirme que nao ha erros novos do Tenebre.
 11. Teste Sacar/Guardar Armas:
     - Clique esquerdo, troca rapida e guardar todas.
@@ -1070,31 +1240,51 @@ Depois de instalar ou atualizar:
     - Confirmar que jogadores nao recebem o botao nem o painel.
 14. Desative e reative a limpeza automatica do inventario e confirme que apenas
     equipamentos com quantidade zero ou menor sao removidos.
+15. Teste o gerenciador de dinheiro:
+    - adicionar e gastar cada moeda;
+    - conversao e troco;
+    - tentativa de gastar acima do saldo;
+    - jogador sem propriedade da ficha.
+16. Instale a macro Efeitos do Token e teste:
+    - busca, rolagem, redimensionamento e um token selecionado;
+    - aplicar e remover uma condicao;
+    - mensagem de chat ligada e desligada.
+17. Repita os fluxos principais no Foundry v13 e v14 antes de declarar uma nova
+    versao como verificada.
 
 ---
 
 ## Desenvolvimento
 
-Durante desenvolvimento, altere os arquivos no projeto:
+Clone o repositorio e execute a suite automatizada com Node.js:
 
-```text
-C:\Projetos\symbaroum-ind-resources
+```powershell
+git clone https://github.com/Crespo767/symbaroum-ind-resources.git
+Set-Location symbaroum-ind-resources
+npm run validate
 ```
 
-Para testar no Foundry, copie a versao atual para:
+O comando valida a sintaxe de todos os ES modules e executa a suite completa.
+O mesmo fluxo roda automaticamente no GitHub Actions em pushes para `main` e em
+pull requests. O projeto nao possui dependencias npm de runtime.
 
-```text
-C:\Users\heito\Documents\FoundryVTT\Data\modules\symbaroum-ind-resources
-```
-
-Se o Foundry estiver aberto, alguns arquivos podem ficar bloqueados. Feche o
-Foundry antes de sobrescrever arquivos em `Data/modules` quando necessario.
+Para o teste manual, instale a copia de desenvolvimento em
+`FoundryVTT/Data/modules/symbaroum-ind-resources`. Feche o Foundry antes de
+substituir arquivos do modulo ou do compendio. Instrucoes de seguranca e relato
+de vulnerabilidades estao em [SECURITY.md](SECURITY.md); orientacoes para
+contribuidores estao em [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
 ## Licenca e creditos
 
 Este modulo foi criado para uso com o sistema **Symbaroum** no **Foundry VTT**.
+
+Uma licenca principal ainda precisa ser escolhida e adicionada antes da
+publicacao. Os componentes adaptados e suas licencas estao registrados em
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). A verificacao editorial,
+juridica e de empacotamento esta em
+[docs/PUBLICATION-READINESS.md](docs/PUBLICATION-READINESS.md).
 
 Autores declarados no `module.json`:
 

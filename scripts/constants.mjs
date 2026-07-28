@@ -12,6 +12,25 @@ export const WEAPON_AMMO_TYPES = {
   CROSSBOW: "crossbow"
 };
 
+export const MANEUVER_EFFECTS = Object.freeze({
+  DELAYED_INITIATIVE: "tenebre-maneuver-delayed-initiative",
+  GRAPPLED: "tenebre-maneuver-grappled",
+  MAINTAINING_GRAPPLE: "tenebre-maneuver-maintaining-grapple",
+  DISARMED: "tenebre-maneuver-disarmed",
+  SHOVED: "tenebre-maneuver-shoved",
+  KNOCKED_DOWN: "tenebre-maneuver-knocked-down",
+  CHARGING: "tenebre-maneuver-charging",
+  CAREFUL_AIM: "tenebre-maneuver-careful-aim",
+  POISONED_WEAPON: "tenebre-maneuver-poisoned-weapon",
+  POISONED: "tenebre-maneuver-poisoned",
+  TAKING_INITIATIVE: "tenebre-maneuver-taking-initiative",
+  INITIATIVE_BONUS: "tenebre-maneuver-initiative-bonus",
+  KNOCKED_OUT: "tenebre-maneuver-knocked-out",
+  TOTAL_DEFENSE: "tenebre-maneuver-total-defense",
+  TOTAL_OFFENSE: "tenebre-maneuver-total-offense",
+  FREE_ATTACK_OPENING: "tenebre-maneuver-free-attack-opening"
+});
+
 export const DEFAULTS = {
   rationUses: 7,
   extraRationFoods: {

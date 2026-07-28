@@ -23,6 +23,13 @@ test("movement ruler is installed during init before tokens are drawn", () => {
   assert.doesNotMatch(movementSource, /static register\(\) \{\s*if \(!TenebreSettings\.get\("enableMovementRuler"\)\) return;/);
 });
 
+test("the public API is exposed during setup and shared with the module package", () => {
+  const setupHook = initSource.match(/Hooks\.once\("setup",[\s\S]*?\n}\);/)?.[0] ?? "";
+  assert.match(setupHook, /exposePublicApi\(\);/);
+  assert.match(initSource, /module\.api = api;/);
+  assert.match(initSource, /game\.tenebreResources = api;/);
+});
+
 test("sheet UI does not register redundant V1 inheritance render hooks", () => {
   assert.doesNotMatch(sheetSource, /ACTOR_SHEET_HOOKS|ITEM_SHEET_HOOKS/);
   assert.doesNotMatch(sheetSource, /Hooks\.on\("renderApplication"/);

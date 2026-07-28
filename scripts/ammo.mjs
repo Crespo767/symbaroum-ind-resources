@@ -2,7 +2,7 @@ import { AMMO_TYPES, FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverCapacity, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
 import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryClass, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
-import { documentSourceUuid, escapeHtml, promptDialog } from "./utils.mjs";
+import { documentSourceUuid, escapeHtml, promptDialog, sanitizeHtml } from "./utils.mjs";
 import { evaluateRoll, rollTotal, showDice3dRoll } from "./dice.mjs";
 
 export class AmmoService {
@@ -844,7 +844,7 @@ function isQuiverName(name) {
 }
 
 async function postAmmoCard(actor, ammo) {
-  const description = getAmmoDescription(ammo);
+  const description = sanitizeHtml(getAmmoDescription(ammo));
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `

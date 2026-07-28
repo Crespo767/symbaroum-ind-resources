@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Planejar a migracao de `C:\Projetos\tenebre-chronicle-main` para conteudo nativo e editavel dentro do mundo Foundry, eliminando a necessidade operacional de acessar o site externo durante a mesa.
+Planejar a migracao do projeto local **Tenebre Chronicle** para conteudo nativo e editavel dentro do mundo Foundry, eliminando a necessidade operacional de acessar o site externo durante a mesa.
 
 ## Estado atual do projeto
 

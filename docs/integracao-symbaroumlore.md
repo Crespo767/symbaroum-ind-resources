@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Planejar a conversao do projeto `C:\Projetos\Symbaroumlore` em um compendio nativo de conhecimento para Foundry VTT, sem depender do site externo para leitura.
+Planejar a conversao do projeto local **Symbaroumlore** em um compendio nativo de conhecimento para Foundry VTT, sem depender do site externo para leitura.
 
 Este documento nao autoriza redistribuicao do conteudo. Direitos sobre textos e imagens devem ser verificados antes de incluir o material em um release publico.
 

@@ -7,12 +7,18 @@ import { createRequire } from "node:module";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const defaultOutput = path.join(root, "data", "journal-import-manifest.json");
-const symbaroumloreRoot = process.env.SYMBAROUMLORE_ROOT ?? "C:\\Projetos\\Symbaroumlore";
-const tenebreRoot = process.env.TENEBRE_CHRONICLE_ROOT ?? "C:\\Projetos\\tenebre-chronicle-main";
+const symbaroumloreRoot = requireSourceRoot("SYMBAROUMLORE_ROOT");
+const tenebreRoot = requireSourceRoot("TENEBRE_CHRONICLE_ROOT");
 const requireFromSymbaroumlore = createRequire(path.join(symbaroumloreRoot, "package.json"));
 const ts = requireFromSymbaroumlore("typescript");
 
 const output = getArgValue("--out") ?? defaultOutput;
+
+function requireSourceRoot(variableName) {
+  const value = process.env[variableName]?.trim();
+  if (value) return path.resolve(value);
+  throw new Error(`Set ${variableName} to the local source project directory.`);
+}
 
 const manifest = {
   schema: 1,

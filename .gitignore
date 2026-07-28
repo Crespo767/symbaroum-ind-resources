@@ -1,0 +1,19 @@
+node_modules/
+coverage/
+dist/
+*.zip
+.env
+.env.*
+
+# Administrative files created while a LevelDB compendium is open.
+packs/**/LOCK
+packs/**/LOG
+packs/**/LOG.old
+packs/**/*.log
+packs/**/lost/
+
+# Operating system and editor metadata.
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp

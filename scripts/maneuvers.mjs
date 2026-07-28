@@ -1,26 +1,9 @@
-import { MODULE_ID } from "./constants.mjs";
+import { MANEUVER_EFFECTS, MODULE_ID } from "./constants.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs";
 import { SocketService } from "./sockets.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
-export const MANEUVER_EFFECTS = {
-  DELAYED_INITIATIVE: "tenebre-maneuver-delayed-initiative",
-  GRAPPLED: "tenebre-maneuver-grappled",
-  MAINTAINING_GRAPPLE: "tenebre-maneuver-maintaining-grapple",
-  DISARMED: "tenebre-maneuver-disarmed",
-  SHOVED: "tenebre-maneuver-shoved",
-  KNOCKED_DOWN: "tenebre-maneuver-knocked-down",
-  CHARGING: "tenebre-maneuver-charging",
-  CAREFUL_AIM: "tenebre-maneuver-careful-aim",
-  POISONED_WEAPON: "tenebre-maneuver-poisoned-weapon",
-  POISONED: "tenebre-maneuver-poisoned",
-  TAKING_INITIATIVE: "tenebre-maneuver-taking-initiative",
-  INITIATIVE_BONUS: "tenebre-maneuver-initiative-bonus",
-  KNOCKED_OUT: "tenebre-maneuver-knocked-out",
-  TOTAL_DEFENSE: "tenebre-maneuver-total-defense",
-  TOTAL_OFFENSE: "tenebre-maneuver-total-offense",
-  FREE_ATTACK_OPENING: "tenebre-maneuver-free-attack-opening"
-};
+export { MANEUVER_EFFECTS };
 
 const MANEUVER_EFFECT_IDS = new Set(Object.values(MANEUVER_EFFECTS));
 const TURN_END_EFFECTS = new Set([

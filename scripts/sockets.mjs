@@ -3,6 +3,8 @@ import {
   assertSafeBatch,
   assertSafePayload,
   isAllowedCombatantUpdate,
+  isAllowedManeuverEffectCreate,
+  isAllowedManeuverEffectUpdate,
   isAllowedToughnessUpdate,
   isModuleManeuverEffect,
   sanitizeSocketOptions
@@ -154,7 +156,7 @@ async function createEmbeddedDocumentsAsGM(parentUuid, embeddedName, data, optio
   const parent = await getDocument(parentUuid);
   const user = getRequestUser(this);
   assertSafeBatch(data, "Embedded document data");
-  authorizeEmbeddedOperation({ user, parent, embeddedName, sources: data });
+  authorizeEmbeddedOperation({ user, parent, embeddedName, operation: "create", sources: data });
   await parent.createEmbeddedDocuments(embeddedName, data, sanitizeSocketOptions(options));
   return true;
 }
@@ -165,7 +167,7 @@ async function deleteEmbeddedDocumentsAsGM(parentUuid, embeddedName, ids, option
   assertSafeBatch(ids, "Embedded document ids");
   const sources = ids.map((id) => parent.getEmbeddedDocument?.(embeddedName, id)).filter(Boolean);
   if (sources.length !== ids.length) throw new Error("One or more embedded documents were not found.");
-  authorizeEmbeddedOperation({ user, parent, embeddedName, sources });
+  authorizeEmbeddedOperation({ user, parent, embeddedName, operation: "delete", sources });
   await parent.deleteEmbeddedDocuments(embeddedName, ids, sanitizeSocketOptions(options));
   return true;
 }
@@ -199,7 +201,7 @@ async function updateCombatantAsGM(combatUuidOrId, combatantId, updates, options
   const combatant = combat?.combatants?.get?.(combatantId);
   if (!combatant) throw new Error(`Combatant not found: ${combatantId}`);
   const user = getRequestUser(this);
-  if (!user.isGM) authorizeOwnedDocument(user, combatant.actor, "update combatant");
+  authorizeOwnedDocument(user, combatant.actor, "update combatant");
   if (!isAllowedCombatantUpdate(updates)) throw new Error("Invalid combatant update payload.");
   await combatant.update(updates, sanitizeSocketOptions(options));
   return true;
@@ -228,7 +230,7 @@ async function updateEmbeddedDocumentsAsGM(parentUuid, embeddedName, updates, op
     if (!existing) throw new Error(`Embedded document not found: ${update?._id ?? "unknown"}`);
     return existing;
   });
-  authorizeEmbeddedOperation({ user, parent, embeddedName, sources });
+  authorizeEmbeddedOperation({ user, parent, embeddedName, operation: "update", sources, updates });
   await parent.updateEmbeddedDocuments(embeddedName, updates, sanitizeSocketOptions(options));
   return true;
 }
@@ -240,12 +242,19 @@ function getRequestUser(context) {
   return user;
 }
 
-function authorizeEmbeddedOperation({ user, parent, embeddedName, sources }) {
+function authorizeEmbeddedOperation({ user, parent, embeddedName, operation, sources, updates = [] }) {
   if (user.isGM || hasOwnerPermission(parent, user)) return;
   if (parent.documentName !== "Actor" || embeddedName !== "ActiveEffect" || !isTargetedActor(parent, user)) {
     throw new Error("Unauthorized embedded document operation.");
   }
-  if (!sources.every((source) => isModuleManeuverEffect(source, MODULE_ID))) {
+  const allowed = operation === "create"
+    ? sources.every((source) => isAllowedManeuverEffectCreate(source, MODULE_ID))
+    : operation === "update"
+      ? sources.every((source, index) => isAllowedManeuverEffectUpdate(updates[index], source, MODULE_ID))
+      : operation === "delete"
+        ? sources.every((source) => isModuleManeuverEffect(source, MODULE_ID))
+        : false;
+  if (!allowed) {
     throw new Error("Only module maneuver effects may be changed on a targeted actor.");
   }
 }

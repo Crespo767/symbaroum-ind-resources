@@ -8,6 +8,12 @@ export function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+export function sanitizeHtml(value) {
+  const raw = String(value ?? "");
+  const cleanHtml = globalThis.foundry?.utils?.cleanHTML;
+  return typeof cleanHtml === "function" ? cleanHtml(raw) : escapeHtml(raw);
+}
+
 export function normalize(value) {
   return String(value ?? "")
     .normalize("NFD")

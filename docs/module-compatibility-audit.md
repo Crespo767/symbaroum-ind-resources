@@ -4,8 +4,8 @@ Data da auditoria: 2026-07-02
 
 Escopo auditado:
 
-- Pasta de modulos: `C:\Users\heito\Documents\FoundryVTT\Data\modules`
-- Projeto auditado: `C:\Projetos\symbaroum-ind-resources`
+- Pasta local de modulos do Foundry VTT v13.
+- Checkout de desenvolvimento do `symbaroum-ind-resources`.
 - Mundo testado: `AAA`
 - Foundry observado no console: `Version 13 Build 350`
 - Total de modulos encontrados por `module.json`: 36

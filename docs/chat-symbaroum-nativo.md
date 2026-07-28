@@ -1,9 +1,7 @@
 # Chat nativo do Symbaroum
 
 Este documento descreve o contrato de regras e comunicacao do chat original do
-sistema Symbaroum instalado em:
-
-`C:\\Users\\heito\\Documents\\FoundryVTT\\Data\\systems\\symbaroum`
+sistema Symbaroum 6.1.6 instalado localmente para Foundry VTT v13.
 
 O objetivo e separar o que pertence ao sistema de jogo do que e apenas uma
 decisao visual do modulo `symbaroum-ind-resources`.

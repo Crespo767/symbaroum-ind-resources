@@ -1,0 +1,14 @@
+{
+  "name": "symbaroum-ind-resources",
+  "version": "0.16.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tools/run-tests.mjs",
+    "validate:syntax": "node tools/validate-syntax.mjs",
+    "validate": "npm run validate:syntax && npm test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
