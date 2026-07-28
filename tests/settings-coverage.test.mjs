@@ -22,7 +22,8 @@ const internalSettings = new Set([
   "encumbranceDiscoveredWeights",
   "weaponReadinessButtonPosition",
   "gmLogWindowPosition",
-  "containerExpansionState"
+  "containerExpansionState",
+  "enableChatItemUse"
 ]);
 
 test("every settings form field has a registered setting", () => {

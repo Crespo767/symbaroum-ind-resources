@@ -2,7 +2,7 @@
   "id": "symbaroum-ind-resources",
   "title": "Symbaroum Ind Resources",
   "description": "Mods adicionais para o sistema Symbaroum, como itens, magias, etc.",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "manifest": "https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json",
   "download": "https://github.com/Crespo7777/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip",
   "authors": [

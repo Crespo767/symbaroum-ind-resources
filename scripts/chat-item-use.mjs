@@ -5,6 +5,7 @@ import { RationService } from "./rations.mjs";
 import { escapeHtml } from "./utils.mjs";
 import { ContainerService } from "./containers.mjs";
 
+const CHAT_ITEM_USE_PAUSED = true;
 const CHAT_ITEM_TYPES = new Set([
   "ability",
   "ritual",
@@ -21,12 +22,13 @@ const CHAT_ITEM_TYPES = new Set([
 
 export class ChatItemUseService {
   static isEnabled() {
-    return TenebreSettings.get("enableChatItemUse");
+    return !CHAT_ITEM_USE_PAUSED && TenebreSettings.get("enableChatItemUse");
   }
 
   static canSend(item) {
     return Boolean(
-      item?.isOwned
+      this.isEnabled()
+      && item?.isOwned
       && item?.parent
       && !ContainerService.isContainer(item)
       && isSupportedChatItem(item)
