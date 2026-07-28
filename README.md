@@ -61,9 +61,9 @@ recursos adequados para sua mesa.
 | --- | --- |
 | Foundry VTT | v13 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.16.0 |
-| Manifest | `https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json` |
-| Download | `https://github.com/Crespo7777/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
+| Modulo | 0.16.2 |
+| Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
+| Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
 ### Dependencia obrigatoria
 
@@ -98,7 +98,7 @@ tambem alteram dialogs, fichas, rolagens, menus ou tokens.
 4. Cole o manifest:
 
 ```text
-https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json
+https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json
 ```
 
 5. Ative o modulo dentro do mundo.
