@@ -34,6 +34,7 @@ import { OpposedTestChatService } from "./opposed-test-chat.mjs";
 import { StatusEffectPickerService } from "./status-effect-picker.mjs";
 import { BerserkerChatService } from "./berserker-chat.mjs";
 import { ResistanceChatService } from "./resistance-chat.mjs";
+import { JournalIntegrationService } from "./journal-integration.mjs";
 
 Hooks.once("init", () => {
   InventoryDefaultStateService.registerHooks();
@@ -148,6 +149,7 @@ Hooks.once("ready", async () => {
     inventoryCleanup: InventoryCleanupService,
     tokenActionHud: TokenActionHudIntegration,
     statusEffects: StatusEffectPickerService,
+    journalIntegration: JournalIntegrationService,
     bithir: game.bithirmod,
 
     inspectActorResources,
