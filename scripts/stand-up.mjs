@@ -297,21 +297,25 @@ function createStandUpButtonBackground(PIXI) {
   return background;
 }
 
-function createStandUpButtonIcon(PIXI) {
-  const style = {
+export function createStandUpButtonIcon(PIXI) {
+  const baseStyle = {
     fill: 0xffffff,
     fontFamily: "Arial, sans-serif",
     fontSize: 26,
     fontWeight: "bold",
-    stroke: { color: 0x000000, width: 3 },
     dropShadow: false
   };
-  let icon;
-  try {
-    icon = new PIXI.Text({ text: "↑", style });
-  } catch {
-    icon = new PIXI.Text("↑", { ...style, stroke: 0x000000, strokeThickness: 3 });
-  }
+  const pixiMajor = Number.parseInt(String(PIXI.VERSION ?? ""), 10);
+  const icon = pixiMajor >= 8
+    ? new PIXI.Text({
+      text: "↑",
+      style: { ...baseStyle, stroke: { color: 0x000000, width: 3 } }
+    })
+    : new PIXI.Text("↑", {
+      ...baseStyle,
+      stroke: 0x000000,
+      strokeThickness: 3
+    });
   icon.anchor?.set?.(0.5);
   icon.position?.set?.(0, -1);
   return icon;

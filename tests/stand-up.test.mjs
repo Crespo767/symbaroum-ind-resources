@@ -18,6 +18,7 @@ globalThis.Hooks = {
 const {
   buildStandUpChat,
   buildStandUpActionState,
+  createStandUpButtonIcon,
   getStandUpRemainingMovementActions,
   getStandUpButtonPosition,
   resolveStandUpPortrait,
@@ -86,6 +87,25 @@ test("the floating canvas control appears only for an owned prone player or the 
 
   actor.statuses.clear();
   assert.equal(shouldShowStandUpButton(actor, { isGM: true }), false);
+});
+
+test("the floating control uses the correct PIXI Text constructor in Foundry v13 and v14", () => {
+  const calls = [];
+  class TextMock {
+    constructor(...args) {
+      calls.push(args);
+      this.anchor = { set() {} };
+      this.position = { set() {} };
+    }
+  }
+
+  createStandUpButtonIcon({ VERSION: "7.4.2", Text: TextMock });
+  assert.equal(calls[0][0], "↑");
+  assert.equal(calls[0][1].strokeThickness, 3);
+
+  createStandUpButtonIcon({ VERSION: "8.6.6", Text: TextMock });
+  assert.equal(calls[1][0].text, "↑");
+  assert.deepEqual(calls[1][0].style.stroke, { color: 0x000000, width: 3 });
 });
 
 test("the stand-up card uses the clicked token portrait and escapes its caption", () => {
