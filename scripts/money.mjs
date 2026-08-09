@@ -1,4 +1,4 @@
-import { escapeHtml, promptDialog } from "./utils.mjs";
+import { escapeHtml } from "./utils.mjs";
 
 export const MONEY_VALUES = Object.freeze({
   thaler: 100,
@@ -28,21 +28,7 @@ export class MoneyService {
       return null;
     }
 
-    const request = await promptDialog({
-      title: game.i18n.localize("TENEBRE.Money.DialogTitle"),
-      content: buildMoneyDialogContent(actor),
-      okLabel: game.i18n.localize("TENEBRE.Money.Apply"),
-      okIcon: "fas fa-coins",
-      width: 420,
-      contentClass: "tenebre-money-dialog",
-      callback: (element) => {
-        const form = element?.querySelector?.(".tenebre-money-dialog-content");
-        return {
-          delta: parseMoneyFormElement(form),
-          mode: form?.querySelector?.("input[name='mode']:checked")?.value ?? "add"
-        };
-      }
-    });
+    const request = await promptMoneyOperation(actor);
 
     if (!request) return null;
     const result = applyMoneyOperation({
@@ -145,13 +131,6 @@ export function buildMoneyDialogContent(actor, labels = defaultLabels()) {
           ${moneyBalanceItem(money.orteg, labels.orteg)}
         </div>
       </section>
-      <fieldset class="tenebre-money-operation">
-        <legend>${escapeHtml(labels.operation)}</legend>
-        <div class="tenebre-money-mode">
-          ${moneyModeOption("add", labels.add, "fas fa-plus", true)}
-          ${moneyModeOption("spend", labels.spend, "fas fa-minus")}
-        </div>
-      </fieldset>
       <div class="tenebre-money-fields">
         ${moneyInput("thaler", labels.thaler)}
         ${moneyInput("shilling", labels.shilling)}
@@ -188,23 +167,51 @@ function moneyBalanceItem(value, label) {
   `;
 }
 
-function moneyModeOption(value, label, icon, checked = false) {
-  return `
-    <label class="tenebre-money-mode-option">
-      <input type="radio" name="mode" value="${value}"${checked ? " checked" : ""}>
-      <span>
-        <i class="${icon}" aria-hidden="true"></i>
-        ${escapeHtml(label)}
-      </span>
-    </label>
-  `;
-}
-
 function parseMoneyFormElement(element) {
   return normalizeMoney({
     thaler: element?.querySelector?.("input[name='thaler']")?.value,
     shilling: element?.querySelector?.("input[name='shilling']")?.value,
     orteg: element?.querySelector?.("input[name='orteg']")?.value
+  });
+}
+
+async function promptMoneyOperation(actor) {
+  const labels = defaultLabels();
+  const content = `
+    <div class="symbaroum dialog tenebre-symbaroum-dialog tenebre-money-dialog">
+      ${buildMoneyDialogContent(actor, labels)}
+    </div>
+  `;
+  const resultFor = (dialog, mode) => ({
+    delta: parseMoneyFormElement(dialog?.element?.querySelector?.(".tenebre-money-dialog-content")),
+    mode
+  });
+
+  return foundry.applications.api.DialogV2.wait({
+    window: { title: game.i18n.localize("TENEBRE.Money.DialogTitle") },
+    position: { width: 420 },
+    content,
+    buttons: [
+      {
+        action: "add",
+        icon: "fas fa-plus",
+        label: labels.add,
+        callback: (_event, _button, dialog) => resultFor(dialog, "add")
+      },
+      {
+        action: "spend",
+        icon: "fas fa-minus",
+        label: labels.spend,
+        callback: (_event, _button, dialog) => resultFor(dialog, "spend")
+      },
+      {
+        action: "cancel",
+        icon: "fas fa-times",
+        label: game.i18n.localize("TENEBRE.Common.Cancel"),
+        callback: () => null
+      }
+    ],
+    rejectClose: false
   });
 }
 
@@ -226,7 +233,6 @@ function toNonNegativeInteger(value) {
 function defaultLabels() {
   return {
     current: game.i18n.localize("TENEBRE.Money.Current"),
-    operation: game.i18n.localize("TENEBRE.Money.Operation"),
     add: game.i18n.localize("TENEBRE.Money.Add"),
     spend: game.i18n.localize("TENEBRE.Money.Spend"),
     thaler: game.i18n.localize("TENEBRE.Money.Thaler"),
