@@ -38,6 +38,13 @@ Hooks.once("socketlib.ready", () => {
 });
 
 export class SocketService {
+  static registerHandler(name, handler) {
+    if (!name || typeof handler !== "function") throw new Error("Invalid socket handler registration.");
+    if (HANDLERS[name] && HANDLERS[name] !== handler) throw new Error(`Socket handler already registered: ${name}`);
+    HANDLERS[name] = handler;
+    if (moduleSocket) moduleSocket.register(name, handler);
+  }
+
   static get active() {
     return Boolean(moduleSocket);
   }
@@ -138,7 +145,9 @@ export class SocketService {
     const localHandler = HANDLERS[handlerName];
     if (!localHandler) throw new Error(`Unknown socket handler: ${handlerName}`);
 
-    if (globalThis.game?.user?.isGM) return localHandler(...args);
+    if (globalThis.game?.user?.isGM) {
+      return localHandler.call({ socketdata: { userId: game.user.id } }, ...args);
+    }
 
     if (!moduleSocket) {
       throw new Error(`${MODULE_ID} | socketlib is not active for this module.`);

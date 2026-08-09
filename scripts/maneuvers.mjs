@@ -229,6 +229,10 @@ const MANEUVERS = [
 ];
 
 export class ManeuverService {
+  static grantFreeAttack(actor, sourceActor = null) {
+    return grantFreeAttack(actor, sourceActor);
+  }
+
   static registerStatusEffects() {
     if (!globalThis.CONFIG?.statusEffects) return;
 

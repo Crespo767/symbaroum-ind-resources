@@ -2475,6 +2475,27 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   margin-inline: auto;
 }
 
+.tenebre-pain-threshold-prompt .foreground {
+  text-align: center;
+}
+
+.tenebre-pain-threshold-prompt .foreground > h4,
+.tenebre-pain-threshold-prompt .foreground > p {
+  margin: 6px 0;
+}
+
+.tenebre-pain-threshold-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tenebre-pain-threshold-actions button {
+  min-height: 34px;
+  white-space: normal;
+}
+
 .symbaroum.chat.combat.tenebre-npc-attack-compact {
   box-sizing: border-box;
   width: 100%;
