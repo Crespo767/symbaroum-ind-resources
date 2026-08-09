@@ -14,6 +14,7 @@ import { ChatItemUseService } from "./chat-item-use.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { isWeaponReadinessIndicatorEffect } from "./weapon-readiness-visuals.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
+import { ProneAdvantageService } from "./prone-advantage.mjs";
 import { RitualBrowserService, isRitualDocument } from "./ritual-browser.mjs";
 import { WeaponReadinessService } from "./weapon-readiness.mjs";
 import { GroundContainerService } from "./ground-containers.mjs";
@@ -1918,6 +1919,7 @@ function onRenderDialog(dialog, html, data) {
   if (isSymbaroumDialog) {
     const dialogElement = getRoot(dialog?.element) ?? el.closest?.(".window-app, .application");
     dialogElement?.classList?.add("tenebre-symbaroum-roll-dialog");
+    ProneAdvantageService.applyToDialog(el);
   }
 
   const isWeaponRoll = Boolean(el.querySelector("input[id^='weapondamage-']"));

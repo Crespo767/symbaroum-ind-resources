@@ -3437,3 +3437,13 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   object-fit: cover;
   pointer-events: none;
 }
+
+.tenebre-symbaroum-roll-dialog .tenebre-prone-advantage-notice {
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  border: 1px solid #8b5a2b;
+  background: rgb(139 90 43 / 12%);
+  color: var(--color-text-primary, #191813);
+  font-weight: 600;
+  text-align: center;
+}

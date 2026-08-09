@@ -5,6 +5,7 @@ import { ManeuverService } from "./maneuvers.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { canAttackWithWeapon, resolveWeaponItem, WeaponReadinessService } from "./weapon-readiness.mjs";
+import { ProneAdvantageService } from "./prone-advantage.mjs";
 
 let patched = false;
 
@@ -15,6 +16,8 @@ export function patchWeaponRolls() {
 
   const originalRollWeapon = ActorClass.prototype.rollWeapon;
   const wrappedRollWeapon = async function(wrapped, weapon, ...args) {
+    ProneAdvantageService.captureWeaponAttack(this, weapon);
+
     // Reset status anterior de rolagem se houver
     if (game.tenebreResources?.activeWeaponRoll) {
       console.warn("Tenebre Resources | Clearing active roll state left over from a previous hung/incomplete roll.");

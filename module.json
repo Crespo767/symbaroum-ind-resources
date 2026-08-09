@@ -2,7 +2,7 @@
   "id": "symbaroum-ind-resources",
   "title": "Symbaroum Ind Resources",
   "description": "Automações opcionais de sobrevivência, inventário, munição, combate, condições e interface para Symbaroum no Foundry VTT.",
-  "version": "0.16.7",
+  "version": "0.16.8",
   "url": "https://github.com/Crespo767/symbaroum-ind-resources",
   "manifest": "https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json",
   "download": "https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip",
