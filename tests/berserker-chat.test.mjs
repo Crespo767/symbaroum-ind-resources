@@ -37,6 +37,15 @@ test("ability card shows the attempt before the actor to ability flow", () => {
   assert.match(css, /\.tenebre-berserker-actor,[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*center;/);
 });
 
+test("ability cards preserve the GM original-message warning contract", () => {
+  assert.match(source, /import \{ appendOriginalChatPreview \} from "\.\/chat-original-preview\.mjs"/);
+  assert.match(source, /const unadaptedElements = findUnadaptedAbilityElements/);
+  assert.match(source, /appendOriginalChatPreview\(card, source, \{/);
+  assert.match(source, /hasUnadaptedContent: unadaptedElements\.length > 0/);
+  assert.match(source, /!equivalentChatText\(introText, attemptText\)/);
+  assert.match(source, /!representedChildren\.has\(child\) && hasMeaningfulContent\(child\)/);
+});
+
 test("Imposição de Mãos uses the same ability card and preserves its target and details", () => {
   assert.equal(isLayOnHandsItem({ system: { reference: "layonhands" } }), true);
   assert.equal(isLayOnHandsItem({ system: { reference: "inheritwound" } }), false);
