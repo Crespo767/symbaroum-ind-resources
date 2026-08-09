@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   MAX_MONEY_ORTEGS,
@@ -10,6 +13,9 @@ import {
   normalizeMoney,
   parseMoneyFormData
 } from "../scripts/money.mjs";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const source = fs.readFileSync(path.join(root, "scripts/money.mjs"), "utf8");
 
 globalThis.game = {
   i18n: {
@@ -80,7 +86,7 @@ test("money operations reject values above the safe integer limit", () => {
   assert.equal(result.total, MAX_MONEY_ORTEGS);
 });
 
-test("form parsing and dialog content expose the three Symbaroum coins", () => {
+test("form parsing and dialog content expose only the three Symbaroum coin inputs", () => {
   const formData = new FormData();
   formData.set("thaler", "1");
   formData.set("shilling", "12");
@@ -90,12 +96,17 @@ test("form parsing and dialog content expose the three Symbaroum coins", () => {
   assert.equal(formatMoney({ thaler: 2, shilling: 5, orteg: 1 }), "2 Taler, 5 Xelim, 1 Ortega");
 
   const html = buildMoneyDialogContent({ system: { money: { thaler: 2, shilling: 5, orteg: 1 } } });
-  assert.match(html, /name="mode" value="add"/);
-  assert.match(html, /name="mode" value="spend"/);
+  assert.doesNotMatch(html, /name="mode"/);
+  assert.doesNotMatch(html, /tenebre-money-operation|tenebre-money-mode-option/);
   assert.match(html, /name="thaler"/);
   assert.match(html, /name="shilling"/);
   assert.match(html, /name="orteg"/);
   assert.match(html, /tenebre-money-balance-values/);
-  assert.match(html, /tenebre-money-operation/);
-  assert.match(html, /tenebre-money-mode-option/);
+});
+
+test("dialog footer selects add or spend directly and keeps cancel", () => {
+  assert.match(source, /DialogV2\.wait\(\{/);
+  assert.match(source, /action: "add"[\s\S]*?resultFor\(dialog, "add"\)/);
+  assert.match(source, /action: "spend"[\s\S]*?resultFor\(dialog, "spend"\)/);
+  assert.match(source, /action: "cancel"[\s\S]*?callback: \(\) => null/);
 });
