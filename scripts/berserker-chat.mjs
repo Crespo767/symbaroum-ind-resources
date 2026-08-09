@@ -1,4 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
+import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
 
 const BERSERKER_REFERENCE = "berserker";
 const LAY_ON_HANDS_REFERENCE = "layonhands";
@@ -81,6 +82,11 @@ function enhanceBerserkerCard(root, message) {
     "{actor} tenta usar {ability}.",
     { actor: actorName, ability: item.name }
   );
+  const unadaptedElements = findUnadaptedAbilityElements(source, {
+    introText,
+    attemptText,
+    targetShown: Boolean(targetImage && targetName)
+  });
 
   const card = document.createElement("div");
   card.className = "tenebre-berserker-card";
@@ -98,11 +104,60 @@ function enhanceBerserkerCard(root, message) {
     details.append(node.cloneNode(true));
   }
   if (details.childElementCount) card.append(details);
+  appendOriginalChatPreview(card, source, {
+    hasUnadaptedContent: unadaptedElements.length > 0,
+    unadaptedElements
+  });
 
   source.hidden = true;
   root.append(card);
   root.classList.add("tenebre-berserker-compact");
   root.dataset.tenebreBerserker = "true";
+}
+
+function findUnadaptedAbilityElements(source, { introText, attemptText, targetShown }) {
+  const omitted = [];
+  const intro = source.querySelector(":scope > .introImg");
+  const introTextElement = intro?.querySelector(":scope > .introTxt");
+  const targetPortrait = intro?.querySelector(":scope > .introImg");
+  const targetLabel = intro?.querySelector(":scope > .targetText");
+
+  if (introTextElement && !equivalentChatText(introText, attemptText)) {
+    omitted.push(introTextElement);
+  }
+  if (!targetShown) {
+    if (targetPortrait) omitted.push(targetPortrait);
+    if (targetLabel) omitted.push(targetLabel);
+  }
+
+  const representedIntroChildren = new Set([
+    introTextElement,
+    targetPortrait,
+    targetLabel
+  ].filter(Boolean));
+  for (const child of intro?.children ?? []) {
+    if (!representedIntroChildren.has(child) && hasMeaningfulContent(child)) omitted.push(child);
+  }
+
+  const representedChildren = new Set([
+    intro,
+    source.querySelector(":scope > .subText"),
+    source.querySelector(":scope > img"),
+    ...source.querySelectorAll(":scope > .finalTxt")
+  ].filter(Boolean));
+  for (const child of source.children ?? []) {
+    if (!representedChildren.has(child) && hasMeaningfulContent(child)) omitted.push(child);
+  }
+  return [...new Set(omitted)];
+}
+
+function equivalentChatText(left, right) {
+  return normalize(left).replace(/[“”"'‘’.,:;!?()[\]{}]/gu, "")
+    === normalize(right).replace(/[“”"'‘’.,:;!?()[\]{}]/gu, "");
+}
+
+function hasMeaningfulContent(element) {
+  return Boolean(cleanText(element?.textContent) || element?.querySelector?.("img, button, input, a"));
 }
 
 function createAbilityFlow(actorImage, actorName, abilityImage, abilityCaption, item, targetImage, targetName) {
