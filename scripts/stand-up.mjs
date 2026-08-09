@@ -7,6 +7,8 @@ export const STAND_UP_ACTION_FLAG = "standUpAction";
 
 let registered = false;
 const pendingActors = new Set();
+const FLOATING_BUTTON_NAME = `${MODULE_ID}.stand-up-button`;
+const FLOATING_BUTTON_RADIUS = 18;
 
 export function resolveStandUpTest(quickValue, rollResult, previousRemaining = 2) {
   const target = Number(quickValue) || 0;
@@ -54,40 +56,120 @@ export function resolveStandUpPortrait(actor, tokenDocument = null) {
     ?? "icons/svg/mystery-man.svg";
 }
 
+export function shouldShowStandUpButton(actor, user = globalThis.game?.user) {
+  return actor?.type === "player"
+    && isProneActor(actor)
+    && (user?.isGM === true || actor.isOwner === true);
+}
+
+export function getStandUpButtonPosition(token) {
+  return {
+    x: (Number(token?.w) || 0) + FLOATING_BUTTON_RADIUS + 4,
+    y: (Number(token?.h) || 0) / 2
+  };
+}
+
 export class StandUpService {
   static register() {
     if (registered) return;
     registered = true;
-    Hooks.on("renderTokenHUD", (hud, html, token) => this.addHudButton(hud, html, token));
+    Hooks.on("canvasReady", () => this.queueRefreshAllButtons());
+    Hooks.on("drawToken", (token) => this.syncTokenButton(token));
+    Hooks.on("refreshToken", (token) => this.syncTokenButton(token));
+    Hooks.on("destroyToken", (token) => this.removeTokenButton(token));
+    Hooks.on("updateToken", (tokenDocument) => this.syncTokenButton(tokenDocument?.object));
+    Hooks.on("createActiveEffect", (effect) => this.queueRefreshActorButtons(effect?.parent));
+    Hooks.on("updateActiveEffect", (effect) => this.queueRefreshActorButtons(effect?.parent));
+    Hooks.on("deleteActiveEffect", (effect) => this.queueRefreshActorButtons(effect?.parent));
   }
 
-  static addHudButton(hud, html, token) {
-    const tokenDocument = token?.document ?? hud?.object?.document ?? hud?.object;
-    const actor = tokenDocument?.actor;
-    if (actor?.type !== "player" || !isProneActor(actor)) return false;
-    if (!game.user?.isGM && actor.isOwner !== true) return false;
+  static queueRefreshAllButtons() {
+    setTimeout(() => this.refreshAllButtons(), 0);
+  }
 
-    const root = htmlRoot(html);
-    const column = root?.querySelector?.(".col.right, div.right");
-    if (!column || column.querySelector("[data-tenebre-stand-up]")) return false;
+  static queueRefreshActorButtons(actor) {
+    if (!actor || !["player", "npc"].includes(actor.type)) return;
+    setTimeout(() => this.refreshActorButtons(actor), 0);
+  }
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "control-icon tenebre-stand-up-control";
-    button.dataset.tenebreStandUp = "true";
-    button.title = game.i18n.localize("TENEBRE.StandUp.HudHint");
-    button.setAttribute("aria-label", button.title);
-    button.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      button.disabled = true;
-      void this.attempt(actor, { tokenDocument }).finally(() => {
-        button.disabled = false;
-        if (!isProneActor(actor)) button.remove();
+  static refreshAllButtons() {
+    for (const token of globalThis.canvas?.tokens?.placeables ?? []) this.syncTokenButton(token);
+  }
+
+  static refreshActorButtons(actor) {
+    for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+      const tokenActor = token?.actor ?? token?.document?.actor;
+      if (tokenActor === actor || tokenActor?.uuid === actor.uuid || tokenActor?.id === actor.id) {
+        this.syncTokenButton(token);
+      }
+    }
+  }
+
+  static syncTokenButton(token) {
+    if (!token) return false;
+    const actor = token.actor ?? token.document?.actor;
+    let button = this.findTokenButton(token);
+    if (!shouldShowStandUpButton(actor)) {
+      if (button) this.removeTokenButton(token);
+      return false;
+    }
+
+    if (!button) button = this.createTokenButton(token, actor);
+    if (!button) return false;
+    const position = getStandUpButtonPosition(token);
+    button.position?.set?.(position.x, position.y);
+    return true;
+  }
+
+  static findTokenButton(token) {
+    return token?.getChildByName?.(FLOATING_BUTTON_NAME)
+      ?? token?.children?.find?.((child) => child?.name === FLOATING_BUTTON_NAME)
+      ?? null;
+  }
+
+  static createTokenButton(token, actor) {
+    const PIXI = globalThis.PIXI;
+    if (!PIXI?.Container || !PIXI?.Graphics || !PIXI?.Text || typeof token?.addChild !== "function") return null;
+
+    const button = new PIXI.Container();
+    button.name = FLOATING_BUTTON_NAME;
+    button.zIndex = 10000;
+    button.eventMode = "static";
+    button.interactive = true;
+    button.cursor = "pointer";
+    button.buttonMode = true;
+    if (PIXI.Circle) button.hitArea = new PIXI.Circle(0, 0, FLOATING_BUTTON_RADIUS);
+
+    const background = createStandUpButtonBackground(PIXI);
+    const icon = createStandUpButtonIcon(PIXI);
+    button.addChild(background, icon);
+    button.on?.("pointerover", () => { button.alpha = 1; });
+    button.on?.("pointerout", () => { button.alpha = 0.9; });
+    button.on?.("pointertap", (event) => {
+      event?.stopPropagation?.();
+      if (pendingActors.has(actor.uuid ?? actor.id)) return;
+      button.eventMode = "none";
+      button.interactive = false;
+      button.alpha = 0.55;
+      void this.attempt(actor, { tokenDocument: token.document }).finally(() => {
+        if (!button.destroyed) {
+          button.eventMode = "static";
+          button.interactive = true;
+          button.alpha = 0.9;
+        }
+        this.syncTokenButton(token);
       });
     });
-    column.append(button);
+    button.alpha = 0.9;
+    token.addChild(button);
+    return button;
+  }
+
+  static removeTokenButton(token) {
+    const button = this.findTokenButton(token);
+    if (!button) return false;
+    token.removeChild?.(button);
+    button.destroy?.({ children: true });
     return true;
   }
 
@@ -199,10 +281,40 @@ export function buildStandUpChat(actor, result, portrait = resolveStandUpPortrai
   `;
 }
 
-function htmlRoot(html) {
-  if (!html) return null;
-  if (html.querySelector) return html;
-  return html[0] ?? html.element ?? null;
+function createStandUpButtonBackground(PIXI) {
+  const background = new PIXI.Graphics();
+  if (typeof background.circle === "function" && typeof background.fill === "function") {
+    background
+      .circle(0, 0, FLOATING_BUTTON_RADIUS)
+      .fill({ color: 0x18120c, alpha: 0.96 })
+      .stroke({ color: 0xe7a52b, width: 3 });
+  } else {
+    background.lineStyle?.(3, 0xe7a52b, 1);
+    background.beginFill?.(0x18120c, 0.96);
+    background.drawCircle?.(0, 0, FLOATING_BUTTON_RADIUS);
+    background.endFill?.();
+  }
+  return background;
+}
+
+function createStandUpButtonIcon(PIXI) {
+  const style = {
+    fill: 0xffffff,
+    fontFamily: "Arial, sans-serif",
+    fontSize: 26,
+    fontWeight: "bold",
+    stroke: { color: 0x000000, width: 3 },
+    dropShadow: false
+  };
+  let icon;
+  try {
+    icon = new PIXI.Text({ text: "↑", style });
+  } catch {
+    icon = new PIXI.Text("↑", { ...style, stroke: 0x000000, strokeThickness: 3 });
+  }
+  icon.anchor?.set?.(0.5);
+  icon.position?.set?.(0, -1);
+  return icon;
 }
 
 function escapeHtml(value) {

@@ -19,8 +19,10 @@ const {
   buildStandUpChat,
   buildStandUpActionState,
   getStandUpRemainingMovementActions,
+  getStandUpButtonPosition,
   resolveStandUpPortrait,
   resolveStandUpTest,
+  shouldShowStandUpButton,
   StandUpService,
   STAND_UP_ACTION_FLAG
 } = await import("../scripts/stand-up.mjs");
@@ -62,21 +64,7 @@ test("stand-up action state applies only to the combat turn where it was recorde
   assert.equal(buildStandUpActionState(1, { started: false }), null);
 });
 
-test("the floating Token HUD control appears only for an owned prone player", () => {
-  const appended = [];
-  const column = {
-    querySelector() {
-      return null;
-    },
-    append(node) {
-      appended.push(node);
-    }
-  };
-  const root = {
-    querySelector(selector) {
-      return selector === ".col.right, div.right" ? column : null;
-    }
-  };
+test("the floating canvas control appears only for an owned prone player or the GM", () => {
   const actor = {
     id: "actor-1",
     type: "player",
@@ -88,22 +76,16 @@ test("the floating Token HUD control appears only for an owned prone player", ()
     user: { isGM: false },
     i18n: { localize: () => "Levantar-se" }
   };
-  globalThis.document = {
-    createElement() {
-      return {
-        dataset: {},
-        setAttribute() {},
-        addEventListener() {}
-      };
-    }
-  };
 
-  assert.equal(StandUpService.addHudButton({}, root, { document: { actor } }), true);
-  assert.equal(appended.length, 1);
-  assert.equal(appended[0].dataset.tenebreStandUp, "true");
+  assert.equal(shouldShowStandUpButton(actor), true);
+  assert.deepEqual(getStandUpButtonPosition({ w: 100, h: 80 }), { x: 122, y: 40 });
+
+  actor.isOwner = false;
+  assert.equal(shouldShowStandUpButton(actor), false);
+  assert.equal(shouldShowStandUpButton(actor, { isGM: true }), true);
 
   actor.statuses.clear();
-  assert.equal(StandUpService.addHudButton({}, root, { document: { actor } }), false);
+  assert.equal(shouldShowStandUpButton(actor, { isGM: true }), false);
 });
 
 test("the stand-up card uses the clicked token portrait and escapes its caption", () => {
@@ -139,12 +121,16 @@ test("stand-up integration removes prone, records the action cost and is module-
   const weapon = await readFile(new URL("../scripts/weapon-wrapper.mjs", import.meta.url), "utf8");
   const css = await readFile(new URL("../styles/symbaroum-ind-resources.css", import.meta.url), "utf8");
 
-  assert.match(source, /Hooks\.on\("renderTokenHUD"/);
+  assert.match(source, /Hooks\.on\("drawToken"/);
+  assert.match(source, /Hooks\.on\("createActiveEffect"/);
+  assert.match(source, /new PIXI\.Container\(\)/);
+  assert.match(source, /button\.on\?\.\("pointertap"/);
+  assert.doesNotMatch(source, /Hooks\.on\("renderTokenHUD"/);
   assert.match(source, /await removeProne\(actor\)/);
   assert.match(source, /SocketService\.setFlag\(actor, MODULE_ID, STAND_UP_ACTION_FLAG/);
   assert.match(movement, /getStandUpRemainingMovementActions\(actor\)/);
   assert.match(weapon, /TENEBRE\.StandUp\.NoActionsRemaining/);
-  assert.match(css, /#token-hud \.tenebre-stand-up-control/);
+  assert.doesNotMatch(css, /#token-hud \.tenebre-stand-up-control/);
   assert.match(css, /\.tenebre-stand-up-actor img\s*\{[\s\S]*?width:\s*64px;[\s\S]*?height:\s*64px;/);
   assert.doesNotMatch(css, /(^|\n)\.control-icon\s*\{/);
 });
