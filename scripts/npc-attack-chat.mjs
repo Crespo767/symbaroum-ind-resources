@@ -87,6 +87,15 @@ export function isPainStunText(value, painText = localize("COMBAT.CHAT_DAMAGE_PA
   return Boolean(text && suffix && text.endsWith(suffix));
 }
 
+export function isArmorProtectionText(
+  value,
+  template = localize("TENEBRE.NpcAttackChat.ProtectedByArmor", "{name} está protegido pela armadura.")
+) {
+  const text = normalize(value).replace(/[.!?]+$/u, "");
+  const suffix = normalize(String(template).replace(/\{name\}/giu, " ")).replace(/[.!?]+$/u, "");
+  return Boolean(text && suffix && text.endsWith(suffix));
+}
+
 export function parseDamageResult(formulaText = "", resultText = "", damageDie = "", rollTotal = null, rawDamage = null) {
   const nativeFormula = cleanText(formulaText).replace(/^(?:Dano|Damage)\s*:\s*/i, "");
   const rolledDamageMatch = nativeFormula.match(/^\s*(\d+(?:[.,]\d+)?)\s*(?=-|$)/);
@@ -257,8 +266,14 @@ function extractResolution(source, formulaContainer, damageDie) {
   const damageRollTotal = parseRollValue(damageResultNode?.querySelector(".dice-total")?.textContent);
   const damageResult = parseDamageResult(damageFormulaText, damageResultText, damageDie, damageRollTotal, rawDamage);
   const damageResultIndex = children.indexOf(damageResultNode);
+  const trailingChildren = children.slice(Math.max(0, damageResultIndex + 1));
+  const armorProtectionNode = damageResult.damage === 0
+    ? trailingChildren.find((child) => (
+      child.classList?.contains("finalTxt") && isArmorProtectionText(child.textContent)
+    )) ?? null
+    : null;
   const painStunNode = damageResult.damage !== null
-    ? children.slice(Math.max(0, damageResultIndex + 1)).find((child) => (
+    ? trailingChildren.find((child) => (
       child.classList?.contains("finalTxt") && isPainStunText(child.textContent)
     )) ?? null
     : null;
@@ -267,6 +282,7 @@ function extractResolution(source, formulaContainer, damageDie) {
     outcomeNode,
     damageFormulaNode,
     damageResultNode,
+    armorProtectionNode,
     painStunNode
   ].filter(Boolean));
   const unadaptedElements = children

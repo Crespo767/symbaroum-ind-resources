@@ -16,6 +16,7 @@ const {
   canViewNpcDamageDetails,
   extractDamageFormula,
   extractMissOutcomeSuffix,
+  isArmorProtectionText,
   isPainStunText,
   isPlayerNpcAttack,
   parseDamageResult,
@@ -150,6 +151,9 @@ test("zero effective damage reports that the NPC was protected by armor", () => 
   assert.match(source, /isPlayerAgainstNpc\(model\) && model\.damage === 0/);
   assert.match(source, /TENEBRE\.NpcAttackChat\.ProtectedByArmor/);
   assert.match(source, /\{name} está protegido pela armadura\./);
+  assert.equal(isArmorProtectionText("Humano Nascido da Mácula está protegido pela armadura."), true);
+  assert.equal(isArmorProtectionText("Humano Nascido da Mácula recebe 1 de dano."), false);
+  assert.match(source, /armorProtectionNode[\s\S]*?consumedNodes = new Set\([\s\S]*?armorProtectionNode/);
 });
 
 test("pain threshold stun is combined with the received damage message", () => {
