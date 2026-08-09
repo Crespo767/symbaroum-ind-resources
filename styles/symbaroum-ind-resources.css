@@ -3464,3 +3464,33 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 .tenebre-stand-up-card.tenebre-stand-up-failure {
   border-left: 3px solid #8b3a32;
 }
+
+.tenebre-stand-up-actor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  margin: 0 auto 7px;
+  text-align: center;
+}
+
+.tenebre-stand-up-actor img {
+  box-sizing: border-box;
+  width: 64px;
+  height: 64px;
+  margin: 0;
+  border: 2px solid #4a4038;
+  border-radius: 7px;
+  background: #17130f;
+  object-fit: cover;
+}
+
+.tenebre-stand-up-actor figcaption {
+  max-width: 100%;
+  color: #18130f;
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}

@@ -16,8 +16,10 @@ globalThis.Hooks = {
 };
 
 const {
+  buildStandUpChat,
   buildStandUpActionState,
   getStandUpRemainingMovementActions,
+  resolveStandUpPortrait,
   resolveStandUpTest,
   StandUpService,
   STAND_UP_ACTION_FLAG
@@ -104,6 +106,33 @@ test("the floating Token HUD control appears only for an owned prone player", ()
   assert.equal(StandUpService.addHudButton({}, root, { document: { actor } }), false);
 });
 
+test("the stand-up card uses the clicked token portrait and escapes its caption", () => {
+  globalThis.game = {
+    i18n: {
+      localize(key) {
+        return key;
+      }
+    }
+  };
+  const actor = { name: "Teste <Man>", img: "actor.webp" };
+  const syntheticToken = { actorLink: false, texture: { src: "token.webp" } };
+  const linkedToken = { actorLink: true, texture: { src: "ignored.webp" } };
+  const result = {
+    success: true,
+    rollResult: 1,
+    quickValue: 10
+  };
+
+  assert.equal(resolveStandUpPortrait(actor, syntheticToken), "token.webp");
+  assert.equal(resolveStandUpPortrait(actor, linkedToken), "actor.webp");
+
+  const card = buildStandUpChat(actor, result, "token.webp");
+  assert.match(card, /class="tenebre-stand-up-actor"/);
+  assert.match(card, /src="token\.webp"/);
+  assert.match(card, /<figcaption>Teste &lt;Man&gt;<\/figcaption>/);
+  assert.doesNotMatch(card, /<figcaption>Teste <Man><\/figcaption>/);
+});
+
 test("stand-up integration removes prone, records the action cost and is module-scoped", async () => {
   const source = await readFile(new URL("../scripts/stand-up.mjs", import.meta.url), "utf8");
   const movement = await readFile(new URL("../scripts/movement-ruler.mjs", import.meta.url), "utf8");
@@ -116,5 +145,6 @@ test("stand-up integration removes prone, records the action cost and is module-
   assert.match(movement, /getStandUpRemainingMovementActions\(actor\)/);
   assert.match(weapon, /TENEBRE\.StandUp\.NoActionsRemaining/);
   assert.match(css, /#token-hud \.tenebre-stand-up-control/);
+  assert.match(css, /\.tenebre-stand-up-actor img\s*\{[\s\S]*?width:\s*64px;[\s\S]*?height:\s*64px;/);
   assert.doesNotMatch(css, /(^|\n)\.control-icon\s*\{/);
 });

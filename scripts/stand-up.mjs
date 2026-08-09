@@ -45,6 +45,15 @@ export function getStandUpRemainingMovementActions(actor, combat = globalThis.ga
   return Number.isFinite(remaining) ? Math.min(1, Math.max(0, remaining)) : null;
 }
 
+export function resolveStandUpPortrait(actor, tokenDocument = null) {
+  const document = tokenDocument?.document ?? tokenDocument;
+  if (document?.actorLink) return actor?.img || "icons/svg/mystery-man.svg";
+  return document?.texture?.src
+    ?? tokenDocument?.texture?.src
+    ?? actor?.img
+    ?? "icons/svg/mystery-man.svg";
+}
+
 export class StandUpService {
   static register() {
     if (registered) return;
@@ -73,7 +82,7 @@ export class StandUpService {
       event.preventDefault();
       event.stopPropagation();
       button.disabled = true;
-      void this.attempt(actor).finally(() => {
+      void this.attempt(actor, { tokenDocument }).finally(() => {
         button.disabled = false;
         if (!isProneActor(actor)) button.remove();
       });
@@ -82,7 +91,7 @@ export class StandUpService {
     return true;
   }
 
-  static async attempt(actor) {
+  static async attempt(actor, { tokenDocument = null } = {}) {
     if (!actor || !isProneActor(actor)) return null;
     if (!game.user?.isGM && actor.isOwner !== true) {
       ui.notifications.warn(game.i18n.localize("TENEBRE.StandUp.NoPermission"));
@@ -119,7 +128,7 @@ export class StandUpService {
 
       await createChatMessageAfterDice({
         speaker: ChatMessage.getSpeaker({ actor }),
-        content: buildStandUpChat(actor, result),
+        content: buildStandUpChat(actor, result, resolveStandUpPortrait(actor, tokenDocument)),
         rolls: [roll]
       }).catch((error) => {
         console.warn(`${MODULE_ID} | Failed to publish the stand-up result.`, error);
@@ -166,7 +175,7 @@ async function removeProne(actor) {
   return true;
 }
 
-function buildStandUpChat(actor, result) {
+export function buildStandUpChat(actor, result, portrait = resolveStandUpPortrait(actor)) {
   const outcome = result.success
     ? game.i18n.localize("TENEBRE.StandUp.Success")
     : game.i18n.localize("TENEBRE.StandUp.Failure");
@@ -177,7 +186,10 @@ function buildStandUpChat(actor, result) {
   return `
     <div class="tenebre-chat-card tenebre-stand-up-card ${result.success ? "tenebre-stand-up-success" : "tenebre-stand-up-failure"}">
       <h3><i class="fas fa-arrow-up"></i> ${escapeHtml(game.i18n.localize("TENEBRE.StandUp.Title"))}</h3>
-      <p><strong>${escapeHtml(actor.name)}</strong></p>
+      <figure class="tenebre-stand-up-actor">
+        <img src="${escapeHtml(portrait)}" alt="${escapeHtml(actor.name)}" title="${escapeHtml(actor.name)}" loading="lazy">
+        <figcaption>${escapeHtml(actor.name)}</figcaption>
+      </figure>
       <ul>
         <li><strong>${escapeHtml(game.i18n.localize("TENEBRE.StandUp.QuickTest"))}:</strong> ${result.rollResult}/${result.quickValue}</li>
         <li><strong>${escapeHtml(game.i18n.localize("TENEBRE.StandUp.Result"))}:</strong> ${escapeHtml(outcome)}</li>
