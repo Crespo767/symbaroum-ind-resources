@@ -664,6 +664,7 @@
   "TENEBRE.OpposedTestChat.Success": "sucesso",
   "TENEBRE.OpposedTestChat.Failure": "falha",
   "TENEBRE.OpposedTestChat.Result": "{name} obtém {result}.",
+  "TENEBRE.AbilityChat.Attempt": "{actor} tenta usar {ability}.",
   "TENEBRE.StatusEffects.Title": "Efeitos do Token",
   "TENEBRE.StatusEffects.MacroName": "Efeitos do Token",
   "TENEBRE.StatusEffects.SelectedToken": "Token selecionado",
