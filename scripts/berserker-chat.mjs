@@ -76,16 +76,18 @@ function enhanceBerserkerCard(root, message) {
   const targetImage = backgroundImageUrl(source.querySelector(":scope > .introImg > .introImg")?.getAttribute("style"));
   const targetName = stripTargetLabel(source.querySelector(":scope > .introImg > .targetText")?.textContent);
   const { caption, modifiers } = splitAbilityCaption(abilityCaption || item.name);
+  const attemptText = format(
+    "TENEBRE.AbilityChat.Attempt",
+    "{actor} tenta usar {ability}.",
+    { actor: actorName, ability: item.name }
+  );
 
   const card = document.createElement("div");
   card.className = "tenebre-berserker-card";
-  card.append(createParticipants(actorImage, actorName, targetImage, targetName));
-
-  if (introText) {
-    card.append(createTextElement("p", "tenebre-berserker-intro", introText));
-  }
-
-  card.append(createAbilityFigure(abilityImage, caption, item));
+  card.append(
+    createTextElement("p", "tenebre-berserker-intro", attemptText || introText),
+    createAbilityFlow(actorImage, actorName, abilityImage, caption, item, targetImage, targetName)
+  );
   if (modifiers) {
     card.append(createTextElement("p", "tenebre-berserker-modifiers", modifiers));
   }
@@ -103,19 +105,30 @@ function enhanceBerserkerCard(root, message) {
   root.dataset.tenebreBerserker = "true";
 }
 
-function createParticipants(actorImage, actorName, targetImage, targetName) {
+function createAbilityFlow(actorImage, actorName, abilityImage, abilityCaption, item, targetImage, targetName) {
   const participants = document.createElement("div");
   participants.className = "tenebre-berserker-participants";
-  participants.append(createPortrait(actorImage, actorName, "tenebre-berserker-actor"));
+  participants.append(
+    createPortrait(actorImage, actorName, "tenebre-berserker-actor"),
+    createFlowArrow(),
+    createAbilityFigure(abilityImage, abilityCaption, item)
+  );
 
   if (targetImage && targetName) {
-    const arrow = document.createElement("span");
-    arrow.className = "tenebre-berserker-flow-arrow";
-    arrow.setAttribute("aria-hidden", "true");
-    arrow.textContent = "→";
-    participants.append(arrow, createPortrait(targetImage, targetName, "tenebre-berserker-target"));
+    participants.append(
+      createFlowArrow(),
+      createPortrait(targetImage, targetName, "tenebre-berserker-target")
+    );
   }
   return participants;
+}
+
+function createFlowArrow() {
+  const arrow = document.createElement("span");
+  arrow.className = "tenebre-berserker-flow-arrow";
+  arrow.setAttribute("aria-hidden", "true");
+  arrow.textContent = "→";
+  return arrow;
 }
 
 function createPortrait(src, name, className) {
@@ -155,12 +168,7 @@ function createAbilityFigure(src, captionText, item) {
 
 function findDisplayedAbility(actor, abilityCaption) {
   if (!actor || !abilityCaption) return null;
-  const items = Array.from(actor.items ?? []).filter((item) => (
-    isBerserkerItem(item)
-      || isLayOnHandsItem(item)
-      || isHolyAuraItem(item)
-      || isBrimstoneCascadeItem(item)
-  ));
+  const items = Array.from(actor.items ?? []);
   if (!items.length) return null;
 
   const displayedName = normalize(abilityCaption);
@@ -234,6 +242,12 @@ function cleanText(value) {
 function localize(key, fallback) {
   const value = globalThis.game?.i18n?.localize?.(key);
   return value && value !== key ? value : fallback;
+}
+
+function format(key, fallback, data) {
+  const value = globalThis.game?.i18n?.format?.(key, data);
+  if (value && value !== key) return value;
+  return fallback.replace(/\{(\w+)\}/g, (_match, field) => String(data[field] ?? ""));
 }
 
 function isEnabled() {

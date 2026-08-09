@@ -19,17 +19,20 @@ const {
   stripTargetLabel
 } = await import("../scripts/berserker-chat.mjs");
 
-test("only the native Berserker ability is eligible for the Amoque card", () => {
+test("native ability cards resolve the displayed owned item", () => {
   assert.equal(isBerserkerItem({ system: { reference: "berserker" } }), true);
   assert.equal(isBerserkerItem({ system: { reference: "dominate" } }), false);
   assert.equal(isBerserkerItem(null), false);
   assert.match(source, /\.symbaroum\.chat\.ability/);
+  assert.match(source, /const items = Array\.from\(actor\.items \?\? \[\]\)/);
   assert.match(source, /displayedName\.startsWith\(normalize\(item\.name\)\)/);
 });
 
-test("Amoque card centers actor and ability portraits with captions underneath", () => {
-  assert.match(source, /card\.append\(createParticipants\(actorImage, actorName, targetImage, targetName\)\)/);
-  assert.match(source, /card\.append\(createAbilityFigure\(abilityImage, caption, item\)\)/);
+test("ability card shows the attempt before the actor to ability flow", () => {
+  assert.match(source, /TENEBRE\.AbilityChat\.Attempt/);
+  assert.match(source, /createTextElement\("p", "tenebre-berserker-intro", attemptText \|\| introText\)/);
+  assert.match(source, /createAbilityFlow\(actorImage, actorName, abilityImage, caption, item, targetImage, targetName\)/);
+  assert.match(source, /createPortrait\(actorImage, actorName, "tenebre-berserker-actor"\),\s*createFlowArrow\(\),\s*createAbilityFigure\(abilityImage, abilityCaption, item\)/);
   assert.match(source, /figure\.append\(image, caption\)/);
   assert.match(css, /\.tenebre-berserker-actor,[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*center;/);
 });
@@ -41,7 +44,7 @@ test("Imposição de Mãos uses the same ability card and preserves its target a
   assert.match(source, /isLayOnHandsItem\(item\)/);
   assert.match(source, /targetImage = backgroundImageUrl/);
   assert.match(source, /targetName = stripTargetLabel/);
-  assert.match(source, /participants\.append\(arrow, createPortrait\(targetImage, targetName, "tenebre-berserker-target"\)\)/);
+  assert.match(source, /createFlowArrow\(\),\s*createPortrait\(targetImage, targetName, "tenebre-berserker-target"\)/);
   assert.match(source, /source\.querySelectorAll\(":scope > \.finalTxt"\)/);
   assert.match(css, /\.tenebre-berserker-participants\s*\{[\s\S]*?justify-content:\s*center;/);
   assert.equal(stripTargetLabel("Paciente: Argasto"), "Argasto");
