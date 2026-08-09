@@ -81,6 +81,12 @@ export function canViewNpcDamageDetails({ playerAgainstNpc, hideNpcDetails, isGM
   return !playerAgainstNpc || !hideNpcDetails || isGM;
 }
 
+export function isPainStunText(value, painText = localize("COMBAT.CHAT_DAMAGE_PAIN", "está atordoado pela dor.")) {
+  const text = normalize(value).replace(/[.!?]+$/u, "");
+  const suffix = normalize(painText).replace(/[.!?]+$/u, "");
+  return Boolean(text && suffix && text.endsWith(suffix));
+}
+
 export function parseDamageResult(formulaText = "", resultText = "", damageDie = "", rollTotal = null, rawDamage = null) {
   const nativeFormula = cleanText(formulaText).replace(/^(?:Dano|Damage)\s*:\s*/i, "");
   const rolledDamageMatch = nativeFormula.match(/^\s*(\d+(?:[.,]\d+)?)\s*(?=-|$)/);
@@ -250,7 +256,19 @@ function extractResolution(source, formulaContainer, damageDie) {
   const rawDamage = parseRollValue(damageResultNode?.querySelector(".tooltip-part .part-total")?.textContent);
   const damageRollTotal = parseRollValue(damageResultNode?.querySelector(".dice-total")?.textContent);
   const damageResult = parseDamageResult(damageFormulaText, damageResultText, damageDie, damageRollTotal, rawDamage);
-  const consumedNodes = new Set([rollNode, outcomeNode, damageFormulaNode, damageResultNode].filter(Boolean));
+  const damageResultIndex = children.indexOf(damageResultNode);
+  const painStunNode = damageResult.damage !== null
+    ? children.slice(Math.max(0, damageResultIndex + 1)).find((child) => (
+      child.classList?.contains("finalTxt") && isPainStunText(child.textContent)
+    )) ?? null
+    : null;
+  const consumedNodes = new Set([
+    rollNode,
+    outcomeNode,
+    damageFormulaNode,
+    damageResultNode,
+    painStunNode
+  ].filter(Boolean));
   const unadaptedElements = children
     .slice(Math.max(0, formulaIndex + 1))
     .filter((child) => !consumedNodes.has(child) && cleanText(child.textContent));
@@ -262,6 +280,7 @@ function extractResolution(source, formulaContainer, damageDie) {
     damageRoll: damageResult.rolledDamage,
     damage: damageResult.damage,
     protection: damageResult.protection,
+    painStunned: Boolean(painStunNode),
     hasUnadaptedContent: unadaptedElements.length > 0,
     unadaptedElements
   };
@@ -381,6 +400,12 @@ function createResolution(model) {
         ? format("TENEBRE.NpcAttackChat.ProtectedByArmor", "{name} está protegido pela armadura.", {
           name: model.target.name
         })
+        : model.painStunned
+          ? format(
+            "TENEBRE.NpcAttackChat.ReceivesDamageAndPainStun",
+            "{name} recebe {damage} de dano e está atordoado pela dor.",
+            { name: model.target.name, damage: model.damage }
+          )
         : format("TENEBRE.NpcAttackChat.ReceivesDamage", "{name} recebe {damage} de dano.", {
           name: model.target.name,
           damage: model.damage

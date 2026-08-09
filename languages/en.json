@@ -656,6 +656,7 @@
   "TENEBRE.NpcAttackChat.DefendedMiss": "{target} successfully defends; {attacker} misses the attack.",
   "TENEBRE.NpcAttackChat.ProtectedByArmor": "{name} is protected by armor.",
   "TENEBRE.NpcAttackChat.ReceivesDamage": "{name} takes {damage} damage.",
+  "TENEBRE.NpcAttackChat.ReceivesDamageAndPainStun": "{name} takes {damage} damage and is stunned by pain.",
   "TENEBRE.ChatOriginal.Show": "Show original message",
   "TENEBRE.ChatOriginal.Hide": "Hide original message",
   "TENEBRE.ChatOriginal.NotShown": "Highlighted: information not shown in the Ind Resources card.",

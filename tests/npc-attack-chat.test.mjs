@@ -16,6 +16,7 @@ const {
   canViewNpcDamageDetails,
   extractDamageFormula,
   extractMissOutcomeSuffix,
+  isPainStunText,
   isPlayerNpcAttack,
   parseDamageResult,
   parseOpposedTest,
@@ -149,6 +150,28 @@ test("zero effective damage reports that the NPC was protected by armor", () => 
   assert.match(source, /isPlayerAgainstNpc\(model\) && model\.damage === 0/);
   assert.match(source, /TENEBRE\.NpcAttackChat\.ProtectedByArmor/);
   assert.match(source, /\{name} está protegido pela armadura\./);
+});
+
+test("pain threshold stun is combined with the received damage message", () => {
+  assert.equal(
+    isPainStunText("TesteMan está atordoado pela dor.", "está atordoado pela dor."),
+    true
+  );
+  assert.equal(
+    isPainStunText("TesteMan is stunned by pain.", "is stunned by pain."),
+    true
+  );
+  assert.equal(
+    isPainStunText("TesteMan recebe 7 de dano.", "está atordoado pela dor."),
+    false
+  );
+  assert.match(source, /painStunNode[\s\S]*?consumedNodes = new Set\([\s\S]*?painStunNode/);
+  assert.match(source, /painStunned: Boolean\(painStunNode\)/);
+  assert.match(source, /TENEBRE\.NpcAttackChat\.ReceivesDamageAndPainStun/);
+  assert.equal(
+    JSON.parse(read("languages/pt-BR.json"))["TENEBRE.NpcAttackChat.ReceivesDamageAndPainStun"],
+    "{name} recebe {damage} de dano e está atordoado pela dor."
+  );
 });
 
 test("NPC protection and effective damage can be hidden from players", () => {
