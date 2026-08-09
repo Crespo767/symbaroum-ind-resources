@@ -666,6 +666,8 @@
   "TENEBRE.PainThreshold.ChoiceRecorded": "Pain Threshold choice recorded.",
   "TENEBRE.PainThreshold.ChoiceFailed": "The Pain Threshold choice could not be recorded.",
   "TENEBRE.ProneAdvantage.Notice": "{target} is prone. You gain Advantage; the option was selected automatically.",
+  "TENEBRE.Movement.ProneBlocked": "{actor} is prone and must stand up before moving.",
+  "TENEBRE.Movement.ProneReason": "Prone",
   "TENEBRE.ChatOriginal.Show": "Show original message",
   "TENEBRE.ChatOriginal.Hide": "Hide original message",
   "TENEBRE.ChatOriginal.NotShown": "Highlighted: information not shown in the Ind Resources card.",

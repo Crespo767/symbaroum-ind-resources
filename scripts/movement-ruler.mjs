@@ -28,9 +28,9 @@ let movementValidationPatched = false;
 
 export class MovementService {
   static register() {
+    this.patchMovementValidation();
     if (CompatibilityService.shouldSkipMovementRuler()) return;
     this.patchTokenRuler();
-    this.patchMovementValidation();
   }
 
   static patchTokenRuler() {
@@ -107,7 +107,6 @@ export class MovementService {
 
   static patchMovementValidation() {
     if (movementValidationPatched) return true;
-    if (CompatibilityService.shouldSkipMovementValidation()) return false;
     Hooks.on("preMoveToken", (tokenDocument, movement, operation) => {
       return MovementService.validateMovement(tokenDocument, movement, operation);
     });
@@ -116,13 +115,27 @@ export class MovementService {
   }
 
   static validateMovement(tokenDocument, movement, operation = {}) {
-    if (!TenebreSettings.get("enableMovementRuler")) return true;
-    if (!TenebreSettings.get("enableMovementBlocking")) return true;
-    if (!game.combat?.started) return true;
     if (operation?.isUndo || operation?.isPaste) return true;
 
     const actor = tokenDocument?.actor;
     if (!actor) return true;
+
+    const passed = movement?.passed?.waypoints ?? [];
+    const isForcedMovement = passed.length > 0
+      && passed.every((waypoint) => waypoint.action === "displace" || waypoint.actionConfig?.teleport);
+    if (isForcedMovement) return true;
+
+    if (hasStatus(actor, "prone")) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.Movement.ProneBlocked", {
+        actor: actor.name
+      }));
+      return false;
+    }
+
+    if (CompatibilityService.shouldSkipMovementValidation()) return true;
+    if (!TenebreSettings.get("enableMovementRuler")) return true;
+    if (!TenebreSettings.get("enableMovementBlocking")) return true;
+    if (!game.combat?.started) return true;
 
     const combatant = game.combat.combatants?.find?.((entry) => {
       if (entry.token?.id === tokenDocument.id) return true;
@@ -130,9 +143,6 @@ export class MovementService {
       return entry.actor?.id === actor.id || entry.actorId === actor.id;
     });
     if (!combatant) return true;
-
-    const passed = movement?.passed?.waypoints ?? [];
-    if (passed.every((waypoint) => waypoint.action === "displace" || waypoint.actionConfig?.teleport)) return true;
 
     const profile = this.getProfile(actor);
     const totalCost = Number(movement?.history?.cost ?? 0) + Number(movement?.passed?.cost ?? 0);
@@ -158,6 +168,11 @@ export class MovementService {
     const applyHunger = TenebreSettings.get("enableMovementHungerModifier");
     const applyEncumbrance = TenebreSettings.get("enableMovementEncumbranceModifier");
     const applyEffects = TenebreSettings.get("enableMovementEffectModifiers");
+
+    if (hasStatus(actor, "prone")) {
+      blocked = true;
+      reasons.push(game.i18n.localize("TENEBRE.Movement.ProneReason"));
+    }
 
     if (applyHunger && (hasStatus(actor, HUNGER_STATUS_ID) || hasStatus(actor, "fome"))) {
       multiplier *= 0.5;

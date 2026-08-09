@@ -666,6 +666,8 @@
   "TENEBRE.PainThreshold.ChoiceRecorded": "Escolha do Limiar de Dor registrada.",
   "TENEBRE.PainThreshold.ChoiceFailed": "Não foi possível registrar a escolha do Limiar de Dor.",
   "TENEBRE.ProneAdvantage.Notice": "{target} está caído. Você recebe Vantagem; a opção foi marcada automaticamente.",
+  "TENEBRE.Movement.ProneBlocked": "{actor} está caído e precisa se levantar antes de se mover.",
+  "TENEBRE.Movement.ProneReason": "Caído",
   "TENEBRE.ChatOriginal.Show": "Mostrar mensagem original",
   "TENEBRE.ChatOriginal.Hide": "Ocultar mensagem original",
   "TENEBRE.ChatOriginal.NotShown": "Destacado: informação não exibida no cartão do Ind Resources.",
