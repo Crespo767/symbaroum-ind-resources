@@ -7,6 +7,7 @@ export const STAND_UP_ACTION_FLAG = "standUpAction";
 
 let registered = false;
 const pendingActors = new Set();
+const floatingButtons = new WeakMap();
 const FLOATING_BUTTON_NAME = `${MODULE_ID}.stand-up-button`;
 const FLOATING_BUTTON_RADIUS = 18;
 
@@ -63,9 +64,11 @@ export function shouldShowStandUpButton(actor, user = globalThis.game?.user) {
 }
 
 export function getStandUpButtonPosition(token) {
+  const tokenX = Number(token?.document?.x ?? token?.x) || 0;
+  const tokenY = Number(token?.document?.y ?? token?.y) || 0;
   return {
-    x: (Number(token?.w) || 0) + FLOATING_BUTTON_RADIUS + 4,
-    y: (Number(token?.h) || 0) / 2
+    x: tokenX + (Number(token?.w) || 0) + FLOATING_BUTTON_RADIUS + 4,
+    y: tokenY + (Number(token?.h) || 0) / 2
   };
 }
 
@@ -122,14 +125,18 @@ export class StandUpService {
   }
 
   static findTokenButton(token) {
-    return token?.getChildByName?.(FLOATING_BUTTON_NAME)
-      ?? token?.children?.find?.((child) => child?.name === FLOATING_BUTTON_NAME)
-      ?? null;
+    const button = floatingButtons.get(token) ?? null;
+    if (button?.destroyed) {
+      floatingButtons.delete(token);
+      return null;
+    }
+    return button;
   }
 
   static createTokenButton(token, actor) {
     const PIXI = globalThis.PIXI;
-    if (!PIXI?.Container || !PIXI?.Graphics || !PIXI?.Text || typeof token?.addChild !== "function") return null;
+    const layer = token?.layer ?? globalThis.canvas?.tokens;
+    if (!PIXI?.Container || !PIXI?.Graphics || !PIXI?.Text || typeof layer?.addChild !== "function") return null;
 
     const button = new PIXI.Container();
     button.name = FLOATING_BUTTON_NAME;
@@ -142,9 +149,15 @@ export class StandUpService {
 
     const background = createStandUpButtonBackground(PIXI);
     const icon = createStandUpButtonIcon(PIXI);
+    background.eventMode = "none";
+    background.interactive = false;
+    icon.eventMode = "none";
+    icon.interactive = false;
     button.addChild(background, icon);
     button.on?.("pointerover", () => { button.alpha = 1; });
     button.on?.("pointerout", () => { button.alpha = 0.9; });
+    button.on?.("pointerdown", (event) => event?.stopPropagation?.());
+    button.on?.("pointerup", (event) => event?.stopPropagation?.());
     button.on?.("pointertap", (event) => {
       event?.stopPropagation?.();
       if (pendingActors.has(actor.uuid ?? actor.id)) return;
@@ -161,14 +174,16 @@ export class StandUpService {
       });
     });
     button.alpha = 0.9;
-    token.addChild(button);
+    layer.addChild(button);
+    floatingButtons.set(token, button);
     return button;
   }
 
   static removeTokenButton(token) {
     const button = this.findTokenButton(token);
     if (!button) return false;
-    token.removeChild?.(button);
+    button.parent?.removeChild?.(button);
+    floatingButtons.delete(token);
     button.destroy?.({ children: true });
     return true;
   }
