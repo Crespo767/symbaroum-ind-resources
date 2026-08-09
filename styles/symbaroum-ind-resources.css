@@ -3447,3 +3447,20 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   font-weight: 600;
   text-align: center;
 }
+
+#token-hud .tenebre-stand-up-control {
+  color: #f2d16b;
+}
+
+#token-hud .tenebre-stand-up-control:hover,
+#token-hud .tenebre-stand-up-control:focus-visible {
+  color: #fff3a6;
+}
+
+.tenebre-stand-up-card.tenebre-stand-up-success {
+  border-left: 3px solid #3f7d42;
+}
+
+.tenebre-stand-up-card.tenebre-stand-up-failure {
+  border-left: 3px solid #8b3a32;
+}

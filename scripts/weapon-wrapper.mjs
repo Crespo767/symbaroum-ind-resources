@@ -6,6 +6,7 @@ import { TenebreSettings } from "./settings.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { canAttackWithWeapon, resolveWeaponItem, WeaponReadinessService } from "./weapon-readiness.mjs";
 import { ProneAdvantageService } from "./prone-advantage.mjs";
+import { getStandUpRemainingMovementActions } from "./stand-up.mjs";
 
 let patched = false;
 
@@ -27,6 +28,13 @@ export function patchWeaponRolls() {
 
     if (this?.type !== "player") {
       return wrapped.call(this, weapon, ...args);
+    }
+
+    if (getStandUpRemainingMovementActions(this) === 0) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.StandUp.NoActionsRemaining", {
+        actor: this.name
+      }));
+      return undefined;
     }
 
     const weaponItem = resolveWeaponItem(this, weapon);

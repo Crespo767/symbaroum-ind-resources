@@ -37,6 +37,7 @@ import { ResistanceChatService } from "./resistance-chat.mjs";
 import { JournalIntegrationService } from "./journal-integration.mjs";
 import { MoneyService } from "./money.mjs";
 import { PainThresholdChoiceService } from "./pain-threshold-choice.mjs";
+import { StandUpService } from "./stand-up.mjs";
 
 Hooks.once("init", () => {
   InventoryDefaultStateService.registerHooks();
@@ -49,6 +50,7 @@ Hooks.once("init", () => {
   BerserkerChatService.register();
   ResistanceChatService.register();
   PainThresholdChoiceService.register();
+  StandUpService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 

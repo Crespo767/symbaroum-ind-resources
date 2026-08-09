@@ -4,6 +4,7 @@ import { HUNGER_STATUS_ID } from "./hunger.mjs";
 import { MANEUVER_EFFECTS } from "./maneuvers.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
+import { getStandUpRemainingMovementActions } from "./stand-up.mjs";
 
 const COLORS = {
   walk: 0x24c768,
@@ -132,6 +133,13 @@ export class MovementService {
       return false;
     }
 
+    if (getStandUpRemainingMovementActions(actor) === 0) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.StandUp.NoActionsRemaining", {
+        actor: actor.name
+      }));
+      return false;
+    }
+
     if (CompatibilityService.shouldSkipMovementValidation()) return true;
     if (!TenebreSettings.get("enableMovementRuler")) return true;
     if (!TenebreSettings.get("enableMovementBlocking")) return true;
@@ -172,6 +180,12 @@ export class MovementService {
     if (hasStatus(actor, "prone")) {
       blocked = true;
       reasons.push(game.i18n.localize("TENEBRE.Movement.ProneReason"));
+    }
+
+    const standUpMovementActions = getStandUpRemainingMovementActions(actor);
+    if (standUpMovementActions !== null) {
+      movementActions = Math.min(movementActions, standUpMovementActions);
+      reasons.push(game.i18n.localize("TENEBRE.StandUp.MovementReason"));
     }
 
     if (applyHunger && (hasStatus(actor, HUNGER_STATUS_ID) || hasStatus(actor, "fome"))) {
