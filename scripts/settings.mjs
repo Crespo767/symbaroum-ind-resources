@@ -142,6 +142,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableMovementEncumbranceModifier",
       "enableMovementEffectModifiers",
       "enableManeuvers",
+      "enableDeathAutomation",
       "enableRollPrivacy",
       "enableCompactNpcAttackChat",
       "hideNpcDetailsInChat",
@@ -324,6 +325,7 @@ export class TenebreSettings {
     register("movementBaseFeet", Number, DEFAULTS.movementBaseFeet, "TENEBRE.Settings.MovementBaseFeet", "TENEBRE.Settings.MovementBaseFeetHint");
 
     register("enableManeuvers", Boolean, true, "TENEBRE.Settings.EnableManeuvers", "TENEBRE.Settings.EnableManeuversHint");
+    register("enableDeathAutomation", Boolean, DEFAULTS.enableDeathAutomation, "TENEBRE.Settings.EnableDeathAutomation", "TENEBRE.Settings.EnableDeathAutomationHint");
     register("enableRollPrivacy", Boolean, true, "TENEBRE.Settings.EnableRollPrivacy", "TENEBRE.Settings.EnableRollPrivacyHint");
     register("enableCompactNpcAttackChat", Boolean, true, "TENEBRE.Settings.ChatMessageStyle", "TENEBRE.Settings.ChatMessageStyleHint");
     register("hideNpcDetailsInChat", Boolean, false, "TENEBRE.Settings.HideNpcDetailsInChat", "TENEBRE.Settings.HideNpcDetailsInChatHint");
@@ -415,6 +417,7 @@ function onSettingChanged(key, value) {
     "enableContainers",
     "encumbranceDiscoveredWeights",
     "enableManeuvers",
+    "enableDeathAutomation",
     "enableWeaponReadiness",
     "enableRitualistGrouping",
     "enableChatItemUse",

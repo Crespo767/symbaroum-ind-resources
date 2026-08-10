@@ -391,5 +391,6 @@ export const DEFAULTS = {
   enableMovementBlocking: true,
   enableMovementHungerModifier: true,
   enableMovementEncumbranceModifier: true,
-  enableMovementEffectModifiers: true
+  enableMovementEffectModifiers: true,
+  enableDeathAutomation: true
 };

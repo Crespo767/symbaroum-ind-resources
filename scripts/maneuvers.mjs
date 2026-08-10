@@ -2,6 +2,7 @@ import { MANEUVER_EFFECTS, MODULE_ID } from "./constants.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs";
 import { SocketService } from "./sockets.mjs";
 import { TenebreSettings } from "./settings.mjs";
+import { isDeathIncapacitated } from "./death-automation.mjs";
 
 export { MANEUVER_EFFECTS };
 
@@ -288,6 +289,11 @@ export class ManeuverService {
   }
 
   static async execute(actor, maneuverId, options = {}) {
+    if (isDeathIncapacitated(actor)) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.Death.ActionBlocked", { actor: actor.name }));
+      return null;
+    }
+
     if (!ManeuverService.isEnabled()) {
       ui.notifications.warn(game.i18n.localize("TENEBRE.Maneuvers.Disabled"));
       return null;

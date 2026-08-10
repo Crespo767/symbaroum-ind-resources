@@ -7,6 +7,7 @@ import { CompatibilityService } from "./compatibility.mjs";
 import { canAttackWithWeapon, resolveWeaponItem, WeaponReadinessService } from "./weapon-readiness.mjs";
 import { ProneAdvantageService } from "./prone-advantage.mjs";
 import { getStandUpRemainingMovementActions } from "./stand-up.mjs";
+import { isDeathIncapacitated } from "./death-automation.mjs";
 
 let patched = false;
 
@@ -17,6 +18,11 @@ export function patchWeaponRolls() {
 
   const originalRollWeapon = ActorClass.prototype.rollWeapon;
   const wrappedRollWeapon = async function(wrapped, weapon, ...args) {
+    if (this?.type === "player" && isDeathIncapacitated(this)) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.Death.ActionBlocked", { actor: this.name }));
+      return undefined;
+    }
+
     ProneAdvantageService.captureWeaponAttack(this, weapon);
 
     // Reset status anterior de rolagem se houver

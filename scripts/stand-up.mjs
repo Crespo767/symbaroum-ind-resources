@@ -2,6 +2,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
 import { isProneActor } from "./prone-advantage.mjs";
 import { SocketService } from "./sockets.mjs";
+import { isDeathIncapacitated } from "./death-automation.mjs";
 
 export const STAND_UP_ACTION_FLAG = "standUpAction";
 
@@ -60,6 +61,7 @@ export function resolveStandUpPortrait(actor, tokenDocument = null) {
 export function shouldShowStandUpButton(actor, user = globalThis.game?.user) {
   return actor?.type === "player"
     && isProneActor(actor)
+    && !isDeathIncapacitated(actor)
     && (user?.isGM === true || actor.isOwner === true);
 }
 

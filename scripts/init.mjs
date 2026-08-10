@@ -38,6 +38,7 @@ import { JournalIntegrationService } from "./journal-integration.mjs";
 import { MoneyService } from "./money.mjs";
 import { PainThresholdChoiceService } from "./pain-threshold-choice.mjs";
 import { StandUpService } from "./stand-up.mjs";
+import { DeathAutomationService, isDeathIncapacitated } from "./death-automation.mjs";
 
 Hooks.once("init", () => {
   InventoryDefaultStateService.registerHooks();
@@ -51,6 +52,7 @@ Hooks.once("init", () => {
   ResistanceChatService.register();
   PainThresholdChoiceService.register();
   StandUpService.register();
+  DeathAutomationService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 
@@ -115,6 +117,10 @@ Hooks.once("ready", async () => {
   if (game.symbaroum?.api?.rollAttribute) {
     const originalRollAttribute = game.symbaroum.api.rollAttribute;
     const wrappedRollAttribute = function(wrapped, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier) {
+      if (isDeathIncapacitated(actor)) {
+        ui.notifications.warn(game.i18n.format("TENEBRE.Death.ActionBlocked", { actor: actor.name }));
+        return undefined;
+      }
       favour = ManeuverService.applyRollFavour(actor, actingAttributeName, favour, weapon);
       favour = HungerService.applyDisfavour(favour, actor);
       return wrapped.call(this, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier);
@@ -132,6 +138,8 @@ Hooks.once("ready", async () => {
 
   GmLogService.register();
   GmLogUiService.register();
+
+  await DeathAutomationService.ready();
 
   exposePublicApi();
 
@@ -205,6 +213,7 @@ function exposePublicApi() {
     containerTransfer: ContainerTransferService,
     groundContainers: GroundContainerService,
     maneuvers: ManeuverService,
+    death: DeathAutomationService,
     movement: MovementService,
     chatItemUse: ChatItemUseService,
     rollPrivacy: RollPrivacyService,
@@ -348,6 +357,10 @@ function patchSymbaroumActorUsePower() {
 
   const originalUsePower = ActorClass.prototype.usePower;
   const wrappedUsePower = async function(wrapped, ...args) {
+    if (isDeathIncapacitated(this)) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.Death.ActionBlocked", { actor: this.name }));
+      return undefined;
+    }
     const previousActorId = pendingDialogActorId;
     const previousPowerContext = pendingPowerUseContext;
     const powerContext = buildPowerUseChatContext(this, args[0]);

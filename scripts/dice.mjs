@@ -15,10 +15,12 @@ export function rollTotal(roll) {
   return Number(roll?.total ?? 0) || 0;
 }
 
-export async function createChatMessageAfterDice({ speaker, content, rolls = [], flags = {} }) {
+export async function createChatMessageAfterDice({ speaker, content, rolls = [], flags = {}, privateRoll = null }) {
   const foundryRolls = rolls.filter(isFoundryRoll);
-  const privateRoll = RollPrivacyService.isPrivateRollActive();
-  const showed3d = await showDice3d(foundryRolls, { privateRoll });
+  const effectivePrivateRoll = privateRoll === null
+    ? RollPrivacyService.isPrivateRollActive()
+    : privateRoll === true;
+  const showed3d = await showDice3d(foundryRolls, { privateRoll: effectivePrivateRoll });
   const chatData = { speaker, content };
   const moduleFlags = { ...(flags?.[MODULE_ID] ?? {}) };
   const otherFlags = Object.fromEntries(
@@ -42,6 +44,12 @@ export async function createChatMessageAfterDice({ speaker, content, rolls = [],
     RollPrivacyService.prepareChatData(chatData, { rollCandidate: true });
   }
 
+  if (foundryRolls.length && effectivePrivateRoll) {
+    chatData.whisper = Array.from(globalThis.game?.users ?? []).filter((user) => user.isGM).map((user) => user.id);
+    chatData.blind = true;
+    moduleFlags.privateRoll = true;
+  }
+
   return ChatMessage.create(chatData);
 }
 
@@ -59,7 +67,9 @@ async function showDice3d(rolls, { privateRoll = false } = {}) {
 
   try {
     for (const roll of rolls) {
-      const recipients = privateRoll ? RollPrivacyService.diceRecipients() : null;
+      const recipients = privateRoll
+        ? Array.from(globalThis.game?.users ?? []).filter((user) => user.isGM)
+        : null;
       await Promise.resolve(dice3d.showForRoll(roll, game.user, true, recipients, privateRoll));
     }
     return true;

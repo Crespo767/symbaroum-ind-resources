@@ -5,6 +5,7 @@ import { MANEUVER_EFFECTS } from "./maneuvers.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { getStandUpRemainingMovementActions } from "./stand-up.mjs";
+import { isDeathIncapacitated } from "./death-automation.mjs";
 
 const COLORS = {
   walk: 0x24c768,
@@ -126,6 +127,11 @@ export class MovementService {
       && passed.every((waypoint) => waypoint.action === "displace" || waypoint.actionConfig?.teleport);
     if (isForcedMovement) return true;
 
+    if (isDeathIncapacitated(actor)) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.Death.MovementBlocked", { actor: actor.name }));
+      return false;
+    }
+
     if (hasStatus(actor, "prone")) {
       ui.notifications.warn(game.i18n.format("TENEBRE.Movement.ProneBlocked", {
         actor: actor.name
@@ -176,6 +182,13 @@ export class MovementService {
     const applyHunger = TenebreSettings.get("enableMovementHungerModifier");
     const applyEncumbrance = TenebreSettings.get("enableMovementEncumbranceModifier");
     const applyEffects = TenebreSettings.get("enableMovementEffectModifiers");
+
+    if (isDeathIncapacitated(actor)) {
+      blocked = true;
+      movementActions = 0;
+      actionDistance = 0;
+      reasons.push(game.i18n.localize("TENEBRE.Death.DyingEffect"));
+    }
 
     if (hasStatus(actor, "prone")) {
       blocked = true;

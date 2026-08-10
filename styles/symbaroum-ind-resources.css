@@ -3533,3 +3533,74 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
+
+.tenebre-death-prompt .foreground,
+.tenebre-chat-card.tenebre-death-result,
+.tenebre-chat-card.tenebre-death-entry,
+.tenebre-chat-card.tenebre-death-recovery,
+.tenebre-chat-card.tenebre-death-final {
+  text-align: center;
+}
+
+.tenebre-death-actor {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  margin: 6px auto;
+}
+
+.tenebre-death-actor img {
+  width: 64px;
+  height: 64px;
+  border: 2px solid #5b1d1d;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 55%);
+}
+
+.tenebre-death-actor figcaption {
+  max-width: 190px;
+  font-style: italic;
+  line-height: 1.15;
+}
+
+.tenebre-death-prompt [data-tenebre-death-roll] {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #6f1e1e;
+  background: linear-gradient(#722525, #431313);
+  color: #fff1da;
+  font-weight: 700;
+}
+
+.tenebre-death-prompt [data-tenebre-death-roll]:hover:not(:disabled) {
+  box-shadow: 0 0 6px #b52323;
+  text-shadow: 0 0 4px #fff;
+}
+
+.tenebre-death-prompt [data-tenebre-death-roll]:disabled {
+  cursor: not-allowed;
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.tenebre-death-prompt .notes {
+  margin: 5px 0 0;
+  color: #5d5148;
+  font-size: 0.82em;
+  font-style: italic;
+}
+
+.tenebre-death-recovered,
+.tenebre-death-recovery {
+  border-color: #366c39;
+}
+
+.tenebre-death-dead,
+.tenebre-death-final {
+  border-color: #7b1111;
+}
+
+.tenebre-death-system-hidden {
+  display: none !important;
+}
