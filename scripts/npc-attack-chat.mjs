@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG } from "./constants.mjs";
 import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
 
 const ATTACK_PATTERN = /^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)[.!]?$/i;
@@ -10,9 +10,9 @@ export class NpcAttackChatService {
     if (this.#registered) return;
     this.#registered = true;
 
-    Hooks.on("renderChatMessageHTML", (_message, html) => {
+    Hooks.on("renderChatMessageHTML", (message, html) => {
       const scope = htmlElement(html);
-      if (isEnabled()) enhanceNpcAttackCards(scope);
+      if (isEnabled()) enhanceNpcAttackCards(scope, message);
       else restoreNpcAttackCards(scope);
     });
 
@@ -25,9 +25,9 @@ export class NpcAttackChatService {
   }
 }
 
-export function enhanceNpcAttackCards(scope) {
+export function enhanceNpcAttackCards(scope, message = null) {
   for (const root of matchingElements(scope, ".symbaroum.chat.combat")) {
-    enhanceNpcAttackCard(root);
+    enhanceNpcAttackCard(root, resolveChatMessage(root, message));
   }
 }
 
@@ -137,11 +137,15 @@ export function extractDamageFormula(formulaText = "", damageDie = "") {
     || nativeFormula;
 }
 
-function enhanceNpcAttackCard(root) {
-  if (root.dataset.tenebreNpcAttack === "true") return;
+function enhanceNpcAttackCard(root, message = null) {
+  if (root.dataset.tenebreNpcAttack === "true") {
+    refreshPainThresholdOutcome(root, message);
+    return;
+  }
   const source = root.querySelector(":scope > .foreground");
   const model = buildNpcAttackModel(source);
   if (!source || !model || !isPlayerNpcAttack(model)) return;
+  model.painThresholdOutcome = message?.getFlag?.(MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG) ?? null;
 
   const card = document.createElement("section");
   card.className = "tenebre-npc-attack-card";
@@ -162,6 +166,24 @@ function enhanceNpcAttackCard(root) {
   root.classList.add("tenebre-npc-attack-compact");
   root.dataset.tenebreNpcAttack = "true";
   root.append(card);
+}
+
+function refreshPainThresholdOutcome(root, message) {
+  const outcome = message?.getFlag?.(MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG);
+  if (!outcome) return false;
+  const model = buildNpcAttackModel(root.querySelector(":scope > .foreground"));
+  if (!model?.painStunned || model.damage === null) return false;
+  const received = root.querySelector(":scope > .tenebre-npc-attack-card .tenebre-npc-attack-received");
+  if (!received) return false;
+  const text = buildPainThresholdOutcomeText({
+    ...outcome,
+    targetName: model.target.name,
+    attackerName: outcome.attackerName || model.attacker.name,
+    damage: model.damage
+  });
+  if (!text) return false;
+  received.textContent = text;
+  return true;
 }
 
 function buildNpcAttackModel(source) {
@@ -329,6 +351,24 @@ export function isPlayerNpcAttack(model) {
     || secondAttribute === defenseLabel;
 }
 
+export function buildPainThresholdOutcomeText({ choice, targetName, attackerName, damage }) {
+  if (choice === "fall") {
+    return format(
+      "TENEBRE.PainThreshold.FellAfterDamage",
+      "{target} recebe {damage} de dano, está atordoado pela dor e caiu.",
+      { target: targetName, damage }
+    );
+  }
+  if (choice === "freeAttack") {
+    return format(
+      "TENEBRE.PainThreshold.FreeAttackAfterDamage",
+      "{target} recebe {damage} de dano, está atordoado pela dor e {attacker} pode atacar novamente.",
+      { target: targetName, attacker: attackerName, damage }
+    );
+  }
+  return null;
+}
+
 function createAttackFlow(model) {
   const flow = document.createElement("div");
   flow.className = "tenebre-npc-attack-flow";
@@ -412,7 +452,16 @@ function createResolution(model) {
       ));
     }
     if (showNpcDetails) {
-      const receivedText = isPlayerAgainstNpc(model) && model.damage === 0
+      const painChoiceText = model.painStunned && model.painThresholdOutcome
+        ? buildPainThresholdOutcomeText({
+          ...model.painThresholdOutcome,
+          targetName: model.target.name,
+          attackerName: model.painThresholdOutcome.attackerName || model.attacker.name,
+          damage: model.damage
+        })
+        : null;
+      const receivedText = painChoiceText
+        ?? (isPlayerAgainstNpc(model) && model.damage === 0
         ? format("TENEBRE.NpcAttackChat.ProtectedByArmor", "{name} está protegido pela armadura.", {
           name: model.target.name
         })
@@ -425,7 +474,7 @@ function createResolution(model) {
         : format("TENEBRE.NpcAttackChat.ReceivesDamage", "{name} recebe {damage} de dano.", {
           name: model.target.name,
           damage: model.damage
-        });
+        }));
       resolution.append(createTextElement(
         "p",
         "tenebre-npc-attack-received",
@@ -443,6 +492,12 @@ function directTextWithout(container, excluded) {
     .map((node) => cleanText(node.textContent))
     .filter(Boolean)
     .join(" ");
+}
+
+function resolveChatMessage(root, preferredMessage = null) {
+  if (preferredMessage) return preferredMessage;
+  const messageId = root?.closest?.("[data-message-id]")?.dataset?.messageId;
+  return messageId ? globalThis.game?.messages?.get?.(messageId) ?? null : null;
 }
 
 function actorByDisplayedName(name) {

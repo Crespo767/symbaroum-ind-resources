@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG } from "./constants.mjs";
 import { SocketService } from "./sockets.mjs";
 
 const SYSTEM_ID = "symbaroum";
@@ -280,9 +280,24 @@ async function resolvePainThresholdChoiceAsGm(promptMessageId, choice) {
     await ManeuverService.grantFreeAttack(attackerActor, targetActor);
   }
 
+  await recordPainThresholdOutcome(pending, choice).catch((error) => {
+    console.warn(`${MODULE_ID} | Failed to add the Pain Threshold choice to the attack card.`, error);
+  });
+
   await applyMessage.unsetFlag(MODULE_ID, MODULE_CHOICE_FLAG);
   await prompt.setFlag(MODULE_ID, MODULE_CHOICE_FLAG, { ...promptChoice, state: "resolved", choice });
   await prompt.delete();
+  return true;
+}
+
+async function recordPainThresholdOutcome(pending, choice) {
+  const attackMessage = game.messages?.get?.(pending?.diceMessageId);
+  if (!attackMessage) return false;
+  await attackMessage.setFlag(MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG, {
+    choice,
+    targetName: pending.targetName ?? null,
+    attackerName: pending.attackerName ?? null
+  });
   return true;
 }
 

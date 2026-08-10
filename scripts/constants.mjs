@@ -1,5 +1,6 @@
 export const MODULE_ID = "symbaroum-ind-resources";
 export const FLAG_SCOPE = "symbaroum-ind-resources";
+export const PAIN_THRESHOLD_OUTCOME_FLAG = "painThresholdOutcome";
 
 export const AMMO_TYPES = {
   ARROW: "ammo",

@@ -10,9 +10,11 @@ const source = read("scripts/npc-attack-chat.mjs");
 const settings = read("scripts/settings.mjs");
 const template = read("templates/settings.hbs");
 const css = read("styles/symbaroum-ind-resources.css");
+const ptBr = JSON.parse(read("languages/pt-BR.json"));
 
 const {
   compactActorName,
+  buildPainThresholdOutcomeText,
   canViewNpcDamageDetails,
   extractDamageFormula,
   extractMissOutcomeSuffix,
@@ -176,6 +178,27 @@ test("pain threshold stun is combined with the received damage message", () => {
     JSON.parse(read("languages/pt-BR.json"))["TENEBRE.NpcAttackChat.ReceivesDamageAndPainStun"],
     "{name} recebe {damage} de dano e está atordoado pela dor."
   );
+});
+
+test("the selected Pain Threshold consequence replaces the attack damage summary", () => {
+  globalThis.game = {
+    i18n: {
+      localize: (key) => ptBr[key] ?? key,
+      format: (key, data) => (ptBr[key] ?? key).replace(/\{(\w+)\}/g, (_match, name) => data[name] ?? "")
+    }
+  };
+  assert.equal(
+    buildPainThresholdOutcomeText({ choice: "fall", targetName: "Bartolom", attackerName: "Humano", damage: 6 }),
+    "Bartolom recebe 6 de dano, está atordoado pela dor e caiu."
+  );
+  assert.equal(
+    buildPainThresholdOutcomeText({ choice: "freeAttack", targetName: "Bartolom", attackerName: "Humano", damage: 6 }),
+    "Bartolom recebe 6 de dano, está atordoado pela dor e Humano pode atacar novamente."
+  );
+  assert.equal(buildPainThresholdOutcomeText({ choice: "invalid" }), null);
+  assert.match(source, /message\?\.getFlag\?\.\(MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG\)/);
+  assert.match(source, /const receivedText = painChoiceText/);
+  assert.match(source, /refreshPainThresholdOutcome\(root, message\)/);
 });
 
 test("NPC protection and effective damage can be hidden from players", () => {

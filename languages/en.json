@@ -661,6 +661,8 @@
   "TENEBRE.PainThreshold.Question": "Choose the consequence:",
   "TENEBRE.PainThreshold.Fall": "Fall prone",
   "TENEBRE.PainThreshold.FreeAttack": "Grant a Free Attack to {attacker}",
+  "TENEBRE.PainThreshold.FellAfterDamage": "{target} takes {damage} damage, is stunned by pain, and falls prone.",
+  "TENEBRE.PainThreshold.FreeAttackAfterDamage": "{target} takes {damage} damage, is stunned by pain, and {attacker} may attack again.",
   "TENEBRE.PainThreshold.Attacker": "the attacker",
   "TENEBRE.PainThreshold.Waiting": "Waiting for the Pain Threshold choice.",
   "TENEBRE.PainThreshold.ChoiceRecorded": "Pain Threshold choice recorded.",

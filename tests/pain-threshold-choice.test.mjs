@@ -119,6 +119,8 @@ test("choice resolution is authenticated and preserves the native GM apply contr
   assert.match(source, /await applyMessage\.unsetFlag\(MODULE_ID, MODULE_CHOICE_FLAG\)/);
   assert.match(source, /await applyProne\(targetActor\)/);
   assert.match(source, /ManeuverService\.grantFreeAttack\(attackerActor, targetActor\)/);
+  assert.match(source, /recordPainThresholdOutcome\(pending, choice\)/);
+  assert.match(source, /attackMessage\.setFlag\(MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG/);
   assert.match(source, /restoreDefaultFallChoice/);
   assert.match(socketSource, /static registerHandler\(name, handler\)/);
   assert.match(maneuverSource, /static grantFreeAttack\(actor, sourceActor = null\)/);
@@ -130,6 +132,8 @@ test("Pain Threshold UI is localized and CSS remains module-scoped", () => {
     "TENEBRE.PainThreshold.Question",
     "TENEBRE.PainThreshold.Fall",
     "TENEBRE.PainThreshold.FreeAttack",
+    "TENEBRE.PainThreshold.FellAfterDamage",
+    "TENEBRE.PainThreshold.FreeAttackAfterDamage",
     "TENEBRE.PainThreshold.Waiting"
   ]) {
     assert.ok(ptBr[key]);
