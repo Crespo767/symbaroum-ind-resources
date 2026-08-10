@@ -76,7 +76,7 @@ function enhanceBerserkerCard(root, message) {
   const actorName = stripParenthetical(actor.name);
   const targetImage = backgroundImageUrl(source.querySelector(":scope > .introImg > .introImg")?.getAttribute("style"));
   const targetName = stripTargetLabel(source.querySelector(":scope > .introImg > .targetText")?.textContent);
-  const { caption, modifiers } = splitAbilityCaption(abilityCaption || item.name);
+  const { name: abilityName, level: abilityLevel, modifiers } = splitAbilityCaption(abilityCaption || item.name);
   const attemptText = format(
     "TENEBRE.AbilityChat.Attempt",
     "{actor} tenta usar {ability}.",
@@ -92,17 +92,13 @@ function enhanceBerserkerCard(root, message) {
   card.className = "tenebre-berserker-card";
   card.append(
     createTextElement("p", "tenebre-berserker-intro", attemptText || introText),
-    createAbilityFlow(actorImage, actorName, abilityImage, caption, item, targetImage, targetName)
+    createAbilityFlow(actorImage, actorName, abilityImage, abilityName, abilityLevel, item, targetImage, targetName)
   );
   if (modifiers) {
     card.append(createTextElement("p", "tenebre-berserker-modifiers", modifiers));
   }
 
-  const details = document.createElement("div");
-  details.className = "tenebre-berserker-details";
-  for (const node of source.querySelectorAll(":scope > .finalTxt")) {
-    details.append(node.cloneNode(true));
-  }
+  const details = createAbilityDetails(source);
   if (details.childElementCount) card.append(details);
   appendOriginalChatPreview(card, source, {
     hasUnadaptedContent: unadaptedElements.length > 0,
@@ -160,13 +156,13 @@ function hasMeaningfulContent(element) {
   return Boolean(cleanText(element?.textContent) || element?.querySelector?.("img, button, input, a"));
 }
 
-function createAbilityFlow(actorImage, actorName, abilityImage, abilityCaption, item, targetImage, targetName) {
+function createAbilityFlow(actorImage, actorName, abilityImage, abilityName, abilityLevel, item, targetImage, targetName) {
   const participants = document.createElement("div");
   participants.className = "tenebre-berserker-participants";
   participants.append(
     createPortrait(actorImage, actorName, "tenebre-berserker-actor"),
     createFlowArrow(),
-    createAbilityFigure(abilityImage, abilityCaption, item)
+    createAbilityFigure(abilityImage, abilityName, abilityLevel, item)
   );
 
   if (targetImage && targetName) {
@@ -199,18 +195,18 @@ function createPortrait(src, name, className) {
   return figure;
 }
 
-function createAbilityFigure(src, captionText, item) {
-  const figure = createPortrait(src, captionText, "tenebre-berserker-ability");
+function createAbilityFigure(src, abilityName, abilityLevel, item) {
+  const figure = createPortrait(src, abilityName, "tenebre-berserker-ability");
   const caption = figure.querySelector("figcaption");
   caption.textContent = "";
 
   const link = document.createElement("a");
   link.href = "#";
-  link.className = "content-link tenebre-berserker-ability-link";
+  link.className = "tenebre-berserker-ability-link";
   link.dataset.uuid = item.uuid;
   link.dataset.type = "Item";
   link.dataset.id = item.id;
-  link.textContent = captionText;
+  link.textContent = abilityName;
   link.title = item.name;
   link.addEventListener("click", (event) => {
     event.preventDefault();
@@ -218,7 +214,76 @@ function createAbilityFigure(src, captionText, item) {
     item.sheet?.render?.({ force: true });
   });
   caption.append(link);
+  if (abilityLevel) {
+    caption.append(createTextElement("span", "tenebre-berserker-ability-level", abilityLevel));
+  }
   return figure;
+}
+
+function createAbilityDetails(source) {
+  const details = document.createElement("div");
+  details.className = "tenebre-berserker-details";
+  const nodes = [...source.querySelectorAll(":scope > .finalTxt")];
+  const testNode = nodes.find((node) => parseAbilityTest(node.textContent));
+  const rollNode = nodes.find((node) => parseAbilityRoll(node.textContent) !== null);
+  const test = parseAbilityTest(testNode?.textContent);
+  const roll = parseAbilityRoll(rollNode?.textContent);
+
+  if (test && roll !== null) {
+    details.append(createTextElement("p", "tenebre-berserker-test", test.testText));
+    if (test.modifier) {
+      details.append(createTextElement(
+        "p",
+        "tenebre-berserker-test-modifier",
+        `${localize("TENEBRE.NpcAttackChat.Modifier", "Modificador")}: ${signed(test.modifier)}`
+      ));
+    }
+    const summary = document.createElement("div");
+    summary.className = "tenebre-berserker-roll-summary";
+    summary.append(
+      createTextElement(
+        "p",
+        "tenebre-berserker-objective",
+        `${localize("TENEBRE.NpcAttackChat.Objective", "Objetivo")}: ${test.objective}`
+      ),
+      createTextElement(
+        "p",
+        "tenebre-berserker-roll",
+        `${localize("TENEBRE.NpcAttackChat.Roll", "Rolagem")}: ${roll}`
+      )
+    );
+    details.append(summary);
+  }
+
+  for (const node of nodes) {
+    if (test && roll !== null && (node === testNode || node === rollNode)) continue;
+    details.append(node.cloneNode(true));
+  }
+  return details;
+}
+
+export function parseAbilityTest(value = "") {
+  const text = cleanText(value);
+  const attributes = [...text.matchAll(/([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s-]*?)\s*:?\s*\(\s*(-?\d+)\s*\)/gu)]
+    .map((match) => ({ label: cleanText(match[1]), value: Number(match[2]) }))
+    .slice(0, 2);
+  if (attributes.length < 2) return null;
+  const modifier = Number(text.match(/\bMod(?:ificador|ifier)?\s*:?\s*([+-]?\d+)/iu)?.[1] ?? 0);
+  const direction = /(?:➡|→)/u.test(text) ? "→" : "←";
+  return {
+    attributes,
+    modifier,
+    objective: attributes[0].value + attributes[1].value + modifier,
+    direction,
+    testText: `${attributes[0].label} (${attributes[0].value}) ${direction} ${attributes[1].label} (${attributes[1].value})`
+  };
+}
+
+export function parseAbilityRoll(value = "") {
+  const text = cleanText(value);
+  if (!/^(?:Rolagem|Roll)\s*:/iu.test(text)) return null;
+  const values = text.match(/-?\d+/g);
+  return values?.length ? Number(values.at(-1)) : null;
 }
 
 function findDisplayedAbility(actor, abilityCaption) {
@@ -240,11 +305,24 @@ function referenceLabel(item) {
 }
 
 export function splitAbilityCaption(value) {
-  const [caption, ...modifiers] = cleanText(value).split(",");
+  const [caption, ...modifierParts] = cleanText(value).split(",");
+  const rank = cleanText(caption).match(/^(.*?)\s*\(([^()]*)\)\s*$/u);
   return {
-    caption: cleanText(caption),
-    modifiers: cleanText(modifiers.join(", "))
+    name: cleanText(rank?.[1] ?? caption),
+    level: cleanText(rank?.[2]),
+    modifiers: cleanAbilityModifiers(modifierParts)
   };
+}
+
+function cleanAbilityModifiers(parts) {
+  return parts
+    .map(cleanText)
+    .filter(Boolean)
+    .filter((part) => {
+      const text = normalize(part);
+      return !text.includes("armadura obstrutiva") && !text.includes("obstructive armor");
+    })
+    .join(", ");
 }
 
 export function stripTargetLabel(value = "") {
@@ -292,6 +370,10 @@ function normalize(value) {
 
 function cleanText(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function signed(value) {
+  return Number(value) > 0 ? `+${Number(value)}` : String(Number(value) || 0);
 }
 
 function localize(key, fallback) {

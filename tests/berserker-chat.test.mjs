@@ -15,6 +15,8 @@ const {
   isBrimstoneCascadeItem,
   isHolyAuraItem,
   isLayOnHandsItem,
+  parseAbilityRoll,
+  parseAbilityTest,
   splitAbilityCaption,
   stripTargetLabel
 } = await import("../scripts/berserker-chat.mjs");
@@ -31,8 +33,8 @@ test("native ability cards resolve the displayed owned item", () => {
 test("ability card shows the attempt before the actor to ability flow", () => {
   assert.match(source, /TENEBRE\.AbilityChat\.Attempt/);
   assert.match(source, /createTextElement\("p", "tenebre-berserker-intro", attemptText \|\| introText\)/);
-  assert.match(source, /createAbilityFlow\(actorImage, actorName, abilityImage, caption, item, targetImage, targetName\)/);
-  assert.match(source, /createPortrait\(actorImage, actorName, "tenebre-berserker-actor"\),\s*createFlowArrow\(\),\s*createAbilityFigure\(abilityImage, abilityCaption, item\)/);
+  assert.match(source, /createAbilityFlow\(actorImage, actorName, abilityImage, abilityName, abilityLevel, item, targetImage, targetName\)/);
+  assert.match(source, /createPortrait\(actorImage, actorName, "tenebre-berserker-actor"\),\s*createFlowArrow\(\),\s*createAbilityFigure\(abilityImage, abilityName, abilityLevel, item\)/);
   assert.match(source, /figure\.append\(image, caption\)/);
   assert.match(css, /\.tenebre-berserker-actor,[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*center;/);
 });
@@ -61,11 +63,33 @@ test("Imposição de Mãos uses the same ability card and preserves its target a
 
 test("ability roll modifiers remain visible outside the linked ability name", () => {
   assert.deepEqual(splitAbilityCaption("Imposição de Mãos (Novato), armadura obstrutiva"), {
-    caption: "Imposição de Mãos (Novato)",
-    modifiers: "armadura obstrutiva"
+    name: "Imposição de Mãos",
+    level: "Novato",
+    modifiers: ""
   });
-  assert.match(source, /const \{ caption, modifiers \} = splitAbilityCaption/);
+  assert.deepEqual(splitAbilityCaption("Aura Sagrada (Adepto), alcance ampliado"), {
+    name: "Aura Sagrada",
+    level: "Adepto",
+    modifiers: "alcance ampliado"
+  });
+  assert.match(source, /const \{ name: abilityName, level: abilityLevel, modifiers \} = splitAbilityCaption/);
   assert.match(source, /tenebre-berserker-modifiers/);
+  assert.match(source, /tenebre-berserker-ability-level/);
+  assert.doesNotMatch(source, /className = "content-link tenebre-berserker-ability-link"/);
+});
+
+test("ability resolution follows the attack-card objective and roll layout", () => {
+  assert.deepEqual(parseAbilityTest("Resultado : (15) ← Rápido : (3) Mod: 2"), {
+    attributes: [{ label: "Resultado", value: 15 }, { label: "Rápido", value: 3 }],
+    modifier: 2,
+    objective: 20,
+    direction: "←",
+    testText: "Resultado (15) ← Rápido (3)"
+  });
+  assert.equal(parseAbilityRoll("Rolagem: 18"), 18);
+  assert.equal(parseAbilityRoll("Dano: 1d12 - 4"), null);
+  assert.match(source, /tenebre-berserker-roll-summary/);
+  assert.match(css, /\.tenebre-berserker-roll-summary\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
 });
 
 test("Aura Sagrada uses the same ability card and keeps damage and corruption details", () => {
@@ -86,7 +110,7 @@ test("Cascata de Enxofre uses the same targeted ability card", () => {
 });
 
 test("the displayed ability name opens the owned ability sheet", () => {
-  assert.match(source, /className = "content-link tenebre-berserker-ability-link"/);
+  assert.match(source, /className = "tenebre-berserker-ability-link"/);
   assert.match(source, /link\.dataset\.uuid = item\.uuid/);
   assert.match(source, /item\.sheet\?\.render\?\.\(\{ force: true \}\)/);
 });

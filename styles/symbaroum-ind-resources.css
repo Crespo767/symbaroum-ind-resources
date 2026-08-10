@@ -3334,6 +3334,8 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   flex-direction: column;
   gap: 2px;
   align-items: center;
+  flex: 0 1 78px;
+  width: 78px;
   min-width: 0;
   margin: 0;
 }
@@ -3392,16 +3394,37 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 }
 
 .tenebre-berserker-ability-link {
+  display: block;
+  width: 100%;
   color: #18130f;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none;
 }
 
 .tenebre-berserker-ability-link:hover,
 .tenebre-berserker-ability-link:focus-visible {
   color: #7f241d;
   text-shadow: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tenebre-berserker-ability figcaption {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 1px;
+  align-items: center;
+  text-align: center;
+}
+
+.tenebre-berserker-ability-level {
+  color: #5b4b3d;
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.1;
 }
 
 .tenebre-berserker-details {
@@ -3416,6 +3439,31 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   font-size: 14px;
   line-height: 1.25;
   text-align: center;
+}
+
+.tenebre-berserker-test {
+  font-weight: 600;
+}
+
+.tenebre-berserker-test-modifier {
+  color: #554940 !important;
+  font-size: 12px !important;
+  font-style: italic;
+}
+
+.tenebre-berserker-roll-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 2px 0;
+}
+
+.tenebre-berserker-objective {
+  padding-right: 6px;
+  border-right: 1px solid rgb(74 64 56 / 30%);
+}
+
+.tenebre-berserker-roll {
+  padding-left: 6px;
 }
 
 #token-hud .tenebre-ground-container-transfer {
