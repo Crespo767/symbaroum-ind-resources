@@ -7,6 +7,9 @@ const MODULE_CHOICE_FLAG = "painThresholdChoice";
 const SOCKET_HANDLER = "resolvePainThresholdChoice";
 const CHOICE_FALL = "fall";
 const CHOICE_FREE_ATTACK = "freeAttack";
+const REVEAL_MINIMUM_DELAY_MS = 500;
+const REVEAL_FALLBACK_DELAY_MS = 900;
+const REVEAL_MAXIMUM_WAIT_MS = 12000;
 
 export class PainThresholdChoiceService {
   static #registered = false;
@@ -108,6 +111,32 @@ export function buildPainThresholdPromptHtml({ targetName, attackerName }) {
   </div>`;
 }
 
+export async function waitForPainThresholdReveal(messageId, {
+  dice3d = globalThis.game?.dice3d,
+  minimumDelayMs = REVEAL_MINIMUM_DELAY_MS,
+  fallbackDelayMs = REVEAL_FALLBACK_DELAY_MS,
+  maximumWaitMs = REVEAL_MAXIMUM_WAIT_MS
+} = {}) {
+  const minimumDelay = Math.max(0, Number(minimumDelayMs) || 0);
+  const fallbackDelay = Math.max(minimumDelay, Number(fallbackDelayMs) || 0);
+  const waitForAnimation = dice3d?.waitFor3DAnimationByMessageID;
+  if (!messageId || typeof waitForAnimation !== "function") {
+    await delay(fallbackDelay);
+    return false;
+  }
+
+  const animation = settleAnimationWait(
+    () => waitForAnimation.call(dice3d, messageId),
+    Math.max(fallbackDelay, Number(maximumWaitMs) || 0)
+  );
+  await delay(minimumDelay);
+  const completed = await animation;
+  if (!completed && fallbackDelay > minimumDelay) {
+    await delay(fallbackDelay - minimumDelay);
+  }
+  return completed;
+}
+
 function preparePainThresholdChoice(message, data) {
   if (!SocketService.isPrimaryGM()) return false;
   const flagPath = `flags.${SYSTEM_ID}.${SYSTEM_ACTIONS_FLAG}`;
@@ -143,6 +172,7 @@ function preparePainThresholdChoice(message, data) {
       targetName: targetActor.name,
       attackerActorUuid: attackerActor?.uuid ?? null,
       attackerName: attackerActor?.name ?? attackContext?.name ?? null,
+      diceMessageId: attackContext?.messageId ?? null,
       recipientIds
     }
   });
@@ -150,7 +180,12 @@ function preparePainThresholdChoice(message, data) {
 }
 
 async function createPainThresholdPrompt(applyMessage) {
-  const pending = applyMessage.getFlag(MODULE_ID, MODULE_CHOICE_FLAG);
+  let pending = applyMessage.getFlag(MODULE_ID, MODULE_CHOICE_FLAG);
+  if (!pending || pending.kind !== "apply" || pending.state !== "pending") return null;
+
+  await waitForPainThresholdReveal(pending.diceMessageId);
+  if (game.messages?.get && !game.messages.get(applyMessage.id)) return null;
+  pending = applyMessage.getFlag(MODULE_ID, MODULE_CHOICE_FLAG);
   if (!pending || pending.kind !== "apply" || pending.state !== "pending") return null;
 
   const prompt = await ChatMessage.create({
@@ -289,7 +324,11 @@ function findLatestPainAttackContext(targetActor, targetTokenId) {
     if (!text || !painText || !text.includes(painText)) continue;
     if (targetNames.length && !targetNames.some((name) => text.includes(name))) continue;
     const actor = actorFromSpeaker(message.speaker);
-    return { actor, name: actor?.name ?? message.speaker?.alias ?? null };
+    return {
+      actor,
+      name: actor?.name ?? message.speaker?.alias ?? null,
+      messageId: message.id ?? null
+    };
   }
   return null;
 }
@@ -362,6 +401,28 @@ function normalize(value) {
 
 function stripHtml(value) {
   return String(value ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ");
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(milliseconds) || 0)));
+}
+
+function settleAnimationWait(waitForAnimation, maximumWaitMs) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish(false), Math.max(0, Number(maximumWaitMs) || 0));
+    try {
+      Promise.resolve(waitForAnimation()).then(() => finish(true), () => finish(false));
+    } catch (_error) {
+      finish(false);
+    }
+  });
 }
 
 function escapeHtml(value) {

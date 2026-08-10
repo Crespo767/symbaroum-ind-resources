@@ -18,7 +18,8 @@ const en = JSON.parse(read("languages/en.json"));
 const {
   buildPainThresholdPromptHtml,
   extractPainThresholdActions,
-  selectPainChoiceRecipients
+  selectPainChoiceRecipients,
+  waitForPainThresholdReveal
 } = await import("../scripts/pain-threshold-choice.mjs");
 
 test("native prone action is held while damage remains available to the GM", () => {
@@ -84,6 +85,31 @@ test("the prompt offers exactly fall or a Free Attack and escapes actor names", 
   assert.match(html, /data-tenebre-pain-choice="freeAttack"/);
   assert.match(html, /Conceder Ataque Livre a C &amp; D/);
   assert.doesNotMatch(html, /A <B>|C & D/);
+});
+
+test("the Pain Threshold prompt waits for its Dice So Nice animation", async () => {
+  const requestedIds = [];
+  const completed = await waitForPainThresholdReveal("roll-message", {
+    dice3d: {
+      async waitFor3DAnimationByMessageID(messageId) {
+        requestedIds.push(messageId);
+      }
+    },
+    minimumDelayMs: 0,
+    fallbackDelayMs: 0,
+    maximumWaitMs: 100
+  });
+  assert.equal(completed, true);
+  assert.deepEqual(requestedIds, ["roll-message"]);
+
+  const fallback = await waitForPainThresholdReveal("roll-message", {
+    dice3d: null,
+    minimumDelayMs: 0,
+    fallbackDelayMs: 0
+  });
+  assert.equal(fallback, false);
+  assert.match(source, /diceMessageId: attackContext\?\.messageId/);
+  assert.match(source, /await waitForPainThresholdReveal\(pending\.diceMessageId\)/);
 });
 
 test("choice resolution is authenticated and preserves the native GM apply control", () => {
