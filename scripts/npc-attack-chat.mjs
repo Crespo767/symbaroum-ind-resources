@@ -372,14 +372,28 @@ export function buildPainThresholdOutcomeText({ choice, targetName, attackerName
 function createAttackFlow(model) {
   const flow = document.createElement("div");
   flow.className = "tenebre-npc-attack-flow";
+  const { participants, direction } = resolveAttackFlow(model);
   flow.append(
-    createParticipant(model.attacker),
-    createArrow(),
-    createParticipant(model.weapon),
-    createArrow(),
-    createParticipant(model.target)
+    createParticipant(participants[0]),
+    createArrow(direction),
+    createParticipant(participants[1]),
+    createArrow(direction),
+    createParticipant(participants[2])
   );
   return flow;
+}
+
+export function resolveAttackFlow(model) {
+  if (isNpcAgainstPlayer(model)) {
+    return {
+      participants: [model.target, model.weapon, model.attacker],
+      direction: "←"
+    };
+  }
+  return {
+    participants: [model.attacker, model.weapon, model.target],
+    direction: "→"
+  };
 }
 
 function createParticipant(participant) {
@@ -396,8 +410,8 @@ function createParticipant(participant) {
   return figure;
 }
 
-function createArrow() {
-  const arrow = createTextElement("span", "tenebre-npc-attack-arrow", "→");
+function createArrow(direction = "→") {
+  const arrow = createTextElement("span", "tenebre-npc-attack-arrow", direction);
   arrow.setAttribute("aria-hidden", "true");
   return arrow;
 }

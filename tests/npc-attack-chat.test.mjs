@@ -24,6 +24,7 @@ const {
   parseDamageResult,
   parseOpposedTest,
   parseRollValue,
+  resolveAttackFlow,
   stripNpcParenthetical
 } = await import("../scripts/npc-attack-chat.mjs");
 
@@ -67,6 +68,34 @@ test("player attacks against NPCs preserve their opposed-test direction", () => 
     formula: parsed,
     resistedDescription: ""
   }), true);
+});
+
+test("attack portraits follow the player's perspective", () => {
+  const player = { name: "Bartolom", actor: { type: "player" } };
+  const npc = { name: "Humano", actor: { type: "monster" } };
+  const weapon = { name: "Garras" };
+
+  assert.deepEqual(resolveAttackFlow({
+    attacker: player,
+    weapon,
+    target: npc,
+    formula: { attributes: [] },
+    resistedDescription: ""
+  }), {
+    participants: [player, weapon, npc],
+    direction: "→"
+  });
+
+  assert.deepEqual(resolveAttackFlow({
+    attacker: npc,
+    weapon,
+    target: player,
+    formula: { attributes: [] },
+    resistedDescription: "defesa"
+  }), {
+    participants: [player, weapon, npc],
+    direction: "←"
+  });
 });
 
 test("positive NPC modifiers are displayed with an explicit plus sign", () => {
