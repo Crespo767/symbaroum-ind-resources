@@ -9,7 +9,7 @@ let registered = false;
 const pendingActors = new Set();
 const floatingButtons = new WeakMap();
 const FLOATING_BUTTON_NAME = `${MODULE_ID}.stand-up-button`;
-const FLOATING_BUTTON_RADIUS = 18;
+const FLOATING_BUTTON_RADIUS = 21;
 
 export function resolveStandUpTest(quickValue, rollResult, previousRemaining = 2) {
   const target = Number(quickValue) || 0;
@@ -67,7 +67,7 @@ export function getStandUpButtonPosition(token) {
   const tokenX = Number(token?.document?.x ?? token?.x) || 0;
   const tokenY = Number(token?.document?.y ?? token?.y) || 0;
   return {
-    x: tokenX + (Number(token?.w) || 0) + FLOATING_BUTTON_RADIUS + 4,
+    x: tokenX + (Number(token?.w) || 0) + FLOATING_BUTTON_RADIUS + 5,
     y: tokenY + (Number(token?.h) || 0) / 2
   };
 }
@@ -136,7 +136,7 @@ export class StandUpService {
   static createTokenButton(token, actor) {
     const PIXI = globalThis.PIXI;
     const layer = token?.layer ?? globalThis.canvas?.tokens;
-    if (!PIXI?.Container || !PIXI?.Graphics || !PIXI?.Text || typeof layer?.addChild !== "function") return null;
+    if (!PIXI?.Container || !PIXI?.Graphics || typeof layer?.addChild !== "function") return null;
 
     const button = new PIXI.Container();
     button.name = FLOATING_BUTTON_NAME;
@@ -145,7 +145,7 @@ export class StandUpService {
     button.interactive = true;
     button.cursor = "pointer";
     button.buttonMode = true;
-    if (PIXI.Circle) button.hitArea = new PIXI.Circle(0, 0, FLOATING_BUTTON_RADIUS);
+    if (PIXI.Circle) button.hitArea = new PIXI.Circle(0, 0, FLOATING_BUTTON_RADIUS + 3);
 
     const background = createStandUpButtonBackground(PIXI);
     const icon = createStandUpButtonIcon(PIXI);
@@ -154,8 +154,8 @@ export class StandUpService {
     icon.eventMode = "none";
     icon.interactive = false;
     button.addChild(background, icon);
-    button.on?.("pointerover", () => { button.alpha = 1; });
-    button.on?.("pointerout", () => { button.alpha = 0.9; });
+    button.on?.("pointerover", () => setStandUpButtonHover(button, background, true));
+    button.on?.("pointerout", () => setStandUpButtonHover(button, background, false));
     button.on?.("pointerdown", (event) => event?.stopPropagation?.());
     button.on?.("pointerup", (event) => event?.stopPropagation?.());
     button.on?.("pointertap", (event) => {
@@ -168,7 +168,7 @@ export class StandUpService {
         if (!button.destroyed) {
           button.eventMode = "static";
           button.interactive = true;
-          button.alpha = 0.9;
+          setStandUpButtonHover(button, background, false);
         }
         this.syncTokenButton(token);
       });
@@ -296,44 +296,68 @@ export function buildStandUpChat(actor, result, portrait = resolveStandUpPortrai
   `;
 }
 
-function createStandUpButtonBackground(PIXI) {
-  const background = new PIXI.Graphics();
-  if (typeof background.circle === "function" && typeof background.fill === "function") {
-    background
-      .circle(0, 0, FLOATING_BUTTON_RADIUS)
-      .fill({ color: 0x18120c, alpha: 0.96 })
-      .stroke({ color: 0xe7a52b, width: 3 });
-  } else {
-    background.lineStyle?.(3, 0xe7a52b, 1);
-    background.beginFill?.(0x18120c, 0.96);
-    background.drawCircle?.(0, 0, FLOATING_BUTTON_RADIUS);
-    background.endFill?.();
+export function createStandUpButtonBackground(PIXI) {
+  const background = new PIXI.Container();
+  const shadow = new PIXI.Graphics();
+  const glow = new PIXI.Graphics();
+  const face = new PIXI.Graphics();
+  const details = new PIXI.Graphics();
+
+  drawCircle(shadow, 1.5, 2, FLOATING_BUTTON_RADIUS + 2, 0x000000, 0.62);
+  drawCircle(glow, 0, 0, FLOATING_BUTTON_RADIUS + 4, 0xd89324, 0.38);
+  drawCircle(face, 0, 0, FLOATING_BUTTON_RADIUS, 0x15100b, 0.98, 0xe0a02b, 2.5);
+  drawCircle(face, 0, 0, FLOATING_BUTTON_RADIUS - 4, 0x2a2118, 1, 0x74501e, 1.25);
+  for (const [x, y] of [[0, -17.5], [17.5, 0], [0, 17.5], [-17.5, 0]]) {
+    drawCircle(details, x, y, 1.15, 0xf2c15a, 0.95);
   }
+
+  glow.alpha = 0.28;
+  background.addChild(shadow, glow, face, details);
+  background.tenebreGlow = glow;
   return background;
 }
 
 export function createStandUpButtonIcon(PIXI) {
-  const baseStyle = {
-    fill: 0xffffff,
-    fontFamily: "Arial, sans-serif",
-    fontSize: 26,
-    fontWeight: "bold",
-    dropShadow: false
-  };
-  const pixiMajor = Number.parseInt(String(PIXI.VERSION ?? ""), 10);
-  const icon = pixiMajor >= 8
-    ? new PIXI.Text({
-      text: "↑",
-      style: { ...baseStyle, stroke: { color: 0x000000, width: 3 } }
-    })
-    : new PIXI.Text("↑", {
-      ...baseStyle,
-      stroke: 0x000000,
-      strokeThickness: 3
-    });
-  icon.anchor?.set?.(0.5);
-  icon.position?.set?.(0, -1);
+  const icon = new PIXI.Graphics();
+  const points = [
+    0, -13,
+    9, -3.5,
+    4.25, -3.5,
+    4.25, 10.5,
+    -4.25, 10.5,
+    -4.25, -3.5,
+    -9, -3.5
+  ];
+  if (typeof icon.poly === "function" && typeof icon.fill === "function") {
+    icon.poly(points).fill({ color: 0xf7f0dd, alpha: 1 }).stroke({ color: 0x1a1209, width: 1.4 });
+  } else {
+    icon.lineStyle?.(1.4, 0x1a1209, 1);
+    icon.beginFill?.(0xf7f0dd, 1);
+    icon.drawPolygon?.(points);
+    icon.endFill?.();
+  }
   return icon;
+}
+
+function drawCircle(graphics, x, y, radius, fillColor, fillAlpha, strokeColor = null, strokeWidth = 0) {
+  if (typeof graphics.circle === "function" && typeof graphics.fill === "function") {
+    graphics.circle(x, y, radius).fill({ color: fillColor, alpha: fillAlpha });
+    if (strokeColor !== null && strokeWidth > 0) {
+      graphics.stroke({ color: strokeColor, width: strokeWidth, alpha: 1 });
+    }
+    return;
+  }
+  if (strokeColor !== null && strokeWidth > 0) graphics.lineStyle?.(strokeWidth, strokeColor, 1);
+  else graphics.lineStyle?.(0, 0x000000, 0);
+  graphics.beginFill?.(fillColor, fillAlpha);
+  graphics.drawCircle?.(x, y, radius);
+  graphics.endFill?.();
+}
+
+function setStandUpButtonHover(button, background, active) {
+  button.alpha = 1;
+  button.scale?.set?.(active ? 1.08 : 1);
+  if (background?.tenebreGlow) background.tenebreGlow.alpha = active ? 0.72 : 0.28;
 }
 
 function escapeHtml(value) {

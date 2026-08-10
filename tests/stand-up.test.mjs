@@ -18,6 +18,7 @@ globalThis.Hooks = {
 const {
   buildStandUpChat,
   buildStandUpActionState,
+  createStandUpButtonBackground,
   createStandUpButtonIcon,
   getStandUpRemainingMovementActions,
   getStandUpButtonPosition,
@@ -81,7 +82,7 @@ test("the floating canvas control appears only for an owned prone player or the 
   assert.equal(shouldShowStandUpButton(actor), true);
   assert.deepEqual(
     getStandUpButtonPosition({ document: { x: 300, y: 200 }, w: 100, h: 80 }),
-    { x: 422, y: 240 }
+    { x: 426, y: 240 }
   );
 
   actor.isOwner = false;
@@ -92,23 +93,35 @@ test("the floating canvas control appears only for an owned prone player or the 
   assert.equal(shouldShowStandUpButton(actor, { isGM: true }), false);
 });
 
-test("the floating control uses the correct PIXI Text constructor in Foundry v13 and v14", () => {
-  const calls = [];
-  class TextMock {
-    constructor(...args) {
-      calls.push(args);
-      this.anchor = { set() {} };
-      this.position = { set() {} };
-    }
+test("the ornate floating control uses vector artwork in PIXI 7 and PIXI 8", () => {
+  class ContainerMock {
+    constructor() { this.children = []; }
+    addChild(...children) { this.children.push(...children); }
+  }
+  class GraphicsV7 {
+    constructor() { this.calls = []; }
+    lineStyle(...args) { this.calls.push(["lineStyle", ...args]); }
+    beginFill(...args) { this.calls.push(["beginFill", ...args]); }
+    drawCircle(...args) { this.calls.push(["drawCircle", ...args]); }
+    drawPolygon(...args) { this.calls.push(["drawPolygon", ...args]); }
+    endFill() {}
+  }
+  class GraphicsV8 {
+    constructor() { this.calls = []; }
+    circle(...args) { this.calls.push(["circle", ...args]); return this; }
+    poly(...args) { this.calls.push(["poly", ...args]); return this; }
+    fill(...args) { this.calls.push(["fill", ...args]); return this; }
+    stroke(...args) { this.calls.push(["stroke", ...args]); return this; }
   }
 
-  createStandUpButtonIcon({ VERSION: "7.4.2", Text: TextMock });
-  assert.equal(calls[0][0], "↑");
-  assert.equal(calls[0][1].strokeThickness, 3);
+  const iconV7 = createStandUpButtonIcon({ Graphics: GraphicsV7 });
+  assert.equal(iconV7.calls.some(([name]) => name === "drawPolygon"), true);
+  const iconV8 = createStandUpButtonIcon({ Graphics: GraphicsV8 });
+  assert.equal(iconV8.calls.some(([name]) => name === "poly"), true);
 
-  createStandUpButtonIcon({ VERSION: "8.6.6", Text: TextMock });
-  assert.equal(calls[1][0].text, "↑");
-  assert.deepEqual(calls[1][0].style.stroke, { color: 0x000000, width: 3 });
+  const background = createStandUpButtonBackground({ Container: ContainerMock, Graphics: GraphicsV7 });
+  assert.equal(background.children.length, 4);
+  assert.equal(background.children.some((child) => child.calls.some(([name]) => name === "drawCircle")), true);
 });
 
 test("the stand-up control is attached to the token layer and receives pointer clicks", async () => {
@@ -117,6 +130,7 @@ test("the stand-up control is attached to the token layer and receives pointer c
       this.children = [];
       this.handlers = new Map();
       this.position = { set: (x, y) => { this.x = x; this.y = y; } };
+      this.scale = { set: () => {} };
     }
     addChild(...children) {
       this.children.push(...children);
@@ -134,20 +148,13 @@ test("the stand-up control is attached to the token layer and receives pointer c
     lineStyle() {}
     beginFill() {}
     drawCircle() {}
+    drawPolygon() {}
     endFill() {}
   }
-  class TextMock {
-    constructor() {
-      this.anchor = { set() {} };
-      this.position = { set() {} };
-    }
-  }
-
   globalThis.PIXI = {
     VERSION: "7.4.2",
     Container: ContainerMock,
     Graphics: GraphicsMock,
-    Text: TextMock,
     Circle: class {}
   };
   const layer = new ContainerMock();
