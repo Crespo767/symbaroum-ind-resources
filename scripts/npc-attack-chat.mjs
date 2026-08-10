@@ -137,6 +137,15 @@ export function extractDamageFormula(formulaText = "", damageDie = "") {
     || nativeFormula;
 }
 
+export function resolveActiveArmor(actor) {
+  const armor = actor?.system?.combat;
+  if (!armor || armor.isNoArmor) return null;
+  const name = cleanText(armor.name);
+  const formula = cleanText(armor.protectionPc || armor.displayTextShort || armor.base);
+  if (!name || !formula || formula === "0" || formula === "1d0") return null;
+  return { name, formula };
+}
+
 function enhanceNpcAttackCard(root, message = null) {
   if (root.dataset.tenebreNpcAttack === "true") {
     refreshPainThresholdOutcome(root, message);
@@ -238,7 +247,8 @@ function buildNpcAttackModel(source) {
       sourceName: targetName,
       caption: compactActorName(targetDisplayName),
       img: backgroundImageUrl(source.querySelector(":scope > .introImg .introImg")?.getAttribute("style")),
-      actor: targetActor
+      actor: targetActor,
+      armor: resolveActiveArmor(targetActor)
     },
     resistedDescription,
     formula,
@@ -458,6 +468,22 @@ function createResolution(model) {
       "tenebre-npc-attack-damage",
       `${localize("TENEBRE.NpcAttackChat.Damage", "Dano")}: ${model.damageFormula} = ${model.damageRoll}`
     ));
+    if (isNpcAgainstPlayer(model) && model.target.armor && model.protection !== null) {
+      resolution.append(createTextElement(
+        "p",
+        "tenebre-npc-attack-player-armor",
+        format(
+          "TENEBRE.NpcAttackChat.PlayerArmorProtection",
+          "{name} protege ({formula} = {protection}) com {armor}.",
+          {
+            name: model.target.name,
+            formula: model.target.armor.formula,
+            protection: model.protection,
+            armor: model.target.armor.name
+          }
+        )
+      ));
+    }
     if (isPlayerAgainstNpc(model) && showNpcDetails && model.protection !== null) {
       resolution.append(createTextElement(
         "p",

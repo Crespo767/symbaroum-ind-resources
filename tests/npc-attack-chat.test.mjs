@@ -25,6 +25,7 @@ const {
   parseOpposedTest,
   parseRollValue,
   resolveAttackFlow,
+  resolveActiveArmor,
   stripNpcParenthetical
 } = await import("../scripts/npc-attack-chat.mjs");
 
@@ -176,6 +177,35 @@ test("player attacks show NPC protection between rolled and received damage", ()
   assert.ok(damageLine >= 0 && protectionLine > damageLine && receivedLine > protectionLine);
   assert.match(source, /isPlayerAgainstNpc\(model\) && showNpcDetails && model\.protection !== null/);
   assert.match(source, /TENEBRE\.NpcAttackChat\.Protection/);
+});
+
+test("NPC attacks show the player's native armor roll below damage", () => {
+  assert.deepEqual(resolveActiveArmor({
+    system: {
+      combat: {
+        name: "Couro Endurecido",
+        protectionPc: "1d4+1[Qualidade]",
+        base: "1d4",
+        isNoArmor: false
+      }
+    }
+  }), {
+    name: "Couro Endurecido",
+    formula: "1d4+1[Qualidade]"
+  });
+  assert.equal(resolveActiveArmor({
+    system: { combat: { name: "Sem armadura", protectionPc: "0", isNoArmor: true } }
+  }), null);
+
+  const damageLine = source.indexOf("tenebre-npc-attack-damage");
+  const armorLine = source.indexOf("tenebre-npc-attack-player-armor", damageLine);
+  const receivedLine = source.indexOf("tenebre-npc-attack-received", armorLine);
+  assert.ok(damageLine >= 0 && armorLine > damageLine && receivedLine > armorLine);
+  assert.match(source, /isNpcAgainstPlayer\(model\) && model\.target\.armor && model\.protection !== null/);
+  assert.equal(
+    ptBr["TENEBRE.NpcAttackChat.PlayerArmorProtection"],
+    "{name} protege ({formula} = {protection}) com {armor}."
+  );
 });
 
 test("zero effective damage reports that the NPC was protected by armor", () => {

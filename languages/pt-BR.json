@@ -653,6 +653,7 @@
   "TENEBRE.NpcAttackChat.Modifier": "Modificador",
   "TENEBRE.NpcAttackChat.Damage": "Dano",
   "TENEBRE.NpcAttackChat.Protection": "Proteção",
+  "TENEBRE.NpcAttackChat.PlayerArmorProtection": "{name} protege ({formula} = {protection}) com {armor}.",
   "TENEBRE.NpcAttackChat.DefendedMiss": "{target} consegue se defender; {attacker} erra o ataque.",
   "TENEBRE.NpcAttackChat.ProtectedByArmor": "{name} está protegido pela armadura.",
   "TENEBRE.NpcAttackChat.ReceivesDamage": "{name} recebe {damage} de dano.",
