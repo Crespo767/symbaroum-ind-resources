@@ -39,8 +39,10 @@ import { MoneyService } from "./money.mjs";
 import { PainThresholdChoiceService } from "./pain-threshold-choice.mjs";
 import { StandUpService } from "./stand-up.mjs";
 import { DeathAutomationService, isDeathIncapacitated } from "./death-automation.mjs";
+import { ActorCreationService } from "./actor-creation.mjs";
 
 Hooks.once("init", () => {
+  ActorCreationService.register();
   InventoryDefaultStateService.registerHooks();
   TenebreSettings.register();
   CompatibilityService.register();
