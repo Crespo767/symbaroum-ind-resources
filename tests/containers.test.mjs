@@ -155,6 +155,33 @@ test("container recognition uses exact aliases and exclusions", () => {
   assert.equal(ContainerService.isContainer(createItem(actor, { id: "tool", name: "Caixa de Ferramentas" })), false);
 });
 
+test("camping equipment accepts only its six dedicated contents", async () => {
+  const actor = createActor();
+  const camping = createItem(actor, { id: "camping-kit", name: "Equipamentos de Acampar" });
+  const allowedNames = [
+    "Saco de Dormir",
+    "Frigideira",
+    "Lenha",
+    "Pederneira e Isqueiro",
+    "Corda",
+    "Cantil"
+  ];
+
+  assert.equal(ContainerService.isCampingEquipment(camping), true);
+  assert.deepEqual(ContainerService.getContainerCapacity(camping), { mode: "slots", value: 6 });
+  for (const [index, name] of allowedNames.entries()) {
+    const item = createItem(actor, { id: `camping-content-${index}`, name });
+    assert.equal(ContainerService.isCampingContentAllowed(item), true, name);
+    assert.equal(ContainerService.canStoreInContainer(actor, item, camping), true, name);
+  }
+
+  const torch = createItem(actor, { id: "torch", name: "Tocha" });
+  assert.equal(ContainerService.isCampingContentAllowed(torch), false);
+  assert.equal(ContainerService.canStoreInContainer(actor, torch, camping), false);
+  assert.equal(await ContainerService.storeItem(actor, torch, camping), false);
+  assert.equal(ContainerService.isStored(torch), false);
+});
+
 test("container mutations require ownership and positive equipment quantity", async () => {
   const actor = createActor({ isOwner: false });
   game.user.isGM = false;

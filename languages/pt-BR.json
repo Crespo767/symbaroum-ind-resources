@@ -386,6 +386,7 @@
   "TENEBRE.Containers.CannotStoreOther": "Este item está em Outro. Para guardar, altere o estado para Equipado ou Ativo.",
   "TENEBRE.Containers.CannotStoreInOther": "O recipiente está em Outro. Para guardar itens nele, altere o estado do recipiente para Equipado ou Ativo.",
   "TENEBRE.Containers.CannotWithdrawOther": "O recipiente está em Outro. Para retirar itens, altere o estado do recipiente para Equipado ou Ativo.",
+  "TENEBRE.Containers.CampingRestricted": "{item} não faz parte do conjunto permitido e não pode ser guardado em {container}.",
   "TENEBRE.Containers.Stored": "{item} foi guardado em {container}.",
   "TENEBRE.Containers.OpenTitle": "{container}",
   "TENEBRE.Containers.Empty": "Este recipiente está vazio.",

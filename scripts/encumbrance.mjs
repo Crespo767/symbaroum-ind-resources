@@ -259,6 +259,8 @@ export class EncumbranceService {
   static getItemSlots(item) {
     if (!item) return ENC_SLOTS.ONE;
 
+    if (ContainerService.isCampingEquipment(item)) return ENC_SLOTS.TWO;
+
     const manual = item.getFlag?.(FLAG_SCOPE, "encumbranceSlots");
     const isManual = item.getFlag?.(FLAG_SCOPE, "encumbranceManual") === true;
     const manualSlots = sanitizeSlots(manual, null);
@@ -306,6 +308,16 @@ export class EncumbranceService {
       return {
         slotsPerUnit,
         quantity: 0,
+        totalSlots: 0,
+        state,
+        counted: false
+      };
+    }
+
+    if (ContainerService.isStoredInCampingEquipment(item)) {
+      return {
+        slotsPerUnit,
+        quantity: encumbranceQuantity(item),
         totalSlots: 0,
         state,
         counted: false

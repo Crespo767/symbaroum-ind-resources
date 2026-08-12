@@ -179,7 +179,7 @@ Defaults:
 | Recipiente reconhecido | Capacidade padrao |
 | --- | ---: |
 | Mochila, backpack, rucksack | 10 espacos |
-| Equipamento de Acampar e aliases equivalentes | 10 espacos |
+| Equipamento de Acampar e aliases equivalentes | 6 espacos |
 | Bolsa, bolsa de moedas, pouch, purse, algibeira e belt pouch | 2 espacos |
 | Outros recipientes reconhecidos | Ilimitado |
 
@@ -450,6 +450,11 @@ com `state: other`, `storedIn` apontando para o equipamento e
 Se o recipiente ja possui qualquer conteudo, ele apenas recebe a flag
 `campingContentsSeeded`; o modulo nao cria duplicatas. Essa inicializacao e
 uma operacao de mundo e deve ser executada com permissao adequada.
+
+O recipiente tambem rejeita qualquer armazenamento posterior que nao corresponda
+a um dos seis itens permitidos. Enquanto esses itens permanecem dentro do
+Equipamento de Acampar, sua contribuicao de carga e zero. Ao serem retirados,
+voltam a usar o peso normal. O proprio recipiente sempre ocupa 2 espacos de carga.
 
 ## Calculo de peso
 

@@ -48,7 +48,9 @@ const LIGHT_CONTAINER_ALIASES = [
   "alforjes",
   "saddlebag",
   "equipamento de acampar",
+  "equipamentos de acampar",
   "equipamento de acampamento",
+  "equipamentos de acampamento",
   "equipamento de campo",
   "algibeira",
   "jarra de barro",
@@ -91,7 +93,9 @@ const NON_CONTAINER_ALIASES = [
 
 const CAMPING_EQUIPMENT_ALIASES = [
   "equipamento de acampar",
+  "equipamentos de acampar",
   "equipamento de acampamento",
+  "equipamentos de acampamento",
   "equipamento de campo",
   "field equipment",
   "camping equipment"
@@ -116,6 +120,15 @@ const DEFAULT_CAMPING_CONTENTS = [
   "Corda",
   "Cantil"
 ];
+
+const CAMPING_CONTENT_ALIASES = new Map([
+  ["saco de dormir", ["saco de dormir", "sleeping bag", "bedroll"]],
+  ["frigideira", ["frigideira", "frying pan", "skillet"]],
+  ["lenha", ["lenha", "firewood"]],
+  ["pederneira e isqueiro", ["pederneira e isqueiro", "flint and steel"]],
+  ["corda", ["corda", "rope"]],
+  ["cantil", ["cantil", "waterskin", "water skin"]]
+]);
 
 export class ContainerService {
   static registerHooks() {
@@ -150,6 +163,21 @@ export class ContainerService {
     const name = normalize(item.name);
     if (hasAlias(name, NON_CONTAINER_ALIASES)) return false;
     return hasAlias(name, LIGHT_CONTAINER_ALIASES) || hasAlias(name, BULKY_CONTAINER_ALIASES);
+  }
+
+  static isCampingEquipment(item) {
+    return hasAlias(normalize(item?.name), CAMPING_EQUIPMENT_ALIASES);
+  }
+
+  static isCampingContentAllowed(item) {
+    const name = normalize(item?.name);
+    return Array.from(CAMPING_CONTENT_ALIASES.values()).some((aliases) => hasAlias(name, aliases));
+  }
+
+  static isStoredInCampingEquipment(item) {
+    if (!this.isStored(item) || !this.isCampingContentAllowed(item)) return false;
+    const container = item?.parent?.items?.get?.(this.getStoredIn(item));
+    return this.isCampingEquipment(container);
   }
 
   static isEnabled() {
@@ -228,6 +256,7 @@ export class ContainerService {
     if (!isValidStoreRelationship(actor, item, container)) return false;
     if (!this.isContainer(container) || this.isStored(container)) return false;
     if (!isAccessibleState(item) || !isAccessibleState(container)) return false;
+    if (this.isCampingEquipment(container) && !this.isCampingContentAllowed(item)) return false;
 
     const compatibleStack = item?.type === "equipment" && findStoredStack(actor, item, container);
     if (compatibleStack) return true;
@@ -379,6 +408,13 @@ export class ContainerService {
       const allContainers = this.getContainers(actor, item);
       const accessibleContainers = allContainers.filter((candidate) => isAccessibleState(candidate));
       if (accessibleContainers.length > 0) {
+        const restrictedContainer = accessibleContainers.find((candidate) => {
+          return this.isCampingEquipment(candidate) && !this.isCampingContentAllowed(item);
+        });
+        if (restrictedContainer) {
+          warnCampingRestriction(item, restrictedContainer);
+          return false;
+        }
         const fullContainer = accessibleContainers.find((candidate) => !this.canStoreInContainer(actor, item, candidate));
         if (fullContainer) {
           ui.notifications.warn(game.i18n.format("TENEBRE.Containers.ContainerFull", {
@@ -460,6 +496,10 @@ export class ContainerService {
     }
     if (!isAccessibleState(container)) {
       warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
+      return false;
+    }
+    if (this.isCampingEquipment(container) && !this.isCampingContentAllowed(item)) {
+      warnCampingRestriction(item, container);
       return false;
     }
     if (!this.canStoreInContainer(actor, item, container)) {
@@ -731,9 +771,8 @@ function normalizeCapacityConfig(config) {
 function getDefaultContainerCapacity(container) {
   const name = normalize(container?.name);
   if (hasAlias(name, SMALL_CONTAINER_ALIASES)) return 2;
-  if (hasAlias(name, ["mochila", "backpack", "rucksack"]) || hasAlias(name, CAMPING_EQUIPMENT_ALIASES)) {
-    return 10;
-  }
+  if (hasAlias(name, CAMPING_EQUIPMENT_ALIASES)) return DEFAULT_CAMPING_CONTENTS.length;
+  if (hasAlias(name, ["mochila", "backpack", "rucksack"])) return 10;
   return null;
 }
 
@@ -758,6 +797,13 @@ function isValidStoreRelationship(actor, item, container) {
 
 function warnInaccessibleState(key) {
   ui.notifications.warn(game.i18n.localize(key));
+}
+
+function warnCampingRestriction(item, container) {
+  ui.notifications.warn(game.i18n.format("TENEBRE.Containers.CampingRestricted", {
+    item: item?.name ?? "",
+    container: container?.name ?? ""
+  }));
 }
 
 function findVisibleStack(actor, item) {
@@ -914,7 +960,7 @@ async function seedContainerContents(actor, container) {
 }
 
 function isCampingEquipment(item) {
-  return hasAlias(normalize(item?.name), CAMPING_EQUIPMENT_ALIASES);
+  return ContainerService.isCampingEquipment(item);
 }
 
 function extractCampingContentRefs(container) {

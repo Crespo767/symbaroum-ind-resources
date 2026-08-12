@@ -386,6 +386,7 @@
   "TENEBRE.Containers.CannotStoreOther": "This item is set to Other. To store it, change its state to Equipped or Active.",
   "TENEBRE.Containers.CannotStoreInOther": "The container is set to Other. To store items in it, change the container state to Equipped or Active.",
   "TENEBRE.Containers.CannotWithdrawOther": "The container is set to Other. To withdraw items, change the container state to Equipped or Active.",
+  "TENEBRE.Containers.CampingRestricted": "{item} is not part of the allowed set and cannot be stored in {container}.",
   "TENEBRE.Containers.Stored": "{item} was stored in {container}.",
   "TENEBRE.Containers.OpenTitle": "{container}",
   "TENEBRE.Containers.Empty": "This container is empty.",

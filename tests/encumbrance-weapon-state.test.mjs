@@ -93,3 +93,22 @@ test("equipment projectiles count only while active or equipped", () => {
   assert.equal(EncumbranceService.getItemLoad(equipped).totalSlots, 4);
   assert.equal(EncumbranceService.getItemLoad(other).totalSlots, 0);
 });
+
+test("camping equipment weighs two while its dedicated contents weigh zero only inside it", () => {
+  const camping = item("camping", { type: "equipment", name: "Equipamento de Acampar", state: "equipped" });
+  camping.system.number = 1;
+  const rope = item("rope", { type: "equipment", name: "Corda", state: "other", storedIn: camping.id });
+  rope.system.number = 1;
+  const torch = item("torch", { type: "equipment", name: "Tocha", state: "other", storedIn: camping.id });
+  torch.system.number = 1;
+  actorWith([camping, rope, torch]);
+
+  assert.equal(EncumbranceService.getItemSlots(camping), 2);
+  assert.equal(EncumbranceService.getItemLoad(camping).totalSlots, 2);
+  assert.equal(EncumbranceService.getItemLoad(rope).totalSlots, 0);
+  assert.equal(EncumbranceService.getItemLoad(torch).totalSlots, 1);
+
+  delete rope.flags[scope].storedIn;
+  rope.system.state = "equipped";
+  assert.equal(EncumbranceService.getItemLoad(rope).totalSlots, 1);
+});
