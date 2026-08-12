@@ -20,6 +20,7 @@ import { WeaponReadinessService } from "./weapon-readiness.mjs";
 import { GroundContainerService } from "./ground-containers.mjs";
 import { ContainerTransferService } from "./container-transfer.mjs";
 import { MoneyService } from "./money.mjs";
+import { injectWeaponQualityTooltips } from "./weapon-quality-tooltips.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -1488,6 +1489,9 @@ async function clearActorEffects(actor) {
 function onRenderItemSheet(app, html) {
   const item = app.item ?? app.document ?? app.object;
   if (!item) return;
+  if (item.type === "weapon") {
+    injectWeaponQualityTooltips(getRoot(html) ?? getRoot(app?.element));
+  }
   if (!item.isOwner && !game.user.isGM) return;
   if (skipDuplicateSheetRender(html, app, "item")) return;
 

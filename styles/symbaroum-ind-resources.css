@@ -2,6 +2,14 @@
    Tenebre Resources — Stylesheet v2
    ═══════════════════════════════════════════════════════════════════ */
 
+/* ── Weapon quality tooltips ────────────────────────────────────────── */
+
+[data-tenebre-quality-tooltip="true"] {
+  cursor: help;
+  text-decoration: underline dotted rgba(215, 176, 72, 0.9);
+  text-underline-offset: 3px;
+}
+
 /* ── Settings form ──────────────────────────────────────────────────── */
 
 .tenebre-settings {
