@@ -40,9 +40,11 @@ import { PainThresholdChoiceService } from "./pain-threshold-choice.mjs";
 import { StandUpService } from "./stand-up.mjs";
 import { DeathAutomationService, isDeathIncapacitated } from "./death-automation.mjs";
 import { ActorCreationService } from "./actor-creation.mjs";
+import { HerbalCureService } from "./herbal-cure.mjs";
 
 Hooks.once("init", () => {
   ActorCreationService.register();
+  HerbalCureService.register();
   InventoryDefaultStateService.registerHooks();
   TenebreSettings.register();
   CompatibilityService.register();

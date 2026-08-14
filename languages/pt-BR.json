@@ -771,5 +771,18 @@
   "TENEBRE.WeaponQualityTooltip.staffFightingCompatibility": "Indica que a arma é compatível com Luta com Cajado; os efeitos dependem do nível da habilidade do usuário.",
   "TENEBRE.WeaponQualityTooltip.swordSaintCompatibility": "Indica que a arma é compatível com Espada Abençoada; os efeitos dependem do nível da habilidade do usuário.",
   "TENEBRE.WeaponQualityTooltip.knifePlayCompatibility": "Indica que a arma é compatível com Dança da Adaga; os efeitos dependem do nível da habilidade do usuário.",
-  "TENEBRE.WeaponQualityTooltip.staffMagicCompatibility": "Indica que a arma é compatível com Magia com Cajado; os efeitos dependem do nível da habilidade do usuário."
+  "TENEBRE.WeaponQualityTooltip.staffMagicCompatibility": "Indica que a arma é compatível com Magia com Cajado; os efeitos dependem do nível da habilidade do usuário.",
+  "TENEBRE.HerbalCure.UseHint": "Usar Cura Herbal",
+  "TENEBRE.HerbalCure.NoUses": "Não há nenhuma dose de Cura Herbal disponível.",
+  "TENEBRE.HerbalCure.OneTarget": "Selecione no máximo um alvo para usar a Cura Herbal.",
+  "TENEBRE.HerbalCure.Full": "{target} já está com a Vitalidade cheia; nenhuma dose foi consumida.",
+  "TENEBRE.HerbalCure.Dead": "{target} está morto e não pode receber Cura Herbal.",
+  "TENEBRE.HerbalCure.Failed": "Não foi possível usar a Cura Herbal.",
+  "TENEBRE.HerbalCure.Title": "{actor} usa Cura Herbal em {target}.",
+  "TENEBRE.HerbalCure.MedicusTest": "Teste de Astuto (Médico)",
+  "TENEBRE.HerbalCure.Success": "Sucesso",
+  "TENEBRE.HerbalCure.Failure": "Falha",
+  "TENEBRE.HerbalCure.Healing": "Cura",
+  "TENEBRE.HerbalCure.Healed": "{target} recupera {healing} de Vitalidade.",
+  "TENEBRE.HerbalCure.NotHealed": "{target} não recupera Vitalidade."
 }

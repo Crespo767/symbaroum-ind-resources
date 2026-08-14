@@ -21,6 +21,7 @@ import { GroundContainerService } from "./ground-containers.mjs";
 import { ContainerTransferService } from "./container-transfer.mjs";
 import { MoneyService } from "./money.mjs";
 import { injectWeaponQualityTooltips } from "./weapon-quality-tooltips.mjs";
+import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -510,7 +511,47 @@ function onRenderActorSheet(app, html) {
   injectEncumbrancePanel(app, html, actor);
   injectManeuverPanel(app, html, actor);
   wireChatItemUseIconFallback(app, html, actor);
+  wireHerbalCureIconUse(html, actor);
   wireInventoryItemIconUse(html, actor);
+}
+
+function wireHerbalCureIconUse(html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  for (const control of el.querySelectorAll(".gear .item-row.item[data-item-id] .image-container > .image")) {
+    const row = control.closest(".item-row.item[data-item-id]");
+    const item = row ? actor.items.get(row.dataset.itemId) : null;
+    bindHerbalCureControl(control, actor, item);
+  }
+}
+
+function bindHerbalCureControl(control, actor, item) {
+  if (!control || !isHerbalCureItem(item) || control.dataset.tenebreHerbalCure === "true") return false;
+  control.dataset.tenebreHerbalCure = "true";
+  control.classList.add("tenebre-item-icon-use", "tenebre-herbal-cure-use");
+  control.tabIndex = 0;
+  control.setAttribute("role", "button");
+  control.title = game.i18n.localize("TENEBRE.HerbalCure.UseHint");
+
+  const activate = async (event) => {
+    if (event.type === "click" && event.button !== 0) return;
+    if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    if (control.dataset.tenebreHerbalCureBusy === "true") return;
+    control.dataset.tenebreHerbalCureBusy = "true";
+    try {
+      await HerbalCureService.use(actor, item);
+    } finally {
+      delete control.dataset.tenebreHerbalCureBusy;
+    }
+  };
+
+  control.addEventListener("click", activate, { capture: true });
+  control.addEventListener("keydown", activate, { capture: true });
+  return true;
 }
 
 function injectMoneyControls(_app, html, actor) {
@@ -1312,7 +1353,9 @@ function buildContainerInlineItem(actor, item) {
   img.src = item.img || "icons/svg/item-bag.svg";
   img.alt = "";
   img.draggable = false;
-  if (TenebreSettings.get("enableChatItemUse") && ChatItemUseService.canSend(item)) {
+  if (bindHerbalCureControl(img, actor, item)) {
+    // Cura Herbal possui uma ação própria e exclusiva na imagem.
+  } else if (TenebreSettings.get("enableChatItemUse") && ChatItemUseService.canSend(item)) {
     img.classList.add("tenebre-container-item-use");
     img.tabIndex = 0;
     img.setAttribute("role", "button");

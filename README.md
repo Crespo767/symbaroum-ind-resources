@@ -28,6 +28,7 @@ sua explicacao detalhada:
 - [Pao de Viagem e outros alimentos](#pao-de-viagem)
 - [Fome e inanicao](#fome)
 - [Descanso e recuperacao](#descanso)
+- [Cura Herbal e Medico](#cura-herbal-e-medico)
 - [Aljavas, recarga e descarga](#aljavas-e-municao)
 - [Consumo automatico de municao](#consumo-automatico)
 - [Recuperacao de flechas e virotes](#recuperacao-de-municao)
@@ -65,7 +66,7 @@ recursos adequados para sua mesa.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.17.15 |
+| Modulo | 0.17.16 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -443,6 +444,27 @@ Durante o descanso:
 
 O atalho configuravel **Ctrl+Shift+R** abre o descanso para os tokens de
 personagem selecionados pelo Mestre ou para o personagem atribuido ao jogador.
+
+---
+
+## Cura Herbal e Medico
+
+Na ficha do personagem, clicar somente na imagem do equipamento **Cura Herbal**
+usa uma dose. Sem alvo selecionado, a cura e aplicada ao proprio personagem;
+com exatamente um token marcado como alvo, ela e aplicada ao alvo.
+
+- Sem a habilidade Medico, recupera 1 de Vitalidade.
+- Medico Novato testa Astuto e, em caso de sucesso, recupera 1d6.
+- Medico Adepto testa Astuto e, em caso de sucesso, recupera 1d8.
+- Medico Mestre testa Astuto: recupera 1d10 no sucesso ou 1d6 na falha.
+- Uma tentativa consome uma dose, inclusive quando o teste falha.
+- Alvo com Vitalidade cheia ou morto nao consome a dose.
+- A cura respeita a Vitalidade maxima e pode retirar automaticamente o estado
+  Morrendo ao elevar a Vitalidade acima de zero.
+
+As rolagens aguardam o Dice So Nice, quando ativo, antes da mensagem ilustrada
+ser publicada no chat. A alteracao de Vitalidade de outro personagem e validada
+pelo Mestre por socket.
 
 ---
 

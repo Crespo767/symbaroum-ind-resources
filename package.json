@@ -1,6 +1,6 @@
 {
   "name": "symbaroum-ind-resources",
-  "version": "0.17.15",
+  "version": "0.17.16",
   "private": true,
   "type": "module",
   "scripts": {

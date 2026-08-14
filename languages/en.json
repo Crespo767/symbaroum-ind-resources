@@ -771,5 +771,18 @@
   "TENEBRE.WeaponQualityTooltip.staffFightingCompatibility": "Marks the weapon as compatible with Staff Fighting; its effects depend on the user's ability level.",
   "TENEBRE.WeaponQualityTooltip.swordSaintCompatibility": "Marks the weapon as compatible with Sword Saint; its effects depend on the user's ability level.",
   "TENEBRE.WeaponQualityTooltip.knifePlayCompatibility": "Marks the weapon as compatible with Knife Play; its effects depend on the user's ability level.",
-  "TENEBRE.WeaponQualityTooltip.staffMagicCompatibility": "Marks the weapon as compatible with Staff Magic; its effects depend on the user's ability level."
+  "TENEBRE.WeaponQualityTooltip.staffMagicCompatibility": "Marks the weapon as compatible with Staff Magic; its effects depend on the user's ability level.",
+  "TENEBRE.HerbalCure.UseHint": "Use Herbal Cure",
+  "TENEBRE.HerbalCure.NoUses": "No Herbal Cure dose is available.",
+  "TENEBRE.HerbalCure.OneTarget": "Select no more than one target before using Herbal Cure.",
+  "TENEBRE.HerbalCure.Full": "{target} is already at full Toughness; no dose was consumed.",
+  "TENEBRE.HerbalCure.Dead": "{target} is dead and cannot receive Herbal Cure.",
+  "TENEBRE.HerbalCure.Failed": "Herbal Cure could not be used.",
+  "TENEBRE.HerbalCure.Title": "{actor} uses Herbal Cure on {target}.",
+  "TENEBRE.HerbalCure.MedicusTest": "Cunning Test (Medicus)",
+  "TENEBRE.HerbalCure.Success": "Success",
+  "TENEBRE.HerbalCure.Failure": "Failure",
+  "TENEBRE.HerbalCure.Healing": "Healing",
+  "TENEBRE.HerbalCure.Healed": "{target} recovers {healing} Toughness.",
+  "TENEBRE.HerbalCure.NotHealed": "{target} does not recover Toughness."
 }
