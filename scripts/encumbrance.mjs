@@ -19,6 +19,21 @@ import { normalize } from "./utils.mjs";
 
 const GEAR_ITEM_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
 
+export function canModifyEncumbranceItem(item, user = globalThis.game?.user) {
+  if (!item) return false;
+  if (user?.isGM) return true;
+
+  if (typeof item.canUserModify === "function") {
+    try {
+      return item.canUserModify(user, "update") === true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  return item.isOwner === true || item.parent?.isOwner === true;
+}
+
 const HEAVY_WEAPON_TERMS = [
   "arma pesada",
   "heavy weapon",
@@ -495,12 +510,15 @@ export class EncumbranceService {
     const existing = item.getFlag?.(FLAG_SCOPE, "encumbranceSlots");
     const slots = this.getItemSlots(item);
     if (Number(existing) === slots) return;
+    if (!canModifyEncumbranceItem(item)) return false;
 
     try {
       await item.setFlag(FLAG_SCOPE, "encumbranceSlots", slots);
       await item.setFlag(FLAG_SCOPE, "encumbranceAutoAssigned", true);
+      return true;
     } catch (err) {
       console.warn(`Tenebre Resources | Could not auto-assign encumbrance to "${item.name}":`, err.message);
+      return false;
     }
   }
 

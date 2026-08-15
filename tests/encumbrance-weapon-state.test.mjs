@@ -19,7 +19,7 @@ globalThis.foundry = {
 
 globalThis.game = { settings: { get: () => true } };
 
-const { EncumbranceService } = await import("../scripts/encumbrance.mjs");
+const { canModifyEncumbranceItem, EncumbranceService } = await import("../scripts/encumbrance.mjs");
 const { applyDynamicEncumbranceWeights } = await import("../scripts/encumbrance-db.mjs");
 
 function item(id, { type = "weapon", name = "Arco", state = "other", storedIn = "" } = {}) {
@@ -50,6 +50,56 @@ function actorWith(items) {
   }
   return actor;
 }
+
+test("automatic slot persistence skips items the current player cannot update", async () => {
+  const originalUser = globalThis.game.user;
+  globalThis.game.user = { id: "player", isGM: false };
+  let writes = 0;
+  const restricted = item("restricted", { type: "equipment", name: "Corda", state: "active" });
+  restricted.system.number = 1;
+  restricted.canUserModify = (user, action) => {
+    assert.equal(user, globalThis.game.user);
+    assert.equal(action, "update");
+    return false;
+  };
+  restricted.setFlag = async () => {
+    writes += 1;
+    throw new Error("setFlag must not be called");
+  };
+
+  try {
+    assert.equal(canModifyEncumbranceItem(restricted), false);
+    assert.equal(await EncumbranceService.autoAssignSlots(restricted), false);
+    assert.equal(writes, 0);
+  } finally {
+    globalThis.game.user = originalUser;
+  }
+});
+
+test("automatic slot persistence remains available to owners and GMs", async () => {
+  const originalUser = globalThis.game.user;
+  const owner = { id: "owner", isGM: false };
+  globalThis.game.user = owner;
+  const flags = {};
+  const owned = item("owned", { type: "equipment", name: "Corda", state: "active" });
+  owned.system.number = 1;
+  owned.canUserModify = (user, action) => user === owner && action === "update";
+  owned.setFlag = async (_scope, key, value) => {
+    flags[key] = value;
+  };
+
+  try {
+    assert.equal(canModifyEncumbranceItem(owned), true);
+    assert.equal(await EncumbranceService.autoAssignSlots(owned), true);
+    assert.equal(Number.isFinite(flags.encumbranceSlots), true);
+    assert.equal(flags.encumbranceAutoAssigned, true);
+
+    globalThis.game.user = { id: "gm", isGM: true };
+    assert.equal(canModifyEncumbranceItem({ canUserModify: () => false }), true);
+  } finally {
+    globalThis.game.user = originalUser;
+  }
+});
 
 test("weapon load follows native state and carried-container location", () => {
   const active = item("active", { state: "active" });
