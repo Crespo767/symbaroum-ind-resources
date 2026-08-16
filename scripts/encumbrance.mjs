@@ -350,10 +350,12 @@ export class EncumbranceService {
       };
     }
 
-    // Armas em active estao nas maos e nao ocupam carga. Equipado permanece
-    // com o personagem e deve contar; other representa equipamento fora dele.
+    // Armas em active estao nas maos e armaduras em active estao vestidas:
+    // nenhuma delas ocupa carga. Equipado representa o item apenas carregado;
+    // other representa equipamento fora do personagem.
     const normalizedState = String(state ?? "").toLowerCase();
-    if (!stored && item.type === "weapon" && normalizedState === "active") {
+    const activeInUse = item?.system?.isActive === true || normalizedState === "active";
+    if (!stored && (item.type === "weapon" || item.type === "armor") && activeInUse) {
       return {
         slotsPerUnit,
         quantity: 1,

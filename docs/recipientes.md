@@ -469,7 +469,8 @@ Regras efetivas:
 4. Um recipiente carregado e avaliado pelo seu estado nativo e pelo peso dos
    itens internos.
 5. Arma `active` esta na mao e nao ocupa carga.
-6. Item `equipped` conta como carga do personagem.
+6. Armadura `active` esta vestida e nao ocupa carga; sua desvantagem usa Obstrutiva.
+7. Item `equipped` conta como carga do personagem.
 7. Item `other` fora de um vinculo valido nao conta.
 8. Aljavas e projeteis usam regras de pacote; a regra padrao de projeteis e um
    slot por cada dez unidades completas, conforme a configuracao de pesos.

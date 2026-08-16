@@ -66,7 +66,7 @@ recursos adequados para sua mesa.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.17.17 |
+| Modulo | 0.17.18 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -487,7 +487,9 @@ O modulo implementa a regra opcional de carga baseada em **Vigoroso**.
 | Estado | Conta peso? |
 | --- | --- |
 | Equipado | Sim |
-| Ativo | Sim |
+| Ativo (equipamentos e artefatos) | Sim |
+| Ativo (arma nas maos) | Nao |
+| Ativo (armadura vestida) | Nao; a desvantagem ja e representada por Obstrutiva |
 | Outro | Nao |
 
 Excecao importante: itens dentro de um recipiente contam conforme o estado do

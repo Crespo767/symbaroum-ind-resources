@@ -131,6 +131,33 @@ test("weapon state transitions change only the weapon load contribution", () => 
   assert.equal(EncumbranceService.calculateLoad(actor).currentLoad, 0);
 });
 
+test("worn armor weighs zero while carried armor keeps its normal load", () => {
+  const armor = item("armor", { type: "armor", name: "Armadura Pesada", state: "active" });
+  armor.system.baseProtection = "1d8";
+  const actor = actorWith([armor]);
+
+  assert.equal(EncumbranceService.getItemSlots(armor), 4);
+  assert.equal(EncumbranceService.getItemLoad(armor).totalSlots, 0);
+  assert.equal(EncumbranceService.calculateLoad(actor).currentLoad, 0);
+
+  armor.system.state = "equipped";
+  assert.equal(EncumbranceService.getItemLoad(armor).totalSlots, 4);
+  assert.equal(EncumbranceService.calculateLoad(actor).currentLoad, 4);
+
+  armor.system.state = "other";
+  assert.equal(EncumbranceService.getItemLoad(armor).totalSlots, 0);
+});
+
+test("armor stored in a carried container still weighs normally", () => {
+  const backpack = item("backpack", { type: "equipment", name: "Mochila", state: "equipped" });
+  backpack.flags[scope] = { isContainer: true };
+  const armor = item("stored-armor", { type: "armor", name: "Armadura Média", state: "other", storedIn: backpack.id });
+  armor.system.baseProtection = "1d6";
+  actorWith([backpack, armor]);
+
+  assert.equal(EncumbranceService.getItemLoad(armor).totalSlots, 3);
+});
+
 test("equipment projectiles count only while active or equipped", () => {
   applyDynamicEncumbranceWeights({
     bundles: { "Flecha - Arpéu": { bundleSize: 10, slots: 1 } }
