@@ -57,6 +57,7 @@ export class GmLogUiService {
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key, value) => {
       if (key === ENABLE_SETTING) this.syncEnabledState(Boolean(value));
     });
+    document.addEventListener("click", (event) => this.#onPageClick(event), true);
 
     this.syncEnabledState(isGmLogEnabled());
   }
@@ -114,21 +115,25 @@ export class GmLogUiService {
     button.id = id;
     button.type = "button";
     button.className = "tenebre-gm-log-page-button";
-    button.dataset.page = page;
+    button.dataset.tenebreGmLogPage = page;
     button.setAttribute("role", "tab");
     button.append(createIcon(iconClass), document.createTextNode(localize(labelKey)));
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      this.#showPage(page);
-    });
     return button;
   }
 
-  static #showPage(page) {
+  static #onPageClick(event) {
+    const button = event.target?.closest?.(`#${NAVIGATION_ID} [data-tenebre-gm-log-page]`);
+    if (!(button instanceof HTMLElement)) return;
+    const root = button.closest(`#${CHAT_ROOT_ID}`);
+    if (!(root instanceof HTMLElement)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.#showPage(button.dataset.tenebreGmLogPage, root);
+  }
+
+  static #showPage(page, root) {
     if (page !== CHAT_PAGE && page !== GM_LOG_PAGE) return;
     this.#page = page;
-    const root = document.getElementById(CHAT_ROOT_ID);
     if (!(root instanceof HTMLElement)) return;
     this.#applyPageState(root);
     if (page === GM_LOG_PAGE) void this.#renderLogPage();
@@ -140,8 +145,8 @@ export class GmLogUiService {
     const logPage = root.querySelector(`:scope > #${LOG_PAGE_ID}`);
     if (logPage instanceof HTMLElement) logPage.hidden = !logOpen;
 
-    for (const button of root.querySelectorAll(`#${NAVIGATION_ID} [data-page]`)) {
-      const active = button.dataset.page === this.#page;
+    for (const button of root.querySelectorAll(`#${NAVIGATION_ID} [data-tenebre-gm-log-page]`)) {
+      const active = button.dataset.tenebreGmLogPage === this.#page;
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", String(active));
       button.tabIndex = active ? 0 : -1;

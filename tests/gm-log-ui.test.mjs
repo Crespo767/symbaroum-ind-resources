@@ -71,6 +71,10 @@ test("UI is a GM-only second chat page and does not create chat documents", asyn
   assert.match(source, /root\.prepend\(navigation\)/);
   assert.match(source, /root\.append\(logPage\)/);
   assert.match(source, /child\.classList\.add\(NATIVE_PAGE_CLASS\)/);
+  assert.match(source, /document\.addEventListener\("click",[\s\S]*true\)/);
+  assert.match(source, /data-tenebre-gm-log-page/);
+  assert.match(source, /button\.closest\(`#\$\{CHAT_ROOT_ID\}`\)/);
+  assert.match(source, /this\.#showPage\(button\.dataset\.tenebreGmLogPage, root\)/);
   assert.match(source, /root\.classList\.toggle\(ACTIVE_PAGE_CLASS, logOpen\)/);
   assert.match(source, /foundry\?\.applications\?\.handlebars\?\.renderTemplate/);
   assert.match(source, /this\.#unmount\(\)/);
