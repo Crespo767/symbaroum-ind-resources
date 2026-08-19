@@ -2283,6 +2283,7 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   flex: 0 0 auto;
   width: 100%;
   min-height: 36px;
+  pointer-events: auto;
   border-bottom: 2px solid #9d4c3e;
   background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
 }
@@ -2338,6 +2339,7 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   min-height: 0;
   padding: 4px;
   overflow: hidden;
+  pointer-events: auto;
   color: #17120e;
   background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat;
   font-family: "Philosopher", var(--font-text), serif;

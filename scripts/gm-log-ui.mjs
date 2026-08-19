@@ -57,7 +57,6 @@ export class GmLogUiService {
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key, value) => {
       if (key === ENABLE_SETTING) this.syncEnabledState(Boolean(value));
     });
-    document.addEventListener("click", (event) => this.#onPageClick(event), true);
 
     this.syncEnabledState(isGmLogEnabled());
   }
@@ -118,17 +117,14 @@ export class GmLogUiService {
     button.dataset.tenebreGmLogPage = page;
     button.setAttribute("role", "tab");
     button.append(createIcon(iconClass), document.createTextNode(localize(labelKey)));
+    button.addEventListener("click", (event) => {
+      const root = button.closest(`#${CHAT_ROOT_ID}`);
+      if (!(root instanceof HTMLElement)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.#showPage(page, root);
+    });
     return button;
-  }
-
-  static #onPageClick(event) {
-    const button = event.target?.closest?.(`#${NAVIGATION_ID} [data-tenebre-gm-log-page]`);
-    if (!(button instanceof HTMLElement)) return;
-    const root = button.closest(`#${CHAT_ROOT_ID}`);
-    if (!(root instanceof HTMLElement)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    this.#showPage(button.dataset.tenebreGmLogPage, root);
   }
 
   static #showPage(page, root) {

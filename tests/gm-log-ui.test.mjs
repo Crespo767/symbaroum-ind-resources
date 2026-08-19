@@ -71,10 +71,10 @@ test("UI is a GM-only second chat page and does not create chat documents", asyn
   assert.match(source, /root\.prepend\(navigation\)/);
   assert.match(source, /root\.append\(logPage\)/);
   assert.match(source, /child\.classList\.add\(NATIVE_PAGE_CLASS\)/);
-  assert.match(source, /document\.addEventListener\("click",[\s\S]*true\)/);
   assert.match(source, /data-tenebre-gm-log-page/);
   assert.match(source, /button\.closest\(`#\$\{CHAT_ROOT_ID\}`\)/);
-  assert.match(source, /this\.#showPage\(button\.dataset\.tenebreGmLogPage, root\)/);
+  assert.match(source, /button\.addEventListener\("click"/);
+  assert.match(source, /this\.#showPage\(page, root\)/);
   assert.match(source, /root\.classList\.toggle\(ACTIVE_PAGE_CLASS, logOpen\)/);
   assert.match(source, /foundry\?\.applications\?\.handlebars\?\.renderTemplate/);
   assert.match(source, /this\.#unmount\(\)/);
@@ -84,6 +84,8 @@ test("UI is a GM-only second chat page and does not create chat documents", asyn
   assert.match(template, /data-action="clear-log"/);
   assert.match(css, /\.tenebre-gm-log-chat\.tenebre-gm-log-page-active > \.tenebre-gm-log-native-page\s*\{[\s\S]*?display:\s*none !important;/);
   assert.match(css, /\.tenebre-gm-log-page\[hidden\]/);
+  assert.match(css, /\.tenebre-gm-log-pages\s*\{[\s\S]*?pointer-events:\s*auto;/);
+  assert.match(css, /\.tenebre-gm-log-page\s*\{[\s\S]*?pointer-events:\s*auto;/);
   assert.doesNotMatch(css, /\.tenebre-gm-log-page\s*\{[^}]*position:\s*(?:fixed|absolute)/);
   assert.doesNotMatch(source, /ApplicationV2|new Dialog/);
   assert.doesNotMatch(source, /ChatMessage\.create/);
