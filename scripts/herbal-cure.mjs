@@ -5,9 +5,9 @@ import { itemQuantity } from "./item-flags.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { SocketService } from "./sockets.mjs";
 import { escapeHtml } from "./utils.mjs";
-import { herbalCureFormula, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } from "./herbal-cure-rules.mjs";
+import { herbalCureFormula, herbalCureMethodLevel, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } from "./herbal-cure-rules.mjs";
 
-export { herbalCureFormula, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } from "./herbal-cure-rules.mjs";
+export { herbalCureFormula, herbalCureMethodLevel, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } from "./herbal-cure-rules.mjs";
 
 const SOCKET_HANDLER = "useHerbalCure";
 const OWNER_LEVEL = 3;
@@ -34,12 +34,18 @@ export class HerbalCureService {
     }
     if (!target.actor) return null;
 
+    const method = await promptHerbalCureMethod(actor);
+    if (!method) return null;
+
     try {
       const result = await SocketService.executeAsGM(
         SOCKET_HANDLER,
         item.uuid,
         target.actor.uuid,
-        { privateRoll: RollPrivacyService.isPrivateRollActive() }
+        {
+          privateRoll: RollPrivacyService.isPrivateRollActive(),
+          useMedicus: method === "medicus"
+        }
       );
       if (result?.status === "full") ui.notifications.warn(game.i18n.format("TENEBRE.HerbalCure.Full", { target: target.actor.name }));
       if (result?.status === "dead") ui.notifications.warn(game.i18n.format("TENEBRE.HerbalCure.Dead", { target: target.actor.name }));
@@ -71,7 +77,8 @@ async function useHerbalCureAsAuthority(itemUuid, targetActorUuid, options = {})
   const maximum = Math.max(0, Number(targetActor.system?.health?.toughness?.max) || 0);
   if (maximum > 0 && current >= maximum) return { status: "full" };
 
-  const level = medicusLevel(sourceActor);
+  const level = herbalCureMethodLevel(sourceActor, options?.useMedicus === true);
+  if (level === null) throw new Error("Actor cannot use Herbal Cure with Medicus.");
   const cunning = Math.max(0, Number(sourceActor.system?.attributes?.cunning?.total) || 0);
   const testRoll = level > 0 ? await evaluateRoll("1d20") : null;
   const testTotal = testRoll ? rollTotal(testRoll) : null;
@@ -93,6 +100,72 @@ async function useHerbalCureAsAuthority(itemUuid, targetActorUuid, options = {})
   });
 
   return { status: "used", level, success, formula, rolledHealing, healed };
+}
+
+export async function promptHerbalCureMethod(actor) {
+  const hasMedicus = medicusLevel(actor) > 0;
+  const title = game.i18n.localize("TENEBRE.HerbalCure.MethodTitle");
+  const content = `<div class="symbaroum dialog tenebre-symbaroum-dialog tenebre-herbal-cure-method-dialog">
+    <p>${escapeHtml(game.i18n.localize("TENEBRE.HerbalCure.MethodPrompt"))}</p>
+    ${hasMedicus ? "" : `<p class="notes">${escapeHtml(game.i18n.localize("TENEBRE.HerbalCure.MedicusUnavailable"))}</p>`}
+  </div>`;
+  const buttons = [];
+  if (hasMedicus) {
+    buttons.push({
+      action: "medicus",
+      icon: "fas fa-user-doctor",
+      label: game.i18n.localize("TENEBRE.HerbalCure.UseMedicus"),
+      default: true,
+      callback: () => "medicus"
+    });
+  }
+  buttons.push(
+    {
+      action: "standard",
+      icon: "fas fa-leaf",
+      label: game.i18n.localize("TENEBRE.HerbalCure.UseStandard"),
+      default: !hasMedicus,
+      callback: () => "standard"
+    },
+    {
+      action: "cancel",
+      icon: "fas fa-times",
+      label: game.i18n.localize("TENEBRE.Common.Cancel"),
+      callback: () => null
+    }
+  );
+
+  const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
+  if (DialogV2?.wait) {
+    return DialogV2.wait({
+      window: { title },
+      position: { width: 440 },
+      content,
+      buttons,
+      rejectClose: false
+    });
+  }
+
+  return new Promise((resolve) => {
+    let completed = false;
+    const complete = (value) => {
+      if (completed) return;
+      completed = true;
+      resolve(value);
+    };
+    const legacyButtons = Object.fromEntries(buttons.map((button) => [button.action, {
+      icon: `<i class="${button.icon}"></i>`,
+      label: button.label,
+      callback: () => complete(button.callback())
+    }]));
+    new Dialog({
+      title,
+      content,
+      buttons: legacyButtons,
+      default: hasMedicus ? "medicus" : "standard",
+      close: () => complete(null)
+    }).render(true);
+  });
 }
 
 export function buildHerbalCureChat({ sourceActor, targetActor, item, level, cunning, testTotal, success, formula, rolledHealing, healed }) {

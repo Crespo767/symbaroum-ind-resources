@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const { herbalCureFormula, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } = await import("../scripts/herbal-cure-rules.mjs");
+const { herbalCureFormula, herbalCureMethodLevel, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } = await import("../scripts/herbal-cure-rules.mjs");
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("recognizes only the Herbal Cure equipment", () => {
@@ -29,6 +29,14 @@ test("matches the Symbaroum Herbal Cure formulas for every Medicus level", () =>
   assert.equal(herbalCureFormula(1, false), null);
   assert.equal(herbalCureFormula(2, false), null);
   assert.equal(herbalCureFormula(3, false), "1d6");
+});
+
+test("the chosen Herbal Cure method controls whether Medicus is applied", () => {
+  const medicus = { name: "Médico", system: { reference: "medicus", novice: { isActive: true }, adept: { isActive: true }, master: { isActive: false } } };
+  const actor = { items: new Map([["medicus", medicus]]) };
+  assert.equal(herbalCureMethodLevel(actor, false), 0);
+  assert.equal(herbalCureMethodLevel(actor, true), 2);
+  assert.equal(herbalCureMethodLevel({ items: new Map() }, true), null);
 });
 
 test("targets one selected actor or falls back to the sheet actor", () => {
@@ -67,6 +75,9 @@ test("the sheet binds Herbal Cure only to its image and resolves it through an a
   assert.match(wire, /\.image-container > \.image/);
   assert.doesNotMatch(wire, /\.item-edit/);
   assert.match(wire, /HerbalCureService\.use\(actor, item\)/);
+  assert.match(service, /await promptHerbalCureMethod\(actor\)/);
+  assert.match(service, /useMedicus: method === "medicus"/);
+  assert.match(service, /herbalCureMethodLevel\(sourceActor, options\?\.useMedicus === true\)/);
   assert.match(service, /SocketService\.executeAsGM\(/);
   assert.match(service, /ownsActor\(sourceActor, user\)/);
   assert.match(service, /isTargetedByUser\(targetActor, user\)/);

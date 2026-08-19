@@ -30,6 +30,12 @@ export function herbalCureFormula(level, success) {
   return normalizedLevel === 1 ? "1d6" : normalizedLevel === 2 ? "1d8" : "1d10";
 }
 
+export function herbalCureMethodLevel(actor, useMedicus = false) {
+  if (!useMedicus) return 0;
+  const level = medicusLevel(actor);
+  return level > 0 ? level : null;
+}
+
 export function resolveHerbalCureTarget(actor, targets = globalThis.game?.user?.targets) {
   const selected = Array.from(targets ?? []);
   if (selected.length > 1) return { error: "multiple", actor: null };

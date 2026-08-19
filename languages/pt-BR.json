@@ -785,5 +785,10 @@
   "TENEBRE.HerbalCure.Failure": "Falha",
   "TENEBRE.HerbalCure.Healing": "Cura",
   "TENEBRE.HerbalCure.Healed": "{target} recupera {healing} de Vitalidade.",
-  "TENEBRE.HerbalCure.NotHealed": "{target} não recupera Vitalidade."
+  "TENEBRE.HerbalCure.NotHealed": "{target} não recupera Vitalidade.",
+  "TENEBRE.HerbalCure.MethodTitle": "Usar Cura Herbal",
+  "TENEBRE.HerbalCure.MethodPrompt": "Como deseja usar a Cura Herbal?",
+  "TENEBRE.HerbalCure.UseMedicus": "Usar com Médico",
+  "TENEBRE.HerbalCure.UseStandard": "Usar normalmente (cura 1)",
+  "TENEBRE.HerbalCure.MedicusUnavailable": "Este personagem não possui a habilidade Médico; apenas a cura normal está disponível."
 }

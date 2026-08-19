@@ -785,5 +785,10 @@
   "TENEBRE.HerbalCure.Failure": "Failure",
   "TENEBRE.HerbalCure.Healing": "Healing",
   "TENEBRE.HerbalCure.Healed": "{target} recovers {healing} Toughness.",
-  "TENEBRE.HerbalCure.NotHealed": "{target} does not recover Toughness."
+  "TENEBRE.HerbalCure.NotHealed": "{target} does not recover Toughness.",
+  "TENEBRE.HerbalCure.MethodTitle": "Use Herbal Cure",
+  "TENEBRE.HerbalCure.MethodPrompt": "How do you want to use the Herbal Cure?",
+  "TENEBRE.HerbalCure.UseMedicus": "Use with Medicus",
+  "TENEBRE.HerbalCure.UseStandard": "Use normally (heal 1)",
+  "TENEBRE.HerbalCure.MedicusUnavailable": "This character does not have the Medicus ability; only normal healing is available."
 }
