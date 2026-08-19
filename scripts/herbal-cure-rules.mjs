@@ -35,3 +35,14 @@ export function resolveHerbalCureTarget(actor, targets = globalThis.game?.user?.
   if (selected.length > 1) return { error: "multiple", actor: null };
   return { error: null, actor: selected[0]?.actor ?? actor ?? null };
 }
+
+export function isSelfHerbalCure(sourceActor, targetActor) {
+  if (!sourceActor || !targetActor) return false;
+  if (sourceActor === targetActor) return true;
+  const sourceUuid = String(sourceActor.uuid ?? "");
+  const targetUuid = String(targetActor.uuid ?? "");
+  if (sourceUuid && targetUuid) return sourceUuid === targetUuid;
+  const sourceId = String(sourceActor.id ?? "");
+  const targetId = String(targetActor.id ?? "");
+  return Boolean(sourceId && targetId && sourceId === targetId);
+}

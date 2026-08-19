@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const { herbalCureFormula, isHerbalCureItem, medicusLevel, resolveHerbalCureTarget } = await import("../scripts/herbal-cure-rules.mjs");
+const { herbalCureFormula, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } = await import("../scripts/herbal-cure-rules.mjs");
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("recognizes only the Herbal Cure equipment", () => {
@@ -37,6 +37,17 @@ test("targets one selected actor or falls back to the sheet actor", () => {
   assert.equal(resolveHerbalCureTarget(self, []).actor, self);
   assert.equal(resolveHerbalCureTarget(self, [{ actor: ally }]).actor, ally);
   assert.equal(resolveHerbalCureTarget(self, [{ actor: ally }, { actor: self }]).error, "multiple");
+});
+
+test("self healing is distinguished without repeating the actor name", () => {
+  const actor = { id: "actor", uuid: "Actor.actor" };
+  assert.equal(isSelfHerbalCure(actor, actor), true);
+  assert.equal(isSelfHerbalCure(actor, { id: "actor", uuid: "Actor.actor" }), true);
+  assert.equal(isSelfHerbalCure(actor, { id: "ally", uuid: "Actor.ally" }), false);
+
+  const service = fs.readFileSync(path.join(root, "scripts", "herbal-cure.mjs"), "utf8");
+  assert.match(service, /isSelfHerbalCure\(sourceActor, targetActor\)/);
+  assert.match(service, /TENEBRE\.HerbalCure\.TitleSelf/);
 });
 
 test("the sheet binds Herbal Cure only to its image and resolves it through an authenticated GM socket", () => {

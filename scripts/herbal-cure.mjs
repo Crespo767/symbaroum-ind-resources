@@ -5,9 +5,9 @@ import { itemQuantity } from "./item-flags.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { SocketService } from "./sockets.mjs";
 import { escapeHtml } from "./utils.mjs";
-import { herbalCureFormula, isHerbalCureItem, medicusLevel, resolveHerbalCureTarget } from "./herbal-cure-rules.mjs";
+import { herbalCureFormula, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } from "./herbal-cure-rules.mjs";
 
-export { herbalCureFormula, isHerbalCureItem, medicusLevel, resolveHerbalCureTarget } from "./herbal-cure-rules.mjs";
+export { herbalCureFormula, isHerbalCureItem, isSelfHerbalCure, medicusLevel, resolveHerbalCureTarget } from "./herbal-cure-rules.mjs";
 
 const SOCKET_HANDLER = "useHerbalCure";
 const OWNER_LEVEL = 3;
@@ -96,6 +96,9 @@ async function useHerbalCureAsAuthority(itemUuid, targetActorUuid, options = {})
 }
 
 export function buildHerbalCureChat({ sourceActor, targetActor, item, level, cunning, testTotal, success, formula, rolledHealing, healed }) {
+  const titleKey = isSelfHerbalCure(sourceActor, targetActor)
+    ? "TENEBRE.HerbalCure.TitleSelf"
+    : "TENEBRE.HerbalCure.Title";
   const levelLabel = level === 1
     ? game.i18n.localize("ABILITY.NOVICE")
     : level === 2
@@ -109,7 +112,7 @@ export function buildHerbalCureChat({ sourceActor, targetActor, item, level, cun
   const formulaText = formula ? `${formula} = ${rolledHealing}` : "—";
 
   return `<div class="symbaroum chat item tenebre-herbal-cure-chat"><div class="foreground">
-    <h3>${escapeHtml(game.i18n.format("TENEBRE.HerbalCure.Title", { actor: sourceActor.name, target: targetActor.name }))}</h3>
+    <h3>${escapeHtml(game.i18n.format(titleKey, { actor: sourceActor.name, target: targetActor.name }))}</h3>
     <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:8px 0;">
       <img src="${escapeHtml(sourceActor.img)}" alt="${escapeHtml(sourceActor.name)}" style="width:56px;height:56px;object-fit:cover;">
       <span>→</span>

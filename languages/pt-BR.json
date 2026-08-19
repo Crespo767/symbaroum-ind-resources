@@ -779,6 +779,7 @@
   "TENEBRE.HerbalCure.Dead": "{target} está morto e não pode receber Cura Herbal.",
   "TENEBRE.HerbalCure.Failed": "Não foi possível usar a Cura Herbal.",
   "TENEBRE.HerbalCure.Title": "{actor} usa Cura Herbal em {target}.",
+  "TENEBRE.HerbalCure.TitleSelf": "{actor} usa Cura Herbal em si mesmo.",
   "TENEBRE.HerbalCure.MedicusTest": "Teste de Astuto (Médico)",
   "TENEBRE.HerbalCure.Success": "Sucesso",
   "TENEBRE.HerbalCure.Failure": "Falha",

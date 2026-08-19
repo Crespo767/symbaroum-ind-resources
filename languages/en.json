@@ -779,6 +779,7 @@
   "TENEBRE.HerbalCure.Dead": "{target} is dead and cannot receive Herbal Cure.",
   "TENEBRE.HerbalCure.Failed": "Herbal Cure could not be used.",
   "TENEBRE.HerbalCure.Title": "{actor} uses Herbal Cure on {target}.",
+  "TENEBRE.HerbalCure.TitleSelf": "{actor} uses Herbal Cure on themselves.",
   "TENEBRE.HerbalCure.MedicusTest": "Cunning Test (Medicus)",
   "TENEBRE.HerbalCure.Success": "Success",
   "TENEBRE.HerbalCure.Failure": "Failure",
