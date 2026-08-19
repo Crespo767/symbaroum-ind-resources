@@ -21,7 +21,6 @@ const internalSettings = new Set([
   "compatibilityNoticeAcknowledged",
   "encumbranceDiscoveredWeights",
   "weaponReadinessButtonPosition",
-  "gmLogWindowPosition",
   "containerExpansionState",
   "enableChatItemUse"
 ]);
@@ -91,7 +90,7 @@ test("GM log and inventory cleanup settings control their complete lifecycle", (
   assert.match(gmLogServiceSource, /enableGmLog/);
   assert.match(gmLogServiceSource, /syncEnabledState/);
   assert.match(gmLogUiSource, /enableGmLog/);
-  assert.match(gmLogUiSource, /await this\.#application\.close\(\)/);
+  assert.match(gmLogUiSource, /this\.#unmount\(\)/);
   assert.match(inventoryCleanupSource, /enableInventoryCleanup/);
   assert.match(inventoryCleanupSource, /if \(!isInventoryCleanupEnabled\(\)\) return 0/);
 });

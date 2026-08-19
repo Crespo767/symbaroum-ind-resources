@@ -2275,44 +2275,76 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 }
 
 
-/* GM-only, session-local activity log. */
+/* GM-only, session-local second chat page. */
 
-.tenebre-gm-log-toggle {
+.tenebre-gm-log-pages {
   display: grid;
-  place-items: center;
-  flex: 0 0 32px;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
-  margin: 0;
-  padding: 0;
-  color: #d9bd76;
-}
-
-.tenebre-gm-log-toggle:hover,
-.tenebre-gm-log-toggle:focus-visible {
-  color: #fff;
-}
-
-.tenebre-gm-log-app .window-content {
-  padding: 5px;
-  overflow: hidden;
-  border: 1px solid rgba(55, 42, 30, 0.9);
-  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat;
-  color: #17120e;
-  font-family: "Philosopher", var(--font-text), serif;
-  box-shadow: inset 0 0 0 2px rgba(151, 73, 55, 0.32);
-}
-
-.tenebre-gm-log-app .window-header {
-  border-bottom: 1px solid #8f493c;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 36px;
+  border-bottom: 2px solid #9d4c3e;
   background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
 }
 
-.tenebre-gm-log-app .window-title {
-  font-family: "Primitive", "Philosopher", var(--font-text), serif;
-  letter-spacing: 0;
+.tenebre-gm-log-page-button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 0;
+  color: #d8c9a5;
+  background: transparent;
+  font-family: "Philosopher", var(--font-text), serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.tenebre-gm-log-page-button + .tenebre-gm-log-page-button {
+  border-left: 1px solid rgba(217, 189, 118, 0.35);
+}
+
+.tenebre-gm-log-page-button:hover,
+.tenebre-gm-log-page-button:focus-visible,
+.tenebre-gm-log-page-button.active {
+  color: #fff;
+  background: rgba(157, 76, 62, 0.36);
+  box-shadow: inset 0 -3px 0 #d9bd76;
+}
+
+.tenebre-gm-log-chat.tenebre-gm-log-page-active {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tenebre-gm-log-chat.tenebre-gm-log-page-active > .tenebre-gm-log-native-page {
+  display: none !important;
+}
+
+.tenebre-gm-log-page {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px;
+  overflow: hidden;
+  color: #17120e;
+  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat;
+  font-family: "Philosopher", var(--font-text), serif;
+}
+
+.tenebre-gm-log-page[hidden] {
+  display: none !important;
 }
 
 .tenebre-gm-log-shell {

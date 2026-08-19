@@ -2,47 +2,18 @@ import { MODULE_ID } from "./constants.mjs";
 import { GM_LOG_EVENT_CATEGORIES, gmLogEventPresentation } from "./gm-log-events.mjs";
 import { GmLogService, isGmLogEnabled } from "./gm-log-service.mjs";
 
-const applicationsApi = globalThis.foundry?.applications?.api;
-const ApplicationV2 = applicationsApi?.ApplicationV2 ?? class {};
-const HandlebarsApplicationMixin = applicationsApi?.HandlebarsApplicationMixin ?? ((Base) => Base);
-
-const APPLICATION_ID = "tenebre-gm-log-window";
 const TEMPLATE_PATH = `modules/${MODULE_ID}/templates/gm-log.hbs`;
-const TOGGLE_ID = "tenebre-gm-log-toggle";
-const TOGGLE_ICON = "fa-solid fa-list-ul";
+const CHAT_ROOT_ID = "chat";
+const NAVIGATION_ID = "tenebre-gm-log-pages";
+const LOG_PAGE_ID = "tenebre-gm-log-page";
+const CHAT_PAGE = "chat";
+const GM_LOG_PAGE = "gm-log";
+const ACTIVE_PAGE_CLASS = "tenebre-gm-log-page-active";
+const NATIVE_PAGE_CLASS = "tenebre-gm-log-native-page";
 const UPDATE_HOOK = `${MODULE_ID}.gmLogUpdated`;
-const POSITION_SETTING = "gmLogWindowPosition";
 const ENABLE_SETTING = "enableGmLog";
-const POSITION_VERSION = 1;
-const POSITION_SAVE_DELAY_MS = 250;
-const VIEWPORT_MARGIN = 16;
-const MIN_WINDOW_WIDTH = 360;
-const MIN_WINDOW_HEIGHT = 260;
 const ALL_CATEGORIES = "all";
 const VALID_CATEGORIES = new Set(Object.values(GM_LOG_EVENT_CATEGORIES));
-
-export function normalizeGmLogWindowPosition(value, viewport = {}) {
-  if (!value || typeof value !== "object" || Number(value.version) !== POSITION_VERSION) return null;
-
-  const viewportWidth = finitePositive(viewport.width, globalThis.innerWidth);
-  const viewportHeight = finitePositive(viewport.height, globalThis.innerHeight);
-  const rawWidth = Number(value.width);
-  const rawHeight = Number(value.height);
-  const rawLeft = Number(value.left);
-  const rawTop = Number(value.top);
-  if (![viewportWidth, viewportHeight, rawWidth, rawHeight, rawLeft, rawTop].every(Number.isFinite)) return null;
-
-  const availableWidth = Math.max(1, viewportWidth - (VIEWPORT_MARGIN * 2));
-  const availableHeight = Math.max(1, viewportHeight - (VIEWPORT_MARGIN * 2));
-  const minimumWidth = Math.min(MIN_WINDOW_WIDTH, availableWidth);
-  const minimumHeight = Math.min(MIN_WINDOW_HEIGHT, availableHeight);
-  const width = clamp(rawWidth, minimumWidth, availableWidth);
-  const height = clamp(rawHeight, minimumHeight, availableHeight);
-  const left = clamp(rawLeft, VIEWPORT_MARGIN, Math.max(VIEWPORT_MARGIN, viewportWidth - width - VIEWPORT_MARGIN));
-  const top = clamp(rawTop, VIEWPORT_MARGIN, Math.max(VIEWPORT_MARGIN, viewportHeight - height - VIEWPORT_MARGIN));
-
-  return { left, top, width, height };
-}
 
 export function filterGmLogEvents(events = [], category = ALL_CATEGORIES) {
   const normalizedCategory = VALID_CATEGORIES.has(category) ? category : ALL_CATEGORIES;
@@ -64,45 +35,135 @@ export function formatGmLogEvent(event, { localize, formatTime } = {}) {
   });
 }
 
-export class GmLogApplication extends HandlebarsApplicationMixin(ApplicationV2) {
-  static DEFAULT_OPTIONS = {
-    id: APPLICATION_ID,
-    classes: ["tenebre-gm-log-app"],
-    window: {
-      title: "TENEBRE.GmLog.Ui.Title",
-      resizable: true
-    },
-    position: {
-      width: 520,
-      height: 480
-    }
-  };
+export class GmLogUiService {
+  static #registered = false;
+  static #page = CHAT_PAGE;
+  static #category = ALL_CATEGORIES;
+  static #dirty = true;
+  static #renderVersion = 0;
 
-  static PARTS = {
-    main: {
-      template: TEMPLATE_PATH,
-      scrollable: [".tenebre-gm-log-list"]
-    }
-  };
+  static register() {
+    if (this.#registered || !game.user?.isGM) return;
+    this.#registered = true;
 
-  #category = ALL_CATEGORIES;
-  #onVisibilityChange;
-  #positionSaveTimer = null;
+    Hooks.on("renderChatLog", (application, element) => {
+      if (application?.isPopout) return;
+      this.#mount(resolveChatRoot(element));
+    });
+    Hooks.on(UPDATE_HOOK, () => {
+      this.#dirty = true;
+      if (isGmLogEnabled() && this.#page === GM_LOG_PAGE) void this.#renderLogPage();
+    });
+    Hooks.on(`${MODULE_ID}.settingsChanged`, (key, value) => {
+      if (key === ENABLE_SETTING) this.syncEnabledState(Boolean(value));
+    });
 
-  constructor({ onVisibilityChange, ...options } = {}) {
-    super(options);
-    this.#onVisibilityChange = typeof onVisibilityChange === "function" ? onVisibilityChange : null;
+    this.syncEnabledState(isGmLogEnabled());
   }
 
-  async _prepareContext(_options) {
+  static syncEnabledState(enabled = isGmLogEnabled()) {
+    if (!game.user?.isGM) return;
+    if (enabled) {
+      this.#mount(document.getElementById(CHAT_ROOT_ID));
+      return;
+    }
+    this.#unmount();
+  }
+
+  static #mount(root) {
+    if (!game.user?.isGM || !isGmLogEnabled() || !(root instanceof HTMLElement)) return;
+
+    let navigation = document.getElementById(NAVIGATION_ID);
+    if (!(navigation instanceof HTMLElement)) navigation = this.#createNavigation();
+    if (navigation.parentElement !== root) root.prepend(navigation);
+
+    let logPage = document.getElementById(LOG_PAGE_ID);
+    if (!(logPage instanceof HTMLElement)) {
+      logPage = document.createElement("section");
+      logPage.id = LOG_PAGE_ID;
+      logPage.className = "tenebre-gm-log-page";
+      logPage.setAttribute("role", "tabpanel");
+      logPage.setAttribute("aria-labelledby", "tenebre-gm-log-page-tab");
+    }
+    if (logPage.parentElement !== root) root.append(logPage);
+
+    for (const child of root.children) {
+      if (child !== navigation && child !== logPage) child.classList.add(NATIVE_PAGE_CLASS);
+    }
+
+    root.classList.add("tenebre-gm-log-chat");
+    this.#applyPageState(root);
+    if (this.#page === GM_LOG_PAGE) void this.#renderLogPage();
+  }
+
+  static #createNavigation() {
+    const navigation = document.createElement("nav");
+    navigation.id = NAVIGATION_ID;
+    navigation.className = "tenebre-gm-log-pages";
+    navigation.setAttribute("role", "tablist");
+    navigation.setAttribute("aria-label", localize("TENEBRE.GmLog.Ui.Pages"));
+    navigation.append(
+      this.#createPageButton(CHAT_PAGE, "tenebre-gm-log-chat-tab", "TENEBRE.GmLog.Ui.ChatPage", "fa-solid fa-comments"),
+      this.#createPageButton(GM_LOG_PAGE, "tenebre-gm-log-page-tab", "TENEBRE.GmLog.Ui.LogPage", "fa-solid fa-list-ul")
+    );
+    return navigation;
+  }
+
+  static #createPageButton(page, id, labelKey, iconClass) {
+    const button = document.createElement("button");
+    button.id = id;
+    button.type = "button";
+    button.className = "tenebre-gm-log-page-button";
+    button.dataset.page = page;
+    button.setAttribute("role", "tab");
+    button.append(createIcon(iconClass), document.createTextNode(localize(labelKey)));
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.#showPage(page);
+    });
+    return button;
+  }
+
+  static #showPage(page) {
+    if (page !== CHAT_PAGE && page !== GM_LOG_PAGE) return;
+    this.#page = page;
+    const root = document.getElementById(CHAT_ROOT_ID);
+    if (!(root instanceof HTMLElement)) return;
+    this.#applyPageState(root);
+    if (page === GM_LOG_PAGE) void this.#renderLogPage();
+  }
+
+  static #applyPageState(root) {
+    const logOpen = this.#page === GM_LOG_PAGE;
+    root.classList.toggle(ACTIVE_PAGE_CLASS, logOpen);
+    const logPage = root.querySelector(`:scope > #${LOG_PAGE_ID}`);
+    if (logPage instanceof HTMLElement) logPage.hidden = !logOpen;
+
+    for (const button of root.querySelectorAll(`#${NAVIGATION_ID} [data-page]`)) {
+      const active = button.dataset.page === this.#page;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+    }
+  }
+
+  static async #renderLogPage() {
+    const panel = document.getElementById(LOG_PAGE_ID);
+    if (!(panel instanceof HTMLElement) || this.#page !== GM_LOG_PAGE) return;
+    if (!this.#dirty && panel.querySelector(".tenebre-gm-log-shell")) return;
+    const renderTemplate = globalThis.foundry?.applications?.handlebars?.renderTemplate;
+    if (typeof renderTemplate !== "function") return;
+
+    const renderVersion = ++this.#renderVersion;
+    panel.setAttribute("aria-busy", "true");
     const events = filterGmLogEvents(GmLogService.events, this.#category)
       .map((event) => formatGmLogEvent(event, {
         localize: (key, data) => game.i18n.format(key, data),
         formatTime
       }))
       .filter(Boolean);
-
-    return {
+    const context = {
       events,
       hasEvents: events.length > 0,
       categories: categoryOptions().map(([value, key]) => ({
@@ -111,136 +172,46 @@ export class GmLogApplication extends HandlebarsApplicationMixin(ApplicationV2) 
         selected: value === this.#category
       }))
     };
+
+    try {
+      const content = await renderTemplate(TEMPLATE_PATH, context);
+      if (renderVersion !== this.#renderVersion || !panel.isConnected) return;
+      panel.innerHTML = content;
+      this.#bindLogControls(panel);
+      panel.querySelector(".tenebre-gm-log-list")?.scrollTo?.({ top: Number.MAX_SAFE_INTEGER });
+      this.#dirty = false;
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Failed to render the embedded GM log page.`, error);
+    } finally {
+      if (renderVersion === this.#renderVersion) panel.removeAttribute("aria-busy");
+    }
   }
 
-  _onRender(context, options) {
-    super._onRender?.(context, options);
-    this.#onVisibilityChange?.(true);
-
-    const root = this.element;
-    root?.querySelector?.(".tenebre-gm-log-filter")?.addEventListener("change", (event) => {
+  static #bindLogControls(panel) {
+    panel.querySelector(".tenebre-gm-log-filter")?.addEventListener("change", (event) => {
       const value = event.currentTarget?.value;
       this.#category = VALID_CATEGORIES.has(value) ? value : ALL_CATEGORIES;
-      this.render({ force: true });
+      this.#dirty = true;
+      void this.#renderLogPage();
     });
-    root?.querySelector?.("[data-action='clear-log']")?.addEventListener("click", (event) => {
+    panel.querySelector("[data-action='clear-log']")?.addEventListener("click", (event) => {
       event.preventDefault();
       GmLogService.clear();
     });
-
-    const list = root?.querySelector?.(".tenebre-gm-log-list");
-    if (list) list.scrollTop = list.scrollHeight;
   }
 
-  refresh() {
-    if (isApplicationRendered(this)) this.render({ force: true });
-  }
-
-  _onPosition(position) {
-    super._onPosition?.(position);
-    if (!isApplicationRendered(this)) return;
-    clearTimeout(this.#positionSaveTimer);
-    this.#positionSaveTimer = setTimeout(() => {
-      this.#positionSaveTimer = null;
-      void persistWindowPosition(position);
-    }, POSITION_SAVE_DELAY_MS);
-  }
-
-  async close(options = {}) {
-    clearTimeout(this.#positionSaveTimer);
-    this.#positionSaveTimer = null;
-    await persistWindowPosition(this.position);
-    await super.close(options);
-    this.#onVisibilityChange?.(false);
-  }
-}
-
-export class GmLogUiService {
-  static #registered = false;
-  static #application = null;
-
-  static register() {
-    if (this.#registered || !game.user?.isGM) return;
-    this.#registered = true;
-
-    Hooks.on("renderChatLog", (application, element) => {
-      if (application?.isPopout) return;
-      this.#mount(resolveElement(element));
-    });
-    Hooks.on(UPDATE_HOOK, () => {
-      if (isGmLogEnabled()) this.#application?.refresh();
-    });
-    Hooks.on(`${MODULE_ID}.settingsChanged`, (key, value) => {
-      if (key === ENABLE_SETTING) void this.syncEnabledState(Boolean(value));
-    });
-
-    void this.syncEnabledState(isGmLogEnabled());
-  }
-
-  static async syncEnabledState(enabled = isGmLogEnabled()) {
-    if (!game.user?.isGM) return;
-    if (enabled) {
-      this.#mount(document.getElementById("chat"));
-      return;
+  static #unmount() {
+    this.#page = CHAT_PAGE;
+    this.#category = ALL_CATEGORIES;
+    this.#dirty = true;
+    this.#renderVersion += 1;
+    document.getElementById(NAVIGATION_ID)?.remove();
+    document.getElementById(LOG_PAGE_ID)?.remove();
+    const root = document.getElementById(CHAT_ROOT_ID);
+    root?.classList.remove("tenebre-gm-log-chat", ACTIVE_PAGE_CLASS);
+    for (const child of root?.querySelectorAll?.(`:scope > .${NATIVE_PAGE_CLASS}`) ?? []) {
+      child.classList.remove(NATIVE_PAGE_CLASS);
     }
-
-    document.getElementById(TOGGLE_ID)?.remove();
-    if (isApplicationRendered(this.#application)) await this.#application.close();
-  }
-
-  static #mount(host) {
-    if (!game.user?.isGM || !isGmLogEnabled() || !(host instanceof HTMLElement)) return;
-    const controls = resolveChatControls(host);
-    if (!(controls instanceof HTMLElement)) return;
-
-    let toggle = document.getElementById(TOGGLE_ID);
-    if (!toggle) {
-      toggle = document.createElement("button");
-      toggle.id = TOGGLE_ID;
-      toggle.type = "button";
-      toggle.className = "ui-control icon tenebre-gm-log-toggle";
-      toggle.setAttribute("aria-controls", APPLICATION_ID);
-      toggle.addEventListener("click", async (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        await this.#toggleApplication();
-      });
-    }
-
-    const rollPrivacy = controls.querySelector(":scope > #roll-privacy");
-    if (rollPrivacy instanceof HTMLElement) rollPrivacy.append(toggle);
-    else {
-      const nativeControls = controls.querySelector(":scope > .control-buttons");
-      controls.insertBefore(toggle, nativeControls ?? null);
-    }
-    this.#syncToggle(isApplicationRendered(this.#application));
-  }
-
-  static async #toggleApplication() {
-    if (!isGmLogEnabled()) return;
-    if (isApplicationRendered(this.#application)) {
-      await this.#application.close();
-      return;
-    }
-
-    const storedPosition = readStoredWindowPosition();
-    const applicationOptions = {
-      onVisibilityChange: (open) => this.#syncToggle(open)
-    };
-    if (storedPosition) applicationOptions.position = storedPosition;
-    this.#application ??= new GmLogApplication(applicationOptions);
-    this.#application.render({ force: true });
-  }
-
-  static #syncToggle(open) {
-    const toggle = document.getElementById(TOGGLE_ID);
-    if (!toggle) return;
-    toggle.setAttribute("aria-expanded", String(Boolean(open)));
-    toggle.setAttribute("aria-label", localize("TENEBRE.GmLog.Ui.Toggle"));
-    toggle.title = localize("TENEBRE.GmLog.Ui.Toggle");
-    toggle.classList.toggle("active", Boolean(open));
-    toggle.replaceChildren(createIcon(TOGGLE_ICON));
-    if (!open && document.activeElement?.closest?.(`#${APPLICATION_ID}`)) toggle.focus();
   }
 }
 
@@ -263,26 +234,16 @@ function categoryOptions() {
   ];
 }
 
-function resolveElement(element) {
-  if (element instanceof HTMLElement) return element;
-  if (element?.[0] instanceof HTMLElement) return element[0];
-  return document.getElementById("chat");
-}
-
-function resolveChatControls(element) {
-  if (!(element instanceof HTMLElement)) return document.getElementById("chat-controls");
-  if (element.id === "chat-controls") return element;
-  return element.querySelector("#chat-controls")
-    ?? element.closest("#chat-controls")
-    ?? document.getElementById("chat-controls");
-}
-
-function isApplicationRendered(application) {
-  if (!application) return false;
-  const renderedState = ApplicationV2.RENDER_STATES?.RENDERED;
-  return renderedState !== undefined
-    ? application.state === renderedState
-    : Boolean(application.rendered);
+function resolveChatRoot(element) {
+  const candidate = element instanceof HTMLElement
+    ? element
+    : element?.[0] instanceof HTMLElement
+      ? element[0]
+      : null;
+  if (candidate?.id === CHAT_ROOT_ID) return candidate;
+  return candidate?.closest?.(`#${CHAT_ROOT_ID}`)
+    ?? candidate?.querySelector?.(`#${CHAT_ROOT_ID}`)
+    ?? document.getElementById(CHAT_ROOT_ID);
 }
 
 function formatTime(timestamp) {
@@ -300,53 +261,4 @@ function formatTime(timestamp) {
 
 function localize(key) {
   return game.i18n.localize(key);
-}
-
-function readStoredWindowPosition() {
-  try {
-    const value = game.settings.get(MODULE_ID, POSITION_SETTING);
-    return normalizeGmLogWindowPosition(value) ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-async function persistWindowPosition(position) {
-  if (!game.user?.isGM) return;
-  const normalized = normalizeGmLogWindowPosition({
-    version: POSITION_VERSION,
-    left: position?.left,
-    top: position?.top,
-    width: position?.width,
-    height: position?.height
-  });
-  if (!normalized) return;
-
-  const next = { version: POSITION_VERSION, ...normalized };
-  try {
-    const current = game.settings.get(MODULE_ID, POSITION_SETTING);
-    if (sameWindowPosition(current, next)) return;
-    await game.settings.set(MODULE_ID, POSITION_SETTING, next);
-  } catch (error) {
-    console.warn(`${MODULE_ID} | Failed to persist the GM log window position.`, error);
-  }
-}
-
-function sameWindowPosition(left, right) {
-  return left?.version === right.version
-    && left?.left === right.left
-    && left?.top === right.top
-    && left?.width === right.width
-    && left?.height === right.height;
-}
-
-function finitePositive(value, fallback) {
-  const number = Number(value);
-  if (Number.isFinite(number) && number > 0) return number;
-  const fallbackNumber = Number(fallback);
-  return Number.isFinite(fallbackNumber) && fallbackNumber > 0 ? fallbackNumber : Number.NaN;
-}
-
-function clamp(value, minimum, maximum) {
-  return Math.min(Math.max(value, minimum), maximum);
 }

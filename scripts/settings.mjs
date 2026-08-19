@@ -335,7 +335,6 @@ export class TenebreSettings {
     register("enableWeaponReadinessAnimation", Boolean, true, "TENEBRE.Settings.EnableWeaponReadinessAnimation", "TENEBRE.Settings.EnableWeaponReadinessAnimationHint");
     register("showWeaponReadinessChatMessages", Boolean, false, "TENEBRE.Settings.ShowWeaponReadinessChatMessages", "TENEBRE.Settings.ShowWeaponReadinessChatMessagesHint");
     register("weaponReadinessButtonPosition", Object, {}, "TENEBRE.Settings.WeaponReadinessButtonPosition", "TENEBRE.Settings.WeaponReadinessButtonPositionHint", { scope: "client" });
-    register("gmLogWindowPosition", Object, {}, "TENEBRE.Settings.GmLogWindowPosition", "TENEBRE.Settings.GmLogWindowPositionHint", { scope: "client" });
     register("enableChatItemUse", Boolean, true, "TENEBRE.Settings.EnableChatItemUse", "TENEBRE.Settings.EnableChatItemUseHint");
     register("enableAutomatedAnimationsIntegration", Boolean, true, "TENEBRE.Settings.EnableAutomatedAnimationsIntegration", "TENEBRE.Settings.EnableAutomatedAnimationsIntegrationHint");
     register("enableClearEffectsButton", Boolean, true, "TENEBRE.Settings.EnableClearEffectsButton", "TENEBRE.Settings.EnableClearEffectsButtonHint");

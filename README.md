@@ -48,7 +48,7 @@ sua explicacao detalhada:
 - [Pedidos de resistencia](#pedidos-de-resistencia)
 - [Catalogo e agrupamento de Ritualista](#catalogo-de-ritualista)
 - [Envio de itens, habilidades e rituais ao chat](#envio-de-itens-habilidades-e-rituais-ao-chat)
-- [Registro flutuante do Mestre](#registro-do-mestre)
+- [Registro do Mestre](#registro-do-mestre)
 - [Macros, tabelas e Gerar Sombra](#macros-e-utilidades)
 - [Importador experimental de Journals](#importador-experimental-de-journals)
 - [Dice So Nice, Automated Animations e Token Action HUD](#integracoes)
@@ -66,7 +66,7 @@ recursos adequados para sua mesa.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.17.21 |
+| Modulo | 0.17.22 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -222,7 +222,7 @@ sempre que a API do Foundry permite.
 | --- | --- |
 | Ativar catalogo de rituais | Adiciona `Ver Rituais` ao menu da habilidade Ritualista. |
 | Agrupar rituais em Ritualista | Transforma Ritualista em uma lista expansivel dos rituais conhecidos. |
-| Ativar Registro do Mestre | Exibe o painel flutuante com eventos resumidos somente para usuarios GM. |
+| Ativar Registro do Mestre | Adiciona ao chat uma segunda pagina com eventos resumidos somente para usuarios GM. |
 | Remover automaticamente itens esgotados | Exclui equipamentos de Actor cuja quantidade alcance zero ou menos. |
 | Ativar macros e tabelas de utilidade | Ativa versos, inspiracao, geradores e eventos de floresta. |
 | Instalar macro Efeitos do Token | Cria ou reutiliza a macro que abre o seletor pesquisavel de condicoes para o token selecionado. |
@@ -894,14 +894,13 @@ resultado daquela rolagem.
 <a id="registro-do-mestre"></a>
 ## Registro do Mestre
 
-O **Registro do Mestre** e um painel flutuante, compacto e exclusivo para
+O **Registro do Mestre** e uma segunda pagina integrada ao chat e exclusiva para
 usuarios GM. Ele resume eventos importantes sem repetir os cards grandes do chat.
 
 O painel:
 
-- abre pelo botao junto aos controles inferiores do chat;
-- pode ser movido, redimensionado e posicionado livremente;
-- salva tamanho e posicao por cliente;
+- alterna entre **Chat Geral** e **Registro do Mestre** no topo da aba de chat;
+- ocupa o mesmo espaco do chat, sem abrir uma janela flutuante;
 - filtra eventos por categoria;
 - diferencia visualmente sucesso, falha e informacao;
 - resume ataques, rolagens, manobras, municao, descanso, itens e prontidao de
@@ -909,7 +908,7 @@ O painel:
 - deduplica variantes publicas e privadas do mesmo combate;
 - nao cria novas ChatMessages e nao envia seu historico aos jogadores.
 
-Ao desligar a opcao, o botao e o painel desaparecem imediatamente. Ao religar,
+Ao desligar a opcao, as paginas extras desaparecem imediatamente. Ao religar,
 o registro e reconstruido a partir das mensagens atuais do mundo, sem exigir F5.
 
 ---
@@ -1168,7 +1167,7 @@ Arquivos principais:
 | `scripts/roll-privacy.mjs` | Privacidade das rolagens da ficha. |
 | `scripts/ritual-browser.mjs` | Catalogo oficial e agrupamento de rituais. |
 | `scripts/gm-log-service.mjs` | Coleta e deduplicacao dos eventos do Registro do Mestre. |
-| `scripts/gm-log-ui.mjs` | Janela flutuante e controles do Registro do Mestre. |
+| `scripts/gm-log-ui.mjs` | Segunda pagina do chat e controles do Registro do Mestre. |
 | `scripts/compatibility.mjs` | Blindagem contra conflitos com outros modulos. |
 | `scripts/chat-item-use.mjs` | Envio de itens/habilidades ao chat. |
 | `scripts/status-effect-picker.mjs` | Seletor pesquisavel de condicoes do token. |
