@@ -50,6 +50,16 @@ test("self healing is distinguished without repeating the actor name", () => {
   assert.match(service, /TENEBRE\.HerbalCure\.TitleSelf/);
 });
 
+test("Herbal Cure chat follows the compact ability and power card structure", () => {
+  const service = fs.readFileSync(path.join(root, "scripts", "herbal-cure.mjs"), "utf8");
+  assert.match(service, /tenebre-berserker-card/);
+  assert.match(service, /tenebre-berserker-participants/);
+  assert.match(service, /tenebre-berserker-details/);
+  assert.match(service, /tenebre-berserker-roll-summary/);
+  assert.match(service, /if \(!selfUse\)/);
+  assert.doesNotMatch(service, /style="display:flex;align-items:center/);
+});
+
 test("the sheet binds Herbal Cure only to its image and resolves it through an authenticated GM socket", () => {
   const sheet = fs.readFileSync(path.join(root, "scripts", "sheet-ui.mjs"), "utf8");
   const service = fs.readFileSync(path.join(root, "scripts", "herbal-cure.mjs"), "utf8");

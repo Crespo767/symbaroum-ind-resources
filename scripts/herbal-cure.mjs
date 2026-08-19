@@ -96,7 +96,8 @@ async function useHerbalCureAsAuthority(itemUuid, targetActorUuid, options = {})
 }
 
 export function buildHerbalCureChat({ sourceActor, targetActor, item, level, cunning, testTotal, success, formula, rolledHealing, healed }) {
-  const titleKey = isSelfHerbalCure(sourceActor, targetActor)
+  const selfUse = isSelfHerbalCure(sourceActor, targetActor);
+  const titleKey = selfUse
     ? "TENEBRE.HerbalCure.TitleSelf"
     : "TENEBRE.HerbalCure.Title";
   const levelLabel = level === 1
@@ -106,25 +107,45 @@ export function buildHerbalCureChat({ sourceActor, targetActor, item, level, cun
       : level === 3
         ? game.i18n.localize("ABILITY.MASTER")
         : "";
-  const test = level > 0
-    ? `<p><strong>${escapeHtml(game.i18n.localize("TENEBRE.HerbalCure.MedicusTest"))}:</strong> ${testTotal}/${cunning} — ${escapeHtml(game.i18n.localize(success ? "TENEBRE.HerbalCure.Success" : "TENEBRE.HerbalCure.Failure"))}</p>`
-    : "";
+  const test = level > 0 ? `<p class="tenebre-berserker-test">${escapeHtml(game.i18n.localize("TENEBRE.HerbalCure.MedicusTest"))}</p>
+      <div class="tenebre-berserker-roll-summary">
+        <p class="tenebre-berserker-objective">${escapeHtml(game.i18n.localize("TENEBRE.NpcAttackChat.Objective"))}: ${cunning}</p>
+        <p class="tenebre-berserker-roll">${escapeHtml(game.i18n.localize("TENEBRE.NpcAttackChat.Roll"))}: ${testTotal}</p>
+      </div>
+      <p>${escapeHtml(game.i18n.localize(success ? "TENEBRE.HerbalCure.Success" : "TENEBRE.HerbalCure.Failure"))}.</p>` : "";
   const formulaText = formula ? `${formula} = ${rolledHealing}` : "—";
+  const participants = [
+    buildHerbalCureFigure(sourceActor.img, sourceActor.name, "tenebre-berserker-actor"),
+    '<span class="tenebre-berserker-flow-arrow" aria-hidden="true">→</span>',
+    buildHerbalCureFigure(item.img, item.name, "tenebre-berserker-ability")
+  ];
+  if (!selfUse) {
+    participants.push(
+      '<span class="tenebre-berserker-flow-arrow" aria-hidden="true">→</span>',
+      buildHerbalCureFigure(targetActor.img, targetActor.name, "tenebre-berserker-target")
+    );
+  }
 
   return `<div class="symbaroum chat item tenebre-herbal-cure-chat"><div class="foreground">
-    <h3>${escapeHtml(game.i18n.format(titleKey, { actor: sourceActor.name, target: targetActor.name }))}</h3>
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:8px 0;">
-      <img src="${escapeHtml(sourceActor.img)}" alt="${escapeHtml(sourceActor.name)}" style="width:56px;height:56px;object-fit:cover;">
-      <span>→</span>
-      <div style="text-align:center;"><img src="${escapeHtml(item.img)}" alt="${escapeHtml(item.name)}" style="width:56px;height:56px;object-fit:cover;"><div><em>${escapeHtml(item.name)}</em></div></div>
-      <span>→</span>
-      <img src="${escapeHtml(targetActor.img)}" alt="${escapeHtml(targetActor.name)}" style="width:56px;height:56px;object-fit:cover;">
+    <div class="tenebre-berserker-card">
+      <p class="tenebre-berserker-intro">${escapeHtml(game.i18n.format(titleKey, { actor: sourceActor.name, target: targetActor.name }))}</p>
+      <div class="tenebre-berserker-participants">${participants.join("")}</div>
+      <div class="tenebre-berserker-details">
+        ${level > 0 ? `<p><strong>${escapeHtml(game.i18n.localize("ABILITY_LABEL.MEDICUS"))}:</strong> ${escapeHtml(levelLabel)}</p>` : ""}
+        ${test}
+        <p><strong>${escapeHtml(game.i18n.localize("TENEBRE.HerbalCure.Healing"))}:</strong> ${escapeHtml(formulaText)}</p>
+        <p>${escapeHtml(game.i18n.format(healed > 0 ? "TENEBRE.HerbalCure.Healed" : "TENEBRE.HerbalCure.NotHealed", { target: targetActor.name, healing: healed }))}</p>
+      </div>
     </div>
-    ${level > 0 ? `<p><strong>${escapeHtml(game.i18n.localize("ABILITY_LABEL.MEDICUS"))}:</strong> ${escapeHtml(levelLabel)}</p>` : ""}
-    ${test}
-    <p><strong>${escapeHtml(game.i18n.localize("TENEBRE.HerbalCure.Healing"))}:</strong> ${escapeHtml(formulaText)}</p>
-    <p>${escapeHtml(game.i18n.format(healed > 0 ? "TENEBRE.HerbalCure.Healed" : "TENEBRE.HerbalCure.NotHealed", { target: targetActor.name, healing: healed }))}</p>
   </div></div>`;
+}
+
+function buildHerbalCureFigure(src, name, className) {
+  const safeName = escapeHtml(name);
+  return `<figure class="${className}">
+    <img src="${escapeHtml(src || "icons/svg/mystery-man.svg")}" alt="${safeName}" loading="lazy">
+    <figcaption><span class="${className === "tenebre-berserker-ability" ? "tenebre-berserker-ability-link" : ""}">${safeName}</span></figcaption>
+  </figure>`;
 }
 
 function requestUser(context) {
