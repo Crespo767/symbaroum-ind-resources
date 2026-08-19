@@ -634,6 +634,7 @@
   "TENEBRE.GmLog.Weapon.Sheathe": "{actor} guardou {sheathed}.",
   "TENEBRE.GmLog.Weapon.Swap": "{actor} guardou {sheathed} e sacou {drawn}.",
   "TENEBRE.GmLog.Weapon.Info": "{actor} alterou as armas preparadas.",
+  "TENEBRE.GmLog.Inventory.QuantityChanged": "{actor} alterou a quantidade de {item}: {previous} → {quantity}.",
   "TENEBRE.GmLog.ItemUse": "{actor} utilizou {item}.",
   "TENEBRE.GmLog.System": "{message}",
   "TENEBRE.GmLog.Ui.Toggle": "Alternar entre o chat geral e o registro do Mestre",

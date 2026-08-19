@@ -35,6 +35,19 @@ export function formatGmLogEvent(event, { localize, formatTime } = {}) {
   });
 }
 
+/** Keep transport messages out of the native chat while retaining their GM log event. */
+export function hideGmLogOnlyMessage(message, element) {
+  if (message?.flags?.[MODULE_ID]?.gmLogOnly !== true) return false;
+  const root = element?.[0] ?? element;
+  if (!root || typeof root !== "object") return false;
+
+  root.hidden = true;
+  root.classList?.add?.("tenebre-gm-log-only-message");
+  root.setAttribute?.("aria-hidden", "true");
+  root.style?.setProperty?.("display", "none", "important");
+  return true;
+}
+
 export class GmLogUiService {
   static #registered = false;
   static #page = CHAT_PAGE;
@@ -49,6 +62,9 @@ export class GmLogUiService {
     Hooks.on("renderChatLog", (application, element) => {
       if (application?.isPopout) return;
       this.#mount(resolveChatRoot(element));
+    });
+    Hooks.on("renderChatMessageHTML", (message, element) => {
+      hideGmLogOnlyMessage(message, element);
     });
     Hooks.on(UPDATE_HOOK, () => {
       this.#dirty = true;

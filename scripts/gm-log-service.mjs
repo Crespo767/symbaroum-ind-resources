@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import {
   deduplicateGmLogEvents,
+  GM_LOG_EVENT_TYPES,
   gmLogEventKey,
   normalizeGmLogEvent
 } from "./gm-log-events.mjs";
@@ -111,6 +112,57 @@ export class GmLogService {
     return true;
   }
 
+  /** Create a GM-only inventory audit entry after an item quantity was changed. */
+  static async recordItemQuantityChange({ actor, item, previousQuantity, quantity } = {}) {
+    const ChatMessageClass = globalThis.ChatMessage;
+    if (!isGmLogEnabled() || !actor || !item || typeof ChatMessageClass?.create !== "function") return null;
+    if (!game.user?.isGM && !actor.isOwner) return null;
+
+    const previous = normalizeQuantity(previousQuantity);
+    const next = normalizeQuantity(quantity);
+    if (previous === next) return null;
+
+    const actorUuid = String(actor.uuid ?? "");
+    const itemUuid = String(item.uuid ?? "");
+    if (!actorUuid || !itemUuid || (item.parent?.uuid && item.parent.uuid !== actorUuid)) return null;
+
+    const whisper = Array.from(game.users ?? [])
+      .filter((user) => user?.isGM)
+      .map((user) => user.id)
+      .filter(Boolean);
+    if (!whisper.length) return null;
+
+    const data = {
+      actor: actor.name ?? "",
+      item: item.name ?? "",
+      previous,
+      quantity: next
+    };
+    const content = game.i18n?.format?.("TENEBRE.GmLog.Inventory.QuantityChanged", data)
+      ?? `${data.actor}: ${data.item} ${previous} -> ${next}`;
+
+    return ChatMessageClass.create({
+      speaker: ChatMessageClass.getSpeaker?.({ actor }) ?? { actor: actor.id, alias: actor.name },
+      content: `<p>${escapeHtml(content)}</p>`,
+      whisper,
+      flags: {
+        [MODULE_ID]: {
+          gmLogOnly: true,
+          gmLogAction: {
+            type: GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED,
+            actorUuid,
+            subjectUuid: itemUuid,
+            values: {
+              previous,
+              quantity: next,
+              delta: next - previous
+            }
+          }
+        }
+      }
+    });
+  }
+
   static syncEnabledState(enabled = isGmLogEnabled()) {
     if (!game.user?.isGM) return;
     if (enabled) {
@@ -145,4 +197,18 @@ export class GmLogService {
   static #notify() {
     Hooks.callAll(`${MODULE_ID}.gmLogUpdated`, this.#store.snapshot());
   }
+}
+
+function normalizeQuantity(value) {
+  const quantity = Number(value);
+  return Number.isFinite(quantity) ? Math.max(0, Math.trunc(quantity)) : 0;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

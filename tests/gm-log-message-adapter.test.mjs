@@ -123,7 +123,7 @@ test("converts item-use flags and rejects unrelated messages", () => {
 test("converts allowlisted structured module actions without trusting free-form event payloads", () => {
   const actor = { uuid: "Actor.hero", name: "Crespo", img: "hero.webp" };
   const target = { uuid: "Actor.target", name: "Etterherd", img: "target.webp" };
-  const item = { uuid: "Actor.hero.Item.arrow", name: "Flecha Certeira", img: "arrow.webp" };
+  const item = { uuid: "Actor.hero.Item.arrow", name: "Flecha Certeira", img: "arrow.webp", parent: actor };
   const originalResolver = globalThis.fromUuidSync;
   globalThis.fromUuidSync = (uuid) => ({
     [actor.uuid]: actor,
@@ -154,6 +154,24 @@ test("converts allowlisted structured module actions without trusting free-form 
     assert.equal(event.target.name, "Etterherd");
     assert.equal(event.subject.name, "Flecha Certeira");
     assert.deepEqual(event.values, { formula: "1d20", roll: 7, maximum: 15 });
+
+    const quantityEvent = gmLogEventFromMessage({
+      id: "message-quantity",
+      speaker: {},
+      flags: {
+        [MODULE_ID]: {
+          gmLogAction: {
+            type: GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED,
+            actorUuid: actor.uuid,
+            subjectUuid: item.uuid,
+            values: { previous: 7, quantity: 4, delta: -3, ignored: "no" }
+          }
+        }
+      }
+    });
+    assert.equal(quantityEvent.type, GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED);
+    assert.equal(quantityEvent.category, "inventory");
+    assert.deepEqual(quantityEvent.values, { previous: 7, quantity: 4, delta: -3 });
     assert.equal(gmLogEventFromMessage({
       id: "message-forged-type",
       flags: { [MODULE_ID]: { gmLogAction: { type: GM_LOG_EVENT_TYPES.ATTACK } } }

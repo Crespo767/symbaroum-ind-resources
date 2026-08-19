@@ -33,7 +33,8 @@ const STRUCTURED_EVENT_TYPES = new Set([
   GM_LOG_EVENT_TYPES.AMMO_RELOAD,
   GM_LOG_EVENT_TYPES.AMMO_RECOVERY,
   GM_LOG_EVENT_TYPES.RATION_CONSUMED,
-  GM_LOG_EVENT_TYPES.REST_COMPLETED
+  GM_LOG_EVENT_TYPES.REST_COMPLETED,
+  GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED
 ]);
 
 const STRUCTURED_VALUE_KEYS = new Set([
@@ -47,7 +48,10 @@ const STRUCTURED_VALUE_KEYS = new Set([
   "total",
   "successes",
   "failures",
-  "skipped"
+  "skipped",
+  "previous",
+  "quantity",
+  "delta"
 ]);
 
 function structuredModuleEvent(message, flags) {
@@ -59,12 +63,19 @@ function structuredModuleEvent(message, flags) {
   if (speakerActor && flaggedActor && speakerActor.uuid !== flaggedActor.uuid) return null;
 
   const actor = flaggedActor ?? speakerActor;
+  const subject = documentFromUuid(data.subjectUuid);
+  if (
+    data.type === GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED
+    && (!actor || !subject || subject.parent?.uuid !== actor.uuid)
+  ) {
+    return null;
+  }
   return {
     type: data.type,
     outcome: data.outcome,
     actor: documentReference(actor) ?? speakerReference(message),
     target: referenceFromUuidOrName(data.targetUuid, data.targetName),
-    subject: referenceFromUuidOrName(data.subjectUuid, data.subjectName),
+    subject: documentReference(subject) ?? referenceFromUuidOrName(data.subjectUuid, data.subjectName),
     source: { variant: "single" },
     values: structuredValues(data.values)
   };

@@ -154,3 +154,65 @@ test("registers capture only for the GM client and keeps updates local", () => {
     globalThis.Hooks = originalHooks;
   }
 });
+
+test("creates a GM-only structured message for an inventory quantity change", async () => {
+  const originalGame = globalThis.game;
+  const originalChatMessage = globalThis.ChatMessage;
+  const created = [];
+  const actor = { id: "hero", uuid: "Actor.hero", name: "Crespo", isOwner: true };
+  const item = {
+    uuid: "Actor.hero.Item.oil",
+    name: "Óleo de Lâmpada",
+    parent: actor
+  };
+
+  globalThis.game = {
+    user: { id: "player", isGM: false },
+    users: [
+      { id: "player", isGM: false },
+      { id: "gm-a", isGM: true },
+      { id: "gm-b", isGM: true }
+    ],
+    settings: { get: (scope, key) => scope === MODULE_ID && key === "enableGmLog" },
+    i18n: {
+      format: (_key, data) => `${data.actor}: ${data.item} ${data.previous} -> ${data.quantity}`
+    }
+  };
+  globalThis.ChatMessage = {
+    getSpeaker: ({ actor: speakerActor }) => ({ actor: speakerActor.id, alias: speakerActor.name }),
+    create: async (data) => {
+      created.push(data);
+      return data;
+    }
+  };
+
+  try {
+    await GmLogService.recordItemQuantityChange({
+      actor,
+      item,
+      previousQuantity: 2,
+      quantity: 5
+    });
+
+    assert.equal(created.length, 1);
+    assert.deepEqual(created[0].whisper, ["gm-a", "gm-b"]);
+    assert.equal(created[0].flags[MODULE_ID].gmLogOnly, true);
+    assert.equal(created[0].flags[MODULE_ID].gmLogAction.type, GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED);
+    assert.deepEqual(created[0].flags[MODULE_ID].gmLogAction.values, {
+      previous: 2,
+      quantity: 5,
+      delta: 3
+    });
+
+    await GmLogService.recordItemQuantityChange({
+      actor,
+      item,
+      previousQuantity: 5,
+      quantity: 5
+    });
+    assert.equal(created.length, 1);
+  } finally {
+    globalThis.game = originalGame;
+    globalThis.ChatMessage = originalChatMessage;
+  }
+});

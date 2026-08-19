@@ -634,6 +634,7 @@
   "TENEBRE.GmLog.Weapon.Sheathe": "{actor} sheathed {sheathed}.",
   "TENEBRE.GmLog.Weapon.Swap": "{actor} sheathed {sheathed} and drew {drawn}.",
   "TENEBRE.GmLog.Weapon.Info": "{actor} changed their readied weapons.",
+  "TENEBRE.GmLog.Inventory.QuantityChanged": "{actor} changed the quantity of {item}: {previous} → {quantity}.",
   "TENEBRE.GmLog.ItemUse": "{actor} used {item}.",
   "TENEBRE.GmLog.System": "{message}",
   "TENEBRE.GmLog.Ui.Toggle": "Switch between general chat and the Gamemaster log",

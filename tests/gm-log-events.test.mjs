@@ -109,4 +109,17 @@ test("selects localized presentation keys without formatting HTML", () => {
   assert.equal(swap.key, "TENEBRE.GmLog.Weapon.Swap");
   assert.equal(swap.data.drawn, "Adaga");
   assert.equal(swap.data.sheathed, "Arco Longo");
+
+  const quantity = gmLogEventPresentation({
+    eventId: "quantity-a",
+    type: GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED,
+    actor: { name: "Crespo" },
+    subject: { name: "Óleo de Lâmpada" },
+    values: { previous: 2, quantity: 5, delta: 3 }
+  });
+  assert.equal(quantity.key, "TENEBRE.GmLog.Inventory.QuantityChanged");
+  assert.deepEqual(
+    { previous: quantity.data.previous, quantity: quantity.data.quantity, delta: quantity.data.delta },
+    { previous: "2", quantity: "5", delta: "3" }
+  );
 });

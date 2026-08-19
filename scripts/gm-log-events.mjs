@@ -10,6 +10,7 @@ export const GM_LOG_EVENT_TYPES = Object.freeze({
   REST_COMPLETED: "status.rest",
   EFFECT_CHANGED: "status.effect",
   WEAPON_READINESS: "inventory.weaponReadiness",
+  ITEM_QUANTITY_CHANGED: "inventory.itemQuantityChanged",
   ITEM_USED: "inventory.itemUse",
   SYSTEM_ACTION: "system.action"
 });
@@ -84,6 +85,10 @@ const TYPE_DEFINITIONS = Object.freeze({
       swap: "TENEBRE.GmLog.Weapon.Swap",
       info: "TENEBRE.GmLog.Weapon.Info"
     }
+  },
+  [GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED]: {
+    category: GM_LOG_EVENT_CATEGORIES.INVENTORY,
+    presentation: "TENEBRE.GmLog.Inventory.QuantityChanged"
   },
   [GM_LOG_EVENT_TYPES.ITEM_USED]: {
     category: GM_LOG_EVENT_CATEGORIES.INVENTORY,
@@ -194,6 +199,9 @@ export function gmLogEventPresentation(input) {
       applied: scalarText(event.values.applied),
       drawn: scalarText(event.values.drawn),
       sheathed: scalarText(event.values.sheathed),
+      previous: scalarText(event.values.previous),
+      quantity: scalarText(event.values.quantity),
+      delta: scalarText(event.values.delta),
       effect: scalarText(event.values.effect),
       message: scalarText(event.values.message)
     })

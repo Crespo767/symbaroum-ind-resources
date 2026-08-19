@@ -4,7 +4,8 @@ import test from "node:test";
 import { GM_LOG_EVENT_TYPES } from "../scripts/gm-log-events.mjs";
 import {
   filterGmLogEvents,
-  formatGmLogEvent
+  formatGmLogEvent,
+  hideGmLogOnlyMessage
 } from "../scripts/gm-log-ui.mjs";
 
 function event({ id, type, category, outcome = "info", occurredAt = 1_000 }) {
@@ -60,12 +61,34 @@ test("formats compact rows through localization without injecting HTML", () => {
   assert.equal(calls[0].key, "TENEBRE.GmLog.Attack.Success");
 });
 
+test("hides GM-log transport messages from the native general chat", () => {
+  const classes = [];
+  const attributes = [];
+  const styles = [];
+  const element = {
+    hidden: false,
+    classList: { add: (value) => classes.push(value) },
+    setAttribute: (...args) => attributes.push(args),
+    style: { setProperty: (...args) => styles.push(args) }
+  };
+
+  assert.equal(hideGmLogOnlyMessage({ flags: {} }, element), false);
+  assert.equal(hideGmLogOnlyMessage({
+    flags: { "symbaroum-ind-resources": { gmLogOnly: true } }
+  }, element), true);
+  assert.equal(element.hidden, true);
+  assert.deepEqual(classes, ["tenebre-gm-log-only-message"]);
+  assert.deepEqual(attributes, [["aria-hidden", "true"]]);
+  assert.deepEqual(styles, [["display", "none", "important"]]);
+});
+
 test("UI is a GM-only second chat page and does not create chat documents", async () => {
   const source = await readFile(new URL("../scripts/gm-log-ui.mjs", import.meta.url), "utf8");
   const template = await readFile(new URL("../templates/gm-log.hbs", import.meta.url), "utf8");
   const css = await readFile(new URL("../styles/symbaroum-ind-resources.css", import.meta.url), "utf8");
   assert.match(source, /!game\.user\?\.isGM/);
   assert.match(source, /Hooks\.on\("renderChatLog"/);
+  assert.match(source, /Hooks\.on\("renderChatMessageHTML"/);
   assert.match(source, /const CHAT_PAGE = "chat"/);
   assert.match(source, /const GM_LOG_PAGE = "gm-log"/);
   assert.match(source, /root\.prepend\(navigation\)/);
