@@ -51,19 +51,10 @@ export function formatAttributeTestTitle(name, attribute) {
   );
 }
 
-export function formatAttributeTestResult(name, attribute, succeeded, criticalText = "") {
-  const key = succeeded
-    ? "TENEBRE.AttributeTestChat.Success"
-    : "TENEBRE.AttributeTestChat.Failure";
-  const fallback = succeeded
-    ? "{name} passa no teste de {attribute}."
-    : "{name} falha no teste de {attribute}.";
-  const outcome = format(key, fallback, {
-    name: stripNpcParenthetical(name),
-    attribute: cleanText(attribute)
-  });
-  const critical = cleanText(criticalText);
-  return critical ? `${outcome} — ${critical}` : outcome;
+export function formatAttributeTestResult(succeeded) {
+  return succeeded
+    ? localize("TENEBRE.AttributeTestChat.Success", "Sucesso")
+    : localize("TENEBRE.AttributeTestChat.Failure", "Falha");
 }
 
 export function enhanceOpposedTestCards(scope, message) {
@@ -129,15 +120,18 @@ function enhanceOpposedTestCard(root, message) {
     card.classList.add("tenebre-attribute-test-card");
     card.append(createTextElement("h3", "tenebre-attribute-test-title", model.title));
   }
+  const outcome = createTextElement("p", "tenebre-opposed-test-outcome", model.outcome);
+  if (model.kind === "attribute") {
+    outcome.classList.add(model.succeeded
+      ? "tenebre-attribute-test-success"
+      : "tenebre-attribute-test-failure");
+  }
   card.append(
     createPortraits(model),
     createTextElement("p", "tenebre-opposed-test-formula", model.formulaText),
     createRollSummary(model),
-    createTextElement("p", "tenebre-opposed-test-outcome", model.outcome)
+    outcome
   );
-  if (model.marginText) {
-    card.append(createTextElement("p", "tenebre-attribute-test-margin", model.marginText));
-  }
   appendOriginalChatPreview(card, source, {
     hasUnadaptedContent: model.hasUnadaptedContent,
     unadaptedElements: model.unadaptedElements
@@ -169,7 +163,7 @@ function buildOpposedTestModel(source, message) {
   const tooltipElement = source.querySelector(".dice-tooltip");
   const marginText = cleanText(marginElement?.textContent);
   const isOpposed = Boolean(target?.img);
-  const unadaptedElements = [isOpposed && marginText ? marginElement : null, tooltipElement].filter(Boolean);
+  const unadaptedElements = [marginText ? marginElement : null, tooltipElement].filter(Boolean);
   if (!isOpposed) {
     return {
       kind: "attribute",
@@ -178,8 +172,8 @@ function buildOpposedTestModel(source, message) {
       formulaText: `${actingAttribute.label} (${actingAttribute.value}) ← ${targetAttribute.label} (${signed(targetAttribute.value)})`,
       objective: formula.objective,
       roll: Number(cleanText(rollElement.textContent)),
-      outcome: formatAttributeTestResult(actorName, actingAttribute.label, succeeded, criticalText),
-      marginText,
+      outcome: formatAttributeTestResult(succeeded),
+      succeeded,
       hasUnadaptedContent: unadaptedElements.length > 0,
       unadaptedElements
     };

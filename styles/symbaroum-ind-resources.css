@@ -2778,13 +2778,19 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   border-top: 1px solid rgb(74 64 56 / 30%);
 }
 
-.tenebre-attribute-test-margin {
-  margin: 0;
-  color: #3e352e;
-  font-size: 13px;
-  font-style: italic;
-  line-height: 1.2;
-  text-align: center;
+.tenebre-attribute-test-card .tenebre-opposed-test-outcome {
+  font-family: var(--font-text, "Signika"), sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.tenebre-attribute-test-success {
+  color: #18520b;
+}
+
+.tenebre-attribute-test-failure {
+  color: #aa0200;
 }
 
 .tenebre-original-chat-info {
