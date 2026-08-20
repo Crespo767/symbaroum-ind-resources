@@ -8,10 +8,10 @@ export { MANEUVER_EFFECTS };
 
 const MANEUVER_EFFECT_IDS = new Set(Object.values(MANEUVER_EFFECTS));
 const TURN_END_EFFECTS = new Set([
-  MANEUVER_EFFECTS.DELAYED_INITIATIVE,
   MANEUVER_EFFECTS.SHOVED,
   MANEUVER_EFFECTS.CHARGING,
   MANEUVER_EFFECTS.CAREFUL_AIM,
+  MANEUVER_EFFECTS.KNOCKOUT_READY,
   MANEUVER_EFFECTS.TAKING_INITIATIVE,
   MANEUVER_EFFECTS.INITIATIVE_BONUS,
   MANEUVER_EFFECTS.TOTAL_DEFENSE,
@@ -59,6 +59,11 @@ const MANEUVER_STATUS_EFFECTS = [
     id: MANEUVER_EFFECTS.CAREFUL_AIM,
     labelKey: "TENEBRE.Maneuvers.EffectCarefulAim",
     icon: "icons/svg/target.svg"
+  },
+  {
+    id: MANEUVER_EFFECTS.KNOCKOUT_READY,
+    labelKey: "TENEBRE.Maneuvers.EffectKnockoutReady",
+    icon: "icons/svg/unconscious.svg"
   },
   {
     id: MANEUVER_EFFECTS.POISONED_WEAPON,
@@ -118,7 +123,7 @@ const MANEUVERS = [
   {
     id: "delayInitiative",
     labelKey: "TENEBRE.Maneuvers.DelayInitiative",
-    action: "statement",
+    action: "delayInitiative",
     icon: "fa-hourglass-half",
     noteKeys: ["TENEBRE.Maneuvers.DelayInitiativeNote"]
   },
@@ -129,10 +134,7 @@ const MANEUVERS = [
     actingAttribute: "strong",
     targetAttribute: "strong",
     icon: "fa-fist-raised",
-    noteKeys: [
-      "TENEBRE.Maneuvers.GrappleNote",
-      "TENEBRE.Maneuvers.FreeAttackOnFailure"
-    ]
+    noteKeys: ["TENEBRE.Maneuvers.GrappleNote"]
   },
   {
     id: "disarm",
@@ -141,10 +143,7 @@ const MANEUVERS = [
     actingAttribute: "accurate",
     targetAttribute: "strong",
     icon: "fa-ban",
-    noteKeys: [
-      "TENEBRE.Maneuvers.DisarmNote",
-      "TENEBRE.Maneuvers.FreeAttackOnFailure"
-    ]
+    noteKeys: ["TENEBRE.Maneuvers.DisarmNote"]
   },
   {
     id: "knockdown",
@@ -158,14 +157,9 @@ const MANEUVERS = [
   {
     id: "charge",
     labelKey: "TENEBRE.Maneuvers.Charge",
-    action: "attack",
-    actingAttribute: "accurate",
-    targetAttribute: "defense",
+    action: "statement",
     icon: "fa-running",
-    noteKeys: [
-      "TENEBRE.Maneuvers.ChargeNote",
-      "TENEBRE.Maneuvers.FreeAttackOnFailure"
-    ]
+    noteKeys: ["TENEBRE.Maneuvers.ChargeNote"]
   },
   {
     id: "carefulAim",
@@ -177,13 +171,10 @@ const MANEUVERS = [
   {
     id: "knockout",
     labelKey: "TENEBRE.Maneuvers.Knockout",
-    action: "damageCheck",
+    action: "statement",
     formula: "1d12",
     icon: "fa-user-slash",
-    noteKeys: [
-      "TENEBRE.Maneuvers.KnockoutNote",
-      "TENEBRE.Maneuvers.KnockoutAttackFirst"
-    ]
+    noteKeys: ["TENEBRE.Maneuvers.KnockoutNote"]
   },
   {
     id: "totalDefense",
@@ -206,10 +197,7 @@ const MANEUVERS = [
     actingAttribute: "accurate",
     targetAttribute: "defense",
     icon: "fa-arrows-alt-h",
-    noteKeys: [
-      "TENEBRE.Maneuvers.ShoveNote",
-      "TENEBRE.Maneuvers.FreeAttackOnFailure"
-    ]
+    noteKeys: ["TENEBRE.Maneuvers.ShoveNote"]
   },
   {
     id: "poisonWeapon",
@@ -258,11 +246,14 @@ export class ManeuverService {
   }
 
   static registerHooks() {
-    Hooks.on("updateCombat", () => {
+    Hooks.on("updateCombat", async () => {
       if (!SocketService.isPrimaryGM()) return;
-      ManeuverService.cleanupExpiredEffects().catch((error) => {
+      try {
+        await ManeuverService.cleanupExpiredEffects();
+        await maintainCurrentGrapple();
+      } catch (error) {
         console.error(`${MODULE_ID} | Failed to clean expired maneuver effects.`, error);
-      });
+      }
     });
 
     Hooks.on("deleteCombat", () => {
@@ -277,6 +268,9 @@ export class ManeuverService {
         if (!SocketService.isPrimaryGM()) return;
         if (getManeuverEffectId(effect) === MANEUVER_EFFECTS.INITIATIVE_BONUS) {
           await revertTemporaryInitiativeBonus(effect.parent);
+        }
+        if (getManeuverEffectId(effect) === MANEUVER_EFFECTS.DELAYED_INITIATIVE) {
+          await revertDelayedInitiative(effect.parent);
         }
       } catch (error) {
         console.error(`${MODULE_ID} | Failed to revert maneuver initiative bonus.`, error);
@@ -307,7 +301,16 @@ export class ManeuverService {
     const maneuver = this.get(maneuverId);
     if (!maneuver) return null;
 
+    if (ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.MAINTAINING_GRAPPLE) && maneuver.id !== "grapple") {
+      ui.notifications.warn(game.i18n.localize("TENEBRE.Maneuvers.GrappleActionBlocked"));
+      return null;
+    }
+
     await removeManeuverEffect(actor, MANEUVER_EFFECTS.FREE_ATTACK_OPENING);
+
+    if (maneuver.action === "delayInitiative") {
+      return delayInitiative(actor, maneuver);
+    }
 
     if (maneuver.action === "opposed") {
       return rollOpposedManeuver(actor, maneuver, Number(options.modifier) || 0);
@@ -326,7 +329,9 @@ export class ManeuverService {
     }
 
     if (maneuver.action === "attributeCheck") {
-      return rollAttributeManeuver(actor, maneuver, Number(options.modifier) || 0);
+      const context = maneuver.id === "poisonWeapon" ? { poisonItem: await choosePoisonDose(actor) } : {};
+      if (maneuver.id === "poisonWeapon" && !context.poisonItem) return null;
+      return rollAttributeManeuver(actor, maneuver, Number(options.modifier) || 0, context);
     }
 
     return postStatement(actor, maneuver);
@@ -394,6 +399,10 @@ export class ManeuverService {
       nextFavour = Math.max(nextFavour, 1);
     }
 
+    if (weapon && ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.KNOCKOUT_READY)) {
+      nextFavour = Math.max(nextFavour, 1);
+    }
+
     if (ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.TAKING_INITIATIVE)) {
       nextFavour = Math.min(nextFavour, -1);
     }
@@ -409,6 +418,21 @@ export class ManeuverService {
       await removeManeuverEffect(actor, MANEUVER_EFFECTS.CAREFUL_AIM);
     }
 
+    if (ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.KNOCKOUT_READY)) {
+      await removeManeuverEffect(actor, MANEUVER_EFFECTS.KNOCKOUT_READY);
+      if (isSuccessfulWeaponResult(result)) {
+        await rollDamageCheck(actor, ManeuverService.get("knockout"), 0);
+      }
+    }
+
+    if (ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.CHARGING) && isCurrentMeleeWeaponRoll(actor)) {
+      await removeManeuverEffect(actor, MANEUVER_EFFECTS.CHARGING);
+      if (!isSuccessfulWeaponResult(result)) {
+        const targetActor = getSingleTargetActor({ warn: false });
+        if (targetActor) await grantFreeAttack(targetActor, actor);
+      }
+    }
+
     if (ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.POISONED_WEAPON) && isSuccessfulWeaponResult(result)) {
       const targetActor = getSingleTargetActor({ warn: false });
       if (targetActor) {
@@ -419,8 +443,8 @@ export class ManeuverService {
   }
 }
 
-async function rollOpposedManeuver(actor, maneuver, modifier) {
-  const targetActor = getSingleTargetActor();
+async function rollOpposedManeuver(actor, maneuver, modifier, { targetActor = null, maintenance = false } = {}) {
+  targetActor ??= getSingleTargetActor();
   if (!targetActor) return null;
 
   const actorValue = getAttributeValue(actor, maneuver.actingAttribute);
@@ -457,7 +481,7 @@ async function rollOpposedManeuver(actor, maneuver, modifier) {
     content: buildContent(),
     rolls: [roll],
     flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel(maneuver.targetAttribute)}` }),
-    finalize: async () => buildContent(await applyOpposedManeuverEffects(actor, targetActor, maneuver, success))
+    finalize: async () => buildContent(await applyOpposedManeuverEffects(actor, targetActor, maneuver, success, { maintenance }))
   });
 
   return { success, result, diceTarget };
@@ -566,7 +590,7 @@ async function rollKnockdownManeuver(actor, maneuver, modifier) {
   return { success, result: attackResult, diceTarget, staysStanding };
 }
 
-async function rollAttributeManeuver(actor, maneuver, modifier) {
+async function rollAttributeManeuver(actor, maneuver, modifier, context = {}) {
   const actorValue = getAttributeValue(actor, maneuver.actingAttribute);
   const diceTarget = clampDiceTarget(actorValue + modifier);
   const roll = await evaluateRoll("1d20");
@@ -594,7 +618,7 @@ async function rollAttributeManeuver(actor, maneuver, modifier) {
     content: buildContent(),
     rolls: [roll],
     flags: maneuverLogFlags({ actor, maneuver, success, result, formula: attributeLabel(maneuver.actingAttribute) }),
-    finalize: async () => buildContent(await applyAttributeManeuverEffects(actor, maneuver, success, result))
+    finalize: async () => buildContent(await applyAttributeManeuverEffects(actor, maneuver, success, result, context))
   });
 
   return { success, result, diceTarget };
@@ -641,6 +665,36 @@ async function rollDamageCheck(actor, maneuver, damageValue) {
 
 async function promptDamageValue(maneuver) {
   return promptNumericValue(maneuver, "TENEBRE.Maneuvers.DamageValue");
+}
+
+async function choosePoisonDose(actor) {
+  const poisons = Array.from(actor?.items ?? []).filter((item) => {
+    const quantity = Number(item.system?.quantity ?? 1);
+    if (!Number.isFinite(quantity) || quantity <= 0) return false;
+    const identity = normalizeText(`${item.name} ${item.system?.reference ?? ""}`);
+    return identity.includes("veneno") || identity.includes("poison");
+  });
+  if (!poisons.length) {
+    ui.notifications.warn(localize("TENEBRE.Maneuvers.NoPoisonDose"));
+    return null;
+  }
+  if (poisons.length === 1) return poisons[0];
+  const options = poisons.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${Number(item.system?.quantity ?? 1)})</option>`).join("");
+  const itemId = await foundry.applications.api.DialogV2.prompt({
+    window: { title: localize("TENEBRE.Maneuvers.PoisonWeapon") },
+    content: `<div class="symbaroum dialog tenebre-maneuver-dialog"><label>${escapeHtml(localize("TENEBRE.Maneuvers.ChoosePoisonDose"))}</label><select id="tenebre-poison-dose">${options}</select></div>`,
+    ok: { label: localize("TENEBRE.Maneuvers.PoisonWeapon"), callback: (_event, _button, dialog) => dialog.element.querySelector("#tenebre-poison-dose")?.value },
+    rejectClose: false
+  });
+  return poisons.find((item) => item.id === itemId) ?? null;
+}
+
+async function consumePoisonDose(item) {
+  if (!item) return false;
+  const quantity = Number(item.system?.quantity ?? 1);
+  if (!Number.isFinite(quantity) || quantity <= 0) return false;
+  await item.update({ "system.quantity": Math.max(0, quantity - 1) });
+  return true;
 }
 
 async function promptNumericValue(maneuver, labelKey) {
@@ -776,7 +830,7 @@ function getAttributeValue(actor, attributeName) {
   return Number(actor.system?.attributes?.[attributeName]?.total ?? 10) || 10;
 }
 
-async function applyOpposedManeuverEffects(actor, targetActor, maneuver, success) {
+async function applyOpposedManeuverEffects(actor, targetActor, maneuver, success, { maintenance = false } = {}) {
   if (maneuver.id === "grapple" && success) {
     return [
       await applyManeuverEffect(targetActor, MANEUVER_EFFECTS.GRAPPLED, { sourceActor: actor }),
@@ -785,14 +839,17 @@ async function applyOpposedManeuverEffects(actor, targetActor, maneuver, success
   }
 
   if (maneuver.id === "grapple" && !success) {
+    if (maintenance) await releaseGrapple(actor, targetActor);
     return [
       await grantFreeAttack(targetActor, actor)
     ].filter(Boolean);
   }
 
   if (maneuver.id === "disarm" && success) {
+    const disarmedItem = await disarmEquippedItem(targetActor);
     return [
-      await applyManeuverEffect(targetActor, MANEUVER_EFFECTS.DISARMED, { sourceActor: actor })
+      await applyManeuverEffect(targetActor, MANEUVER_EFFECTS.DISARMED, { sourceActor: actor }),
+      disarmedItem ? game.i18n.format("TENEBRE.Maneuvers.ItemDisarmed", { item: disarmedItem.name }) : null
     ].filter(Boolean);
   }
 
@@ -817,8 +874,11 @@ async function applyDamageCheckEffects(actor, targetActor, maneuver, success) {
 
 async function applyAttackManeuverEffects(actor, targetActor, maneuver, success) {
   if (maneuver.id === "shove" && success) {
+    const targetToken = Array.from(game.user?.targets ?? [])[0] ?? null;
+    const shove = await SocketService.shoveToken(actor, targetToken);
     return [
-      await applyManeuverEffect(targetActor, MANEUVER_EFFECTS.SHOVED, { sourceActor: actor, rounds: 1 })
+      await applyManeuverEffect(targetActor, MANEUVER_EFFECTS.SHOVED, { sourceActor: actor, rounds: 1 }),
+      localize(shove?.moved ? "TENEBRE.Maneuvers.ShoveMoved" : "TENEBRE.Maneuvers.ShoveMoveManual")
     ].filter(Boolean);
   }
 
@@ -855,16 +915,20 @@ async function applyKnockdownManeuverEffects(actor, targetActor, success, staysS
   return messages.filter(Boolean);
 }
 
-async function applyAttributeManeuverEffects(actor, maneuver, success, result) {
+async function applyAttributeManeuverEffects(actor, maneuver, success, result, context = {}) {
   if (maneuver.id === "poisonWeapon" && result === 20) {
+    await consumePoisonDose(context.poisonItem);
     return [
-      await applyManeuverEffect(actor, MANEUVER_EFFECTS.POISONED, { rounds: 3, expiration: "rounds" })
+      await applyManeuverEffect(actor, MANEUVER_EFFECTS.POISONED, { rounds: 3, expiration: "rounds" }),
+      context.poisonItem ? game.i18n.format("TENEBRE.Maneuvers.PoisonDoseConsumed", { item: context.poisonItem.name }) : null
     ].filter(Boolean);
   }
 
   if (maneuver.id === "poisonWeapon" && success) {
+    await consumePoisonDose(context.poisonItem);
     return [
-      await applyManeuverEffect(actor, MANEUVER_EFFECTS.POISONED_WEAPON)
+      await applyManeuverEffect(actor, MANEUVER_EFFECTS.POISONED_WEAPON),
+      context.poisonItem ? game.i18n.format("TENEBRE.Maneuvers.PoisonDoseConsumed", { item: context.poisonItem.name }) : null
     ].filter(Boolean);
   }
 
@@ -883,12 +947,6 @@ async function applyAttributeManeuverEffects(actor, maneuver, success, result) {
 }
 
 async function applyStatementEffects(actor, maneuver) {
-  if (maneuver.id === "delayInitiative") {
-    return [
-      await applyManeuverEffect(actor, MANEUVER_EFFECTS.DELAYED_INITIATIVE, { rounds: 1 })
-    ].filter(Boolean);
-  }
-
   if (maneuver.id === "totalDefense") {
     return [
       await applyManeuverEffect(actor, MANEUVER_EFFECTS.TOTAL_DEFENSE, { rounds: 1 })
@@ -904,6 +962,18 @@ async function applyStatementEffects(actor, maneuver) {
   if (maneuver.id === "carefulAim") {
     return [
       await applyManeuverEffect(actor, MANEUVER_EFFECTS.CAREFUL_AIM, { rounds: 1 })
+    ].filter(Boolean);
+  }
+
+  if (maneuver.id === "charge") {
+    return [
+      await applyManeuverEffect(actor, MANEUVER_EFFECTS.CHARGING, { rounds: 1 })
+    ].filter(Boolean);
+  }
+
+  if (maneuver.id === "knockout") {
+    return [
+      await applyManeuverEffect(actor, MANEUVER_EFFECTS.KNOCKOUT_READY, { rounds: 1 })
     ].filter(Boolean);
   }
 
@@ -996,6 +1066,104 @@ async function prepareManeuverEffectsForRemoval(actor, effects) {
   if (effects.some((effect) => getManeuverEffectId(effect) === MANEUVER_EFFECTS.INITIATIVE_BONUS)) {
     await revertTemporaryInitiativeBonus(actor);
   }
+  if (effects.some((effect) => getManeuverEffectId(effect) === MANEUVER_EFFECTS.DELAYED_INITIATIVE)) {
+    await revertDelayedInitiative(actor);
+  }
+}
+
+let lastGrappleMaintenanceKey = "";
+
+async function maintainCurrentGrapple() {
+  const combat = game.combat;
+  const combatant = combat?.combatant;
+  const actor = combatant?.actor;
+  if (!actor) return;
+  const key = `${combat.id}:${combat.round}:${combat.turn}:${actor.id}`;
+  if (key === lastGrappleMaintenanceKey) return;
+  lastGrappleMaintenanceKey = key;
+
+  const effect = findActorEffect(actor, MANEUVER_EFFECTS.MAINTAINING_GRAPPLE);
+  if (!effect) return;
+  const targetId = effect.getFlag?.(MODULE_ID, "sourceActorId") ?? effect.flags?.[MODULE_ID]?.sourceActorId;
+  const targetActor = findActorById(targetId);
+  if (!targetActor) {
+    await removeManeuverEffect(actor, MANEUVER_EFFECTS.MAINTAINING_GRAPPLE);
+    return;
+  }
+  await rollOpposedManeuver(actor, ManeuverService.get("grapple"), 0, { targetActor, maintenance: true });
+}
+
+async function releaseGrapple(actor, targetActor) {
+  await removeManeuverEffect(actor, MANEUVER_EFFECTS.MAINTAINING_GRAPPLE);
+  if (targetActor) await removeManeuverEffect(targetActor, MANEUVER_EFFECTS.GRAPPLED);
+}
+
+function findActorById(actorId) {
+  if (!actorId) return null;
+  return game.actors?.get?.(actorId)
+    ?? game.combat?.combatants?.find?.((combatant) => combatant.actor?.id === actorId)?.actor
+    ?? Array.from(globalThis.canvas?.tokens?.placeables ?? []).find((token) => token.actor?.id === actorId)?.actor
+    ?? null;
+}
+
+async function disarmEquippedItem(targetActor) {
+  const items = Array.from(targetActor?.items ?? []).filter((item) => {
+    if (String(item.system?.state ?? "").toLowerCase() !== "active") return false;
+    const reference = normalizeText(item.system?.reference);
+    return item.type === "weapon" || reference === "shield" || reference === "escudo";
+  });
+  if (!items.length) return null;
+
+  let item = items[0];
+  if (items.length > 1) {
+    const options = items.map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.name)}</option>`).join("");
+    const itemId = await foundry.applications.api.DialogV2.prompt({
+      window: { title: localize("TENEBRE.Maneuvers.Disarm") },
+      content: `<div class="symbaroum dialog tenebre-maneuver-dialog"><label>${escapeHtml(localize("TENEBRE.Maneuvers.ChooseDisarmedItem"))}</label><select id="tenebre-disarm-item">${options}</select></div>`,
+      ok: { label: localize("TENEBRE.Maneuvers.Disarm"), callback: (_event, _button, dialog) => dialog.element.querySelector("#tenebre-disarm-item")?.value },
+      rejectClose: false
+    });
+    item = items.find((entry) => entry.id === itemId) ?? null;
+  }
+  if (!item) return null;
+  await SocketService.disarmItem(targetActor, item);
+  return item;
+}
+
+async function delayInitiative(actor, maneuver) {
+  const combatant = findCombatantForActor(actor);
+  const combat = game.combat;
+  if (!combatant || !Number.isFinite(Number(combatant.initiative))) {
+    ui.notifications.warn(localize("TENEBRE.Maneuvers.DelayRequiresCombat"));
+    return null;
+  }
+  const turns = Array.from(combat.turns ?? []);
+  const actorIndex = turns.findIndex((entry) => entry.id === combatant.id);
+  const candidates = turns.slice(Math.max(actorIndex + 1, 0)).filter((entry) => entry.id !== combatant.id && Number.isFinite(Number(entry.initiative)));
+  if (!candidates.length) {
+    ui.notifications.warn(localize("TENEBRE.Maneuvers.NoLaterCombatant"));
+    return null;
+  }
+  const options = candidates.map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.name ?? entry.actor?.name ?? "")}</option>`).join("");
+  const chosenId = await foundry.applications.api.DialogV2.prompt({
+    window: { title: localize(maneuver.labelKey) },
+    content: `<div class="symbaroum dialog tenebre-maneuver-dialog"><label>${escapeHtml(localize("TENEBRE.Maneuvers.DelayChoose"))}</label><select id="tenebre-delay-combatant">${options}</select></div>`,
+    ok: { label: localize("TENEBRE.Maneuvers.DelayInitiative"), callback: (_event, _button, dialog) => dialog.element.querySelector("#tenebre-delay-combatant")?.value },
+    rejectClose: false
+  });
+  const chosen = candidates.find((entry) => entry.id === chosenId);
+  if (!chosen) return null;
+  const chosenIndex = turns.findIndex((entry) => entry.id === chosen.id);
+  const lower = turns.slice(chosenIndex + 1).find((entry) => entry.id !== combatant.id && Number.isFinite(Number(entry.initiative)));
+  const chosenInitiative = Number(chosen.initiative);
+  const next = lower ? (chosenInitiative + Number(lower.initiative)) / 2 : chosenInitiative - 0.01;
+  const previous = Number(combatant.initiative);
+  await SocketService.setFlag(actor, MODULE_ID, "maneuverDelayedInitiative", { combatId: combat.id, combatantId: combatant.id, previous, next });
+  await applyManeuverEffect(actor, MANEUVER_EFFECTS.DELAYED_INITIATIVE, { rounds: 1, expiration: "rounds" });
+  await SocketService.updateCombatant(combatant, { initiative: next });
+  const content = buildChatCard({ actor, maneuver, rows: [[localize("TENEBRE.Maneuvers.Action"), game.i18n.format("TENEBRE.Maneuvers.InitiativeDelayedAfter", { target: chosen.name ?? chosen.actor?.name ?? "" })]], notes: maneuver.noteKeys.map(localize) });
+  await createChatMessageAfterDice({ speaker: ChatMessage.getSpeaker({ actor }), content, flags: maneuverLogFlags({ actor, maneuver }) });
+  return { success: true, previous, next };
 }
 
 function getActorsWithManeuverEffects() {
@@ -1033,6 +1201,19 @@ async function revertTemporaryInitiativeBonus(actor) {
   }
 
   await SocketService.unsetFlag(actor, MODULE_ID, "maneuverInitiativeBonus");
+  return true;
+}
+
+async function revertDelayedInitiative(actor) {
+  if (!actor) return false;
+  const data = actor.getFlag?.(MODULE_ID, "maneuverDelayedInitiative");
+  if (!data) return false;
+  const combat = game.combats?.get?.(data.combatId) ?? game.combat;
+  const combatant = combat?.combatants?.get?.(data.combatantId) ?? findCombatantForActor(actor);
+  if (combatant && Number.isFinite(Number(combatant.initiative))) {
+    await SocketService.updateCombatant(combatant, { initiative: Number(data.previous) });
+  }
+  await SocketService.unsetFlag(actor, MODULE_ID, "maneuverDelayedInitiative");
   return true;
 }
 
@@ -1129,7 +1310,7 @@ function shouldExpireEffect(effect, combat, { forceTurnEffects = false } = {}) {
   const expiration = configuredExpiration
     ?? (TURN_END_EFFECTS.has(effectId) ? "turnEnd" : null)
     ?? (Number(effect.duration?.rounds) > 0 ? "rounds" : null);
-  if (forceTurnEffects && expiration === "turnEnd") return true;
+  if (forceTurnEffects && (expiration === "turnEnd" || effectId === MANEUVER_EFFECTS.DELAYED_INITIATIVE)) return true;
   if (!combat) return false;
 
   const combatId = effect.getFlag?.(MODULE_ID, "combatId") ?? effect.flags?.[MODULE_ID]?.combatId;

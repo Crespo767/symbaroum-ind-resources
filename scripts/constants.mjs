@@ -22,6 +22,7 @@ export const MANEUVER_EFFECTS = Object.freeze({
   KNOCKED_DOWN: "tenebre-maneuver-knocked-down",
   CHARGING: "tenebre-maneuver-charging",
   CAREFUL_AIM: "tenebre-maneuver-careful-aim",
+  KNOCKOUT_READY: "tenebre-maneuver-knockout-ready",
   POISONED_WEAPON: "tenebre-maneuver-poisoned-weapon",
   POISONED: "tenebre-maneuver-poisoned",
   TAKING_INITIATIVE: "tenebre-maneuver-taking-initiative",

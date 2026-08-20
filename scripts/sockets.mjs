@@ -14,9 +14,11 @@ let moduleSocket = null;
 
 const HANDLERS = {
   createEmbeddedDocuments: createEmbeddedDocumentsAsGM,
+  disarmItem: disarmItemAsGM,
   deleteEmbeddedDocuments: deleteEmbeddedDocumentsAsGM,
   markActorDead: markActorDeadAsGM,
   setFlag: setFlagAsGM,
+  shoveToken: shoveTokenAsGM,
   unsetFlag: unsetFlagAsGM,
   updateCombatant: updateCombatantAsGM,
   updateDocument: updateDocumentAsGM,
@@ -38,6 +40,22 @@ Hooks.once("socketlib.ready", () => {
 });
 
 export class SocketService {
+  static async disarmItem(actor, item) {
+    if (!actor || !item) return false;
+    if (this.canModify(item, "update")) {
+      await item.update({ "system.state": "equipped" });
+      return true;
+    }
+    return this.executeAsGM("disarmItem", actor.uuid, item.id);
+  }
+
+  static async shoveToken(sourceActor, targetToken) {
+    const sourceToken = sourceActor?.getActiveTokens?.()[0]?.document;
+    const targetDocument = targetToken?.document ?? targetToken;
+    if (!sourceToken?.uuid || !targetDocument?.uuid) return { moved: false };
+    return this.executeAsGM("shoveToken", sourceToken.uuid, targetDocument.uuid);
+  }
+
   static registerHandler(name, handler) {
     if (!name || typeof handler !== "function") throw new Error("Invalid socket handler registration.");
     if (HANDLERS[name] && HANDLERS[name] !== handler) throw new Error(`Socket handler already registered: ${name}`);
@@ -159,6 +177,44 @@ export class SocketService {
 
     return moduleSocket.executeAsGM(handlerName, ...args);
   }
+}
+
+async function disarmItemAsGM(actorUuid, itemId) {
+  const actor = await getDocument(actorUuid);
+  const user = getRequestUser(this);
+  if (!user.isGM && !isTargetedActor(actor, user)) throw new Error("Disarm target is not selected.");
+  const item = actor.items?.get?.(itemId);
+  const reference = String(item?.system?.reference ?? "").toLowerCase();
+  if (!item || String(item.system?.state ?? "").toLowerCase() !== "active" || (item.type !== "weapon" && !["shield", "escudo"].includes(reference))) {
+    throw new Error("Invalid item selected for disarm.");
+  }
+  await item.update({ "system.state": "equipped" });
+  return true;
+}
+
+async function shoveTokenAsGM(sourceTokenUuid, targetTokenUuid) {
+  const sourceToken = await getDocument(sourceTokenUuid);
+  const targetToken = await getDocument(targetTokenUuid);
+  const user = getRequestUser(this);
+  if (!sourceToken?.actor || !targetToken?.actor) throw new Error("Invalid shove tokens.");
+  if (!user.isGM && !hasOwnerPermission(sourceToken.actor, user)) throw new Error("Shove source is not owned.");
+  if (!user.isGM && !isTargetedActor(targetToken.actor, user)) throw new Error("Shove target is not selected.");
+
+  const scene = targetToken.parent;
+  const gridSize = Number(scene?.grid?.size ?? globalThis.canvas?.grid?.size ?? 100) || 100;
+  const gridDistance = Number(scene?.grid?.distance ?? globalThis.canvas?.scene?.grid?.distance ?? 1) || 1;
+  const pixels = (5 / gridDistance) * gridSize;
+  const sourceCenter = { x: Number(sourceToken.x) + Number(sourceToken.width ?? 1) * gridSize / 2, y: Number(sourceToken.y) + Number(sourceToken.height ?? 1) * gridSize / 2 };
+  const targetCenter = { x: Number(targetToken.x) + Number(targetToken.width ?? 1) * gridSize / 2, y: Number(targetToken.y) + Number(targetToken.height ?? 1) * gridSize / 2 };
+  const dx = targetCenter.x - sourceCenter.x;
+  const dy = targetCenter.y - sourceCenter.y;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length < 1) return { moved: false };
+  const destination = { x: targetCenter.x + (dx / length) * pixels, y: targetCenter.y + (dy / length) * pixels };
+  const collision = targetToken.object?.checkCollision?.(destination, { type: "move", mode: "any" });
+  if (collision) return { moved: false, blocked: true };
+  await targetToken.update({ x: destination.x - Number(targetToken.width ?? 1) * gridSize / 2, y: destination.y - Number(targetToken.height ?? 1) * gridSize / 2 });
+  return { moved: true, distance: 5 };
 }
 
 async function createEmbeddedDocumentsAsGM(parentUuid, embeddedName, data, options = {}) {

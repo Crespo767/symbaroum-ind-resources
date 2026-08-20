@@ -4,10 +4,10 @@ const MAX_BATCH_SIZE = 50;
 const MAX_PAYLOAD_BYTES = 100_000;
 const MANEUVER_EFFECT_IDS = new Set(Object.values(MANEUVER_EFFECTS));
 const TURN_END_EFFECT_IDS = new Set([
-  MANEUVER_EFFECTS.DELAYED_INITIATIVE,
   MANEUVER_EFFECTS.SHOVED,
   MANEUVER_EFFECTS.CHARGING,
   MANEUVER_EFFECTS.CAREFUL_AIM,
+  MANEUVER_EFFECTS.KNOCKOUT_READY,
   MANEUVER_EFFECTS.TAKING_INITIATIVE,
   MANEUVER_EFFECTS.INITIATIVE_BONUS,
   MANEUVER_EFFECTS.TOTAL_DEFENSE,
@@ -170,6 +170,9 @@ function isAllowedManeuverFlagValue(key, value) {
 function hasCanonicalManeuverTiming(flags, effectId) {
   if (TURN_END_EFFECT_IDS.has(effectId)) {
     return flags.expiration === "turnEnd" && Number(flags.rounds) === 1;
+  }
+  if (effectId === MANEUVER_EFFECTS.DELAYED_INITIATIVE) {
+    return flags.expiration === "rounds" && Number(flags.rounds) === 1;
   }
   if (effectId === MANEUVER_EFFECTS.POISONED) {
     return flags.expiration === "rounds" && Number(flags.rounds) === 3;
