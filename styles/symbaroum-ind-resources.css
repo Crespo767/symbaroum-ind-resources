@@ -3556,6 +3556,19 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   padding-left: 6px;
 }
 
+.tenebre-berserker-details .tenebre-berserker-roll-result {
+  font-family: var(--font-text, "Philosopher"), sans-serif;
+  font-size: 14px;
+}
+
+.tenebre-berserker-details .tenebre-berserker-roll-success {
+  color: #18520b;
+}
+
+.tenebre-berserker-details .tenebre-berserker-roll-failure {
+  color: #aa0200;
+}
+
 #token-hud .tenebre-ground-container-transfer {
   padding: 0;
   overflow: hidden;

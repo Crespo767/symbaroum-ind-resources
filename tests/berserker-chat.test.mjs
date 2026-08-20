@@ -16,6 +16,7 @@ const {
   isHolyAuraItem,
   isLayOnHandsItem,
   parseAbilityRoll,
+  parseSingleAbilityTest,
   parseAbilityTest,
   splitAbilityCaption,
   stripTargetLabel
@@ -88,8 +89,30 @@ test("ability resolution follows the attack-card objective and roll layout", () 
   });
   assert.equal(parseAbilityRoll("Rolagem: 18"), 18);
   assert.equal(parseAbilityRoll("Dano: 1d12 - 4"), null);
+  assert.deepEqual(parseSingleAbilityTest("Astuto : (13)"), {
+    attribute: { label: "Astuto", value: 13 },
+    modifier: 0,
+    objective: 13,
+    testText: "Astuto: 13"
+  });
+  assert.deepEqual(parseSingleAbilityTest("Persuasivo: (10) Mod: -2"), {
+    attribute: { label: "Persuasivo", value: 10 },
+    modifier: -2,
+    objective: 8,
+    testText: "Persuasivo: 10"
+  });
+  assert.equal(parseSingleAbilityTest("Resultado : (15) ← Rápido : (3)"), null);
   assert.match(source, /tenebre-berserker-roll-summary/);
   assert.match(css, /\.tenebre-berserker-roll-summary\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+});
+
+test("single-Attribute ability tests keep their layout while styling only the roll", () => {
+  assert.match(source, /attributeText\.textContent = singleTest\.testText/);
+  assert.match(source, /applyAbilityRollOutcome\(clone\.querySelector\("p"\), succeeded\)/);
+  assert.match(source, /succeeded \? "tenebre-berserker-roll-success" : "tenebre-berserker-roll-failure"/);
+  assert.match(css, /\.tenebre-berserker-details \.tenebre-berserker-roll-result\s*\{[\s\S]*?font-family:\s*var\(--font-text, "Philosopher"\), sans-serif;[\s\S]*?font-size:\s*14px;/);
+  assert.match(css, /\.tenebre-berserker-details \.tenebre-berserker-roll-success\s*\{[\s\S]*?color:\s*#18520b;/);
+  assert.match(css, /\.tenebre-berserker-details \.tenebre-berserker-roll-failure\s*\{[\s\S]*?color:\s*#aa0200;/);
 });
 
 test("Aura Sagrada uses the same ability card and keeps damage and corruption details", () => {

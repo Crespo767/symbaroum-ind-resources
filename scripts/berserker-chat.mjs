@@ -224,42 +224,67 @@ function createAbilityDetails(source) {
   const details = document.createElement("div");
   details.className = "tenebre-berserker-details";
   const nodes = [...source.querySelectorAll(":scope > .finalTxt")];
-  const testNode = nodes.find((node) => parseAbilityTest(node.textContent));
+  const opposedTestNode = nodes.find((node) => parseAbilityTest(node.textContent));
+  const singleTestNode = opposedTestNode
+    ? null
+    : nodes.find((node) => parseSingleAbilityTest(node.textContent));
+  const testNode = opposedTestNode ?? singleTestNode;
   const rollNode = nodes.find((node) => parseAbilityRoll(node.textContent) !== null);
-  const test = parseAbilityTest(testNode?.textContent);
+  const opposedTest = parseAbilityTest(opposedTestNode?.textContent);
+  const singleTest = parseSingleAbilityTest(singleTestNode?.textContent);
+  const test = opposedTest ?? singleTest;
   const roll = parseAbilityRoll(rollNode?.textContent);
+  const succeeded = test && roll !== null ? roll <= test.objective : null;
 
-  if (test && roll !== null) {
-    details.append(createTextElement("p", "tenebre-berserker-test", test.testText));
-    if (test.modifier) {
+  if (opposedTest && roll !== null) {
+    details.append(createTextElement("p", "tenebre-berserker-test", opposedTest.testText));
+    if (opposedTest.modifier) {
       details.append(createTextElement(
         "p",
         "tenebre-berserker-test-modifier",
-        `${localize("TENEBRE.NpcAttackChat.Modifier", "Modificador")}: ${signed(test.modifier)}`
+        `${localize("TENEBRE.NpcAttackChat.Modifier", "Modificador")}: ${signed(opposedTest.modifier)}`
       ));
     }
     const summary = document.createElement("div");
     summary.className = "tenebre-berserker-roll-summary";
+    const rollText = createTextElement(
+      "p",
+      "tenebre-berserker-roll",
+      `${localize("TENEBRE.NpcAttackChat.Roll", "Rolagem")}: ${roll}`
+    );
+    applyAbilityRollOutcome(rollText, succeeded);
     summary.append(
       createTextElement(
         "p",
         "tenebre-berserker-objective",
-        `${localize("TENEBRE.NpcAttackChat.Objective", "Objetivo")}: ${test.objective}`
+        `${localize("TENEBRE.NpcAttackChat.Objective", "Objetivo")}: ${opposedTest.objective}`
       ),
-      createTextElement(
-        "p",
-        "tenebre-berserker-roll",
-        `${localize("TENEBRE.NpcAttackChat.Roll", "Rolagem")}: ${roll}`
-      )
+      rollText
     );
     details.append(summary);
   }
 
   for (const node of nodes) {
-    if (test && roll !== null && (node === testNode || node === rollNode)) continue;
-    details.append(node.cloneNode(true));
+    if (opposedTest && roll !== null && (node === testNode || node === rollNode)) continue;
+    const clone = node.cloneNode(true);
+    if (singleTest && node === testNode) {
+      const attributeText = clone.querySelector("p");
+      if (attributeText) attributeText.textContent = singleTest.testText;
+    }
+    if (succeeded !== null && node === rollNode) {
+      applyAbilityRollOutcome(clone.querySelector("p"), succeeded);
+    }
+    details.append(clone);
   }
   return details;
+}
+
+function applyAbilityRollOutcome(element, succeeded) {
+  if (!element) return;
+  element.classList.add(
+    "tenebre-berserker-roll-result",
+    succeeded ? "tenebre-berserker-roll-success" : "tenebre-berserker-roll-failure"
+  );
 }
 
 export function parseAbilityTest(value = "") {
@@ -276,6 +301,20 @@ export function parseAbilityTest(value = "") {
     objective: attributes[0].value + attributes[1].value + modifier,
     direction,
     testText: `${attributes[0].label} (${attributes[0].value}) ${direction} ${attributes[1].label} (${attributes[1].value})`
+  };
+}
+
+export function parseSingleAbilityTest(value = "") {
+  const text = cleanText(value);
+  const match = text.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s-]*?)\s*:?\s*\(\s*(-?\d+)\s*\)\s*(?:Mod(?:ificador|ifier)?\s*:?\s*([+-]?\d+))?$/iu);
+  if (!match) return null;
+  const attribute = { label: cleanText(match[1]), value: Number(match[2]) };
+  const modifier = Number(match[3] ?? 0);
+  return {
+    attribute,
+    modifier,
+    objective: attribute.value + modifier,
+    testText: `${attribute.label}: ${attribute.value}`
   };
 }
 
