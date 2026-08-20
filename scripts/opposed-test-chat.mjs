@@ -43,6 +43,29 @@ export function formatOpposedTestResult(name, succeeded, criticalText = "") {
   return critical ? `${outcome} — ${critical}` : outcome;
 }
 
+export function formatAttributeTestTitle(name, attribute) {
+  return format(
+    "TENEBRE.AttributeTestChat.Title",
+    "{name} realiza um teste de {attribute}",
+    { name: stripNpcParenthetical(name), attribute: cleanText(attribute) }
+  );
+}
+
+export function formatAttributeTestResult(name, attribute, succeeded, criticalText = "") {
+  const key = succeeded
+    ? "TENEBRE.AttributeTestChat.Success"
+    : "TENEBRE.AttributeTestChat.Failure";
+  const fallback = succeeded
+    ? "{name} passa no teste de {attribute}."
+    : "{name} falha no teste de {attribute}.";
+  const outcome = format(key, fallback, {
+    name: stripNpcParenthetical(name),
+    attribute: cleanText(attribute)
+  });
+  const critical = cleanText(criticalText);
+  return critical ? `${outcome} — ${critical}` : outcome;
+}
+
 export function enhanceOpposedTestCards(scope, message) {
   for (const root of matchingElements(scope, ".symbaroum.chat.roll")) {
     enhanceOpposedTestCard(root, message);
@@ -102,12 +125,19 @@ function enhanceOpposedTestCard(root, message) {
 
   const card = document.createElement("section");
   card.className = "tenebre-opposed-test-card";
+  if (model.kind === "attribute") {
+    card.classList.add("tenebre-attribute-test-card");
+    card.append(createTextElement("h3", "tenebre-attribute-test-title", model.title));
+  }
   card.append(
     createPortraits(model),
     createTextElement("p", "tenebre-opposed-test-formula", model.formulaText),
     createRollSummary(model),
     createTextElement("p", "tenebre-opposed-test-outcome", model.outcome)
   );
+  if (model.marginText) {
+    card.append(createTextElement("p", "tenebre-attribute-test-margin", model.marginText));
+  }
   appendOriginalChatPreview(card, source, {
     hasUnadaptedContent: model.hasUnadaptedContent,
     unadaptedElements: model.unadaptedElements
@@ -127,7 +157,7 @@ function buildOpposedTestModel(source, message) {
   const target = messageFlag(message, TARGET_FLAG);
   const actorImage = source.querySelector(":scope > img.portrait")?.getAttribute("src") ?? "";
   const actorName = cleanText(message?.speaker?.alias);
-  if (formula.attributes.length < 2 || !rollElement || !target?.img || !actorImage || !actorName) return null;
+  if (formula.attributes.length < 2 || !rollElement || !actorImage || !actorName) return null;
 
   const succeeded = rollElement.classList.contains("success");
   const criticalText = [...source.querySelectorAll(":scope > h4")]
@@ -138,8 +168,24 @@ function buildOpposedTestModel(source, message) {
   const marginElement = source.querySelector(".dice-roll h4:nth-child(2)");
   const tooltipElement = source.querySelector(".dice-tooltip");
   const marginText = cleanText(marginElement?.textContent);
-  const unadaptedElements = [marginText ? marginElement : null, tooltipElement].filter(Boolean);
+  const isOpposed = Boolean(target?.img);
+  const unadaptedElements = [isOpposed && marginText ? marginElement : null, tooltipElement].filter(Boolean);
+  if (!isOpposed) {
+    return {
+      kind: "attribute",
+      actor: { name: stripNpcParenthetical(actorName), img: actorImage },
+      title: formatAttributeTestTitle(actorName, actingAttribute.label),
+      formulaText: `${actingAttribute.label} (${actingAttribute.value}) ← ${targetAttribute.label} (${signed(targetAttribute.value)})`,
+      objective: formula.objective,
+      roll: Number(cleanText(rollElement.textContent)),
+      outcome: formatAttributeTestResult(actorName, actingAttribute.label, succeeded, criticalText),
+      marginText,
+      hasUnadaptedContent: unadaptedElements.length > 0,
+      unadaptedElements
+    };
+  }
   return {
+    kind: "opposed",
     actor: { name: stripNpcParenthetical(actorName), img: actorImage },
     target: { name: stripNpcParenthetical(target.name), img: target.img },
     formulaText: `${actingAttribute.label} (${actingAttribute.value}) ← ${targetAttribute.label} (${signed(targetAttribute.value)})`,
@@ -154,11 +200,22 @@ function buildOpposedTestModel(source, message) {
 function createPortraits(model) {
   const portraits = document.createElement("div");
   portraits.className = "tenebre-opposed-test-portraits";
-  portraits.append(createPortrait(model.actor), createPortrait(model.target));
+  if (model.kind === "attribute") {
+    portraits.classList.add("tenebre-attribute-test-portrait");
+    portraits.append(createPortrait(model.actor, true));
+  } else {
+    portraits.append(createPortrait(model.actor), createPortrait(model.target));
+  }
   return portraits;
 }
 
-function createPortrait(participant) {
+function createPortrait(participant, withCaption = false) {
+  if (withCaption) {
+    const figure = document.createElement("figure");
+    figure.className = "tenebre-attribute-test-character";
+    figure.append(createPortrait(participant), createTextElement("figcaption", "", participant.name));
+    return figure;
+  }
   const image = document.createElement("img");
   image.src = participant.img || "icons/svg/mystery-man.svg";
   image.alt = participant.name;

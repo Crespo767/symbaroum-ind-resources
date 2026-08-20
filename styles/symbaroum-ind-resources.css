@@ -2693,6 +2693,16 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   text-align: center;
 }
 
+.tenebre-attribute-test-title {
+  margin: 0;
+  color: #18130f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+}
+
 .tenebre-opposed-test-portraits {
   display: grid;
   grid-template-columns: repeat(2, 62px);
@@ -2710,6 +2720,29 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   border-radius: 7px;
   background: #17130f;
   object-fit: cover;
+}
+
+.tenebre-opposed-test-portraits.tenebre-attribute-test-portrait {
+  display: flex;
+}
+
+.tenebre-attribute-test-character {
+  display: grid;
+  grid-template-rows: 62px auto;
+  gap: 4px;
+  justify-items: center;
+  width: 112px;
+  margin: 0;
+}
+
+.tenebre-attribute-test-character figcaption {
+  max-width: 112px;
+  color: #3e352e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.15;
+  text-align: center;
 }
 
 .tenebre-opposed-test-formula,
@@ -2743,6 +2776,15 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 .tenebre-opposed-test-outcome {
   padding-top: 7px;
   border-top: 1px solid rgb(74 64 56 / 30%);
+}
+
+.tenebre-attribute-test-margin {
+  margin: 0;
+  color: #3e352e;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .tenebre-original-chat-info {

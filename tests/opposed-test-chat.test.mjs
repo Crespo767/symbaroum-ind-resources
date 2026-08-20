@@ -10,7 +10,11 @@ const source = read("scripts/opposed-test-chat.mjs");
 const init = read("scripts/init.mjs");
 const css = read("styles/symbaroum-ind-resources.css");
 
-const { formatOpposedTestResult } = await import("../scripts/opposed-test-chat.mjs");
+const {
+  formatAttributeTestResult,
+  formatAttributeTestTitle,
+  formatOpposedTestResult
+} = await import("../scripts/opposed-test-chat.mjs");
 
 test("opposed-test outcome reports success or failure and keeps critical text", () => {
   assert.equal(formatOpposedTestResult("Kvarek, bárbaro mercenário", true), "Kvarek, bárbaro mercenário obtém sucesso.");
@@ -18,6 +22,21 @@ test("opposed-test outcome reports success or failure and keeps critical text", 
   assert.equal(
     formatOpposedTestResult("Kvarek", false, "Falha Crítica : Ataque Livre do Oponente"),
     "Kvarek obtém falha. — Falha Crítica : Ataque Livre do Oponente"
+  );
+});
+
+test("single Attribute tests use a character-focused title and outcome", () => {
+  assert.equal(
+    formatAttributeTestTitle("Bartolom, Mago da Ordo Mágica", "Persuasivo"),
+    "Bartolom, Mago da Ordo Mágica realiza um teste de Persuasivo"
+  );
+  assert.equal(
+    formatAttributeTestResult("Bartolom", "Persuasivo", true),
+    "Bartolom passa no teste de Persuasivo."
+  );
+  assert.equal(
+    formatAttributeTestResult("Bartolom", "Persuasivo", false),
+    "Bartolom falha no teste de Persuasivo."
   );
 });
 
@@ -44,6 +63,16 @@ test("compact opposed tests show two portraits and a two-column roll summary", (
   assert.match(css, /\.tenebre-opposed-test-roll-summary\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
 });
 
+test("compact single Attribute tests show one captioned portrait and preserve the margin", () => {
+  assert.match(source, /kind: "attribute"/);
+  assert.match(source, /tenebre-attribute-test-title/);
+  assert.match(source, /createPortrait\(model\.actor, true\)/);
+  assert.match(source, /tenebre-attribute-test-margin/);
+  assert.match(source, /isOpposed && marginText \? marginElement : null/);
+  assert.match(css, /\.tenebre-opposed-test-portraits\.tenebre-attribute-test-portrait\s*\{[\s\S]*?display:\s*flex;/);
+  assert.match(css, /\.tenebre-attribute-test-character\s*\{[\s\S]*?grid-template-rows:\s*62px auto;/);
+});
+
 test("opposed tests follow the existing Original or Ind Resources chat setting", () => {
   assert.match(source, /enableCompactNpcAttackChat/);
   assert.match(source, /source\.hidden = true/);
@@ -53,7 +82,7 @@ test("opposed tests follow the existing Original or Ind Resources chat setting",
 });
 
 test("unadapted opposed-test details remain available to the GM through the original preview", () => {
-  assert.match(source, /const unadaptedElements = \[marginText \? marginElement : null, tooltipElement\]\.filter\(Boolean\)/);
+  assert.match(source, /const unadaptedElements = \[isOpposed && marginText \? marginElement : null, tooltipElement\]\.filter\(Boolean\)/);
   assert.match(source, /unadaptedElements: model\.unadaptedElements/);
   assert.match(source, /appendOriginalChatPreview\(card, source/);
 });
