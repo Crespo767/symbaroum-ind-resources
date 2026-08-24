@@ -12,6 +12,8 @@ const STORED_ITEM_STATE = "other";
 let hooksRegistered = false;
 const sessionExpansionState = new Map();
 const transferDeleteAllowlist = new Set();
+const campingSeedOperations = new Map();
+const scheduledCampingSeeds = new Set();
 
 function actorItems(actor) {
   return Array.from(actor?.items?.values?.() ?? []);
@@ -144,6 +146,11 @@ export class ContainerService {
         container: item.name
       }));
       return false;
+    });
+
+    Hooks.on("createItem", (item, _options, userId) => {
+      if (userId !== game.user?.id || !this.isEnabled() || !this.isCampingEquipment(item)) return;
+      scheduleCampingContentsSeed(item);
     });
 
     Hooks.on("deleteItem", (item, options, userId) => {
@@ -603,6 +610,14 @@ export class ContainerService {
   static async synchronizeActorStates(actor, enabled = this.isEnabled()) {
     if (!actor || !canMutateActor(actor)) return 0;
 
+    let synchronized = 0;
+    if (enabled) {
+      for (const container of actorItems(actor)) {
+        if (!this.isCampingEquipment(container) || this.isStored(container) || itemQuantity(container) <= 0) continue;
+        synchronized += await seedContainerContents(actor, container);
+      }
+    }
+
     const updates = [];
     for (const item of actorItems(actor)) {
       if (this.isStored(item)) {
@@ -619,10 +634,10 @@ export class ContainerService {
       }
     }
 
-    if (!updates.length) return 0;
+    if (!updates.length) return synchronized;
     const mergedUpdates = mergeItemUpdates(updates);
     await actor.updateEmbeddedDocuments("Item", mergedUpdates, { render: true });
-    return mergedUpdates.length;
+    return synchronized + mergedUpdates.length;
   }
 
   static async withdrawItemPrompt(actor, item) {
@@ -938,15 +953,29 @@ async function restoreStoredItems(actor, items) {
 }
 
 async function seedContainerContents(actor, container) {
-  if (!isCampingEquipment(container)) return;
-  if (container.getFlag?.(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG)) return;
+  const key = containerExpansionKey(actor, container);
+  const activeOperation = campingSeedOperations.get(key);
+  if (activeOperation) return activeOperation;
+
+  const operation = seedContainerContentsNow(actor, container);
+  campingSeedOperations.set(key, operation);
+  try {
+    return await operation;
+  } finally {
+    if (campingSeedOperations.get(key) === operation) campingSeedOperations.delete(key);
+  }
+}
+
+async function seedContainerContentsNow(actor, container) {
+  if (!isCampingEquipment(container)) return 0;
+  if (container.getFlag?.(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG)) return 0;
   if (ContainerService.getStoredItems(actor, container).length > 0) {
     await container.setFlag(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG, true);
-    return;
+    return 0;
   }
 
   const contentRefs = extractCampingContentRefs(container);
-  if (!contentRefs.length) return;
+  if (!contentRefs.length) return 0;
 
   const itemData = [];
   for (const ref of contentRefs) {
@@ -954,9 +983,27 @@ async function seedContainerContents(actor, container) {
     itemData.push(createSeededStoredItemData(document, ref, container));
   }
 
-  if (!itemData.length) return;
-  await actor.createEmbeddedDocuments("Item", itemData, { render: true });
+  if (!itemData.length) return 0;
+  const created = await actor.createEmbeddedDocuments("Item", itemData, { render: true });
   await container.setFlag(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG, true);
+  return Array.isArray(created) ? created.length : itemData.length;
+}
+
+function scheduleCampingContentsSeed(container) {
+  const actor = container?.parent;
+  if (!actor || !canMutateActor(actor)) return;
+  const key = containerExpansionKey(actor, container);
+  if (scheduledCampingSeeds.has(key)) return;
+  scheduledCampingSeeds.add(key);
+
+  setTimeout(() => {
+    scheduledCampingSeeds.delete(key);
+    const currentContainer = actor.items?.get?.(container.id);
+    if (!currentContainer || !ContainerService.isEnabled() || !isCampingEquipment(currentContainer)) return;
+    seedContainerContents(actor, currentContainer).catch((error) => {
+      console.warn("Tenebre Resources | Failed to seed camping equipment contents.", error);
+    });
+  }, 0);
 }
 
 function isCampingEquipment(item) {

@@ -434,6 +434,30 @@ test("camping equipment with existing contents is marked seeded without duplicat
   assert.deepEqual(actor.created, []);
 });
 
+test("new camping equipment is seeded without requiring the container to be opened", async () => {
+  const actor = createActor({ id: "camping-create" });
+  const container = createItem(actor, { id: "camp-new", name: "Equipamento de Acampar" });
+  ContainerService.registerHooks();
+
+  hookHandlers.get("createItem")(container, {}, game.user.id);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  assert.equal(ContainerService.isContainerExpanded(actor, container), false);
+  assert.equal(container.getFlag(scope, "campingContentsSeeded"), true);
+  assert.equal(ContainerService.getStoredItems(actor, container).length, 6);
+});
+
+test("state synchronization seeds older unopened camping equipment", async () => {
+  const actor = createActor({ id: "camping-existing" });
+  const container = createItem(actor, { id: "camp-existing", name: "Equipamentos de Acampar" });
+
+  assert.equal(await ContainerService.synchronizeActorStates(actor, true), 6);
+  assert.equal(ContainerService.isContainerExpanded(actor, container), false);
+  assert.equal(ContainerService.getStoredItems(actor, container).length, 6);
+  assert.equal(await ContainerService.synchronizeActorStates(actor, true), 0);
+  assert.equal(ContainerService.getStoredItems(actor, container).length, 6);
+});
+
 test("container capacity defaults use slots while unknown containers remain unlimited", () => {
   const actor = createActor();
   const backpack = createItem(actor, { id: "backpack", name: "Mochila" });
