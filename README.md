@@ -749,6 +749,12 @@ Por padrao:
 
 Fome, sobrecarga e efeitos de manobra podem reduzir ou bloquear movimento.
 
+Em cenas cuja unidade de distancia da grade seja `km`, a regua entra no modo
+de viagem e mostra a distancia junto da duracao estimada em dias. O terreno,
+o modo de viagem e a opcao de jornada ao longo de rio ficam no controle de
+viagem do HUD de cada token. Cenas de viagem nao aplicam cores, limites ou
+bloqueios de movimento tatico.
+
 Se **Drag Ruler** estiver ativo, o Tenebre desativa sua propria regua colorida
 para nao disputar a mesma area do Foundry.
 

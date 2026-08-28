@@ -14,6 +14,15 @@ const COLORS = {
   neutral: 0xffffff
 };
 
+export const TRAVEL_RATES_KM_PER_DAY = Object.freeze({
+  plains: Object.freeze({ dayMarch: 20, forcedMarch: 40, mortalMarch: 60, dayRide: 40, forcedRide: 60, mortalRide: 70 }),
+  brightDavokar: Object.freeze({ dayMarch: 20, forcedMarch: 30, mortalMarch: 40, dayRide: 30, forcedRide: 45, mortalRide: 50 }),
+  darkDavokar: Object.freeze({ dayMarch: 10, forcedMarch: 15, mortalMarch: 20, dayRide: 10, forcedRide: 15, mortalRide: 20 })
+});
+
+const TRAVEL_TERRAINS = ["plains", "brightDavokar", "darkDavokar"];
+const TRAVEL_MODES = ["dayMarch", "forcedMarch", "mortalMarch", "dayRide", "forcedRide", "mortalRide"];
+
 const IMMOBILIZING_EFFECTS = new Set([
   MANEUVER_EFFECTS.GRAPPLED,
   MANEUVER_EFFECTS.MAINTAINING_GRAPPLE,
@@ -27,12 +36,23 @@ const MOVEMENT_SPENT_EFFECTS = new Set([
 
 let originalTokenRulerClass = null;
 let movementValidationPatched = false;
+let tokenHudHookRegistered = false;
 
 export class MovementService {
   static register() {
     this.patchMovementValidation();
+    this.registerTokenHud();
     if (CompatibilityService.shouldSkipMovementRuler()) return;
     this.patchTokenRuler();
+  }
+
+  static registerTokenHud() {
+    if (tokenHudHookRegistered) return true;
+    Hooks.on("renderTokenHUD", (hud, html, token) => {
+      MovementService.addTravelHudControl(hud, html, token);
+    });
+    tokenHudHookRegistered = true;
+    return true;
   }
 
   static patchTokenRuler() {
@@ -87,6 +107,17 @@ export class MovementService {
         if (!TenebreSettings.get("enableMovementRuler")) return context;
         if (!TenebreSettings.get("enableMovementLimitLabels")) return context;
 
+        const scene = MovementService.getScene(this.token);
+        if (MovementService.isTravelScene(scene)) {
+          const distance = MovementService.getWaypointDistance(waypoint);
+          const travel = MovementService.getTravelEstimate(distance, this.token);
+          context.cssClass = [context.cssClass, "tenebre-movement-travel"].filter(Boolean).join(" ");
+          context.cost ??= {};
+          context.cost.total = `${formatDistance(distance)} ${game.i18n.localize("TENEBRE.Movement.UnitKilometers")} · ${formatDistance(travel.days)} ${game.i18n.localize("TENEBRE.Travel.Days")}`;
+          context.cost.units = "";
+          return context;
+        }
+
         const profile = MovementService.getProfile(this.token?.actor);
         const movementState = MovementService.getWaypointState(waypoint, profile);
         context.cssClass = [
@@ -118,6 +149,7 @@ export class MovementService {
 
   static validateMovement(tokenDocument, movement, operation = {}) {
     if (operation?.isUndo || operation?.isPaste) return true;
+    if (this.isTravelScene(tokenDocument?.parent ?? globalThis.canvas?.scene)) return true;
 
     const actor = tokenDocument?.actor;
     if (!actor) return true;
@@ -259,7 +291,7 @@ export class MovementService {
   }
 
   static getWaypointState(waypoint, profile) {
-    const cost = Number(waypoint?.measurement?.cost ?? waypoint?.cost ?? 0);
+    const cost = this.getWaypointDistance(waypoint);
     if (!Number.isFinite(cost)) return "blocked";
     if (cost <= profile.actionDistance + 0.001) return "walk";
     if (cost <= profile.doubleDistance + 0.001) return "double";
@@ -287,7 +319,87 @@ export class MovementService {
   }
 
   static shouldColorMovement() {
-    return TenebreSettings.get("enableMovementRuler") && TenebreSettings.get("enableMovementColors");
+    return !this.isTravelScene()
+      && TenebreSettings.get("enableMovementRuler")
+      && TenebreSettings.get("enableMovementColors");
+  }
+
+  static getScene(token = null) {
+    return token?.document?.parent ?? token?.scene ?? globalThis.canvas?.scene ?? null;
+  }
+
+  static isTravelScene(scene = globalThis.canvas?.scene) {
+    return isKilometerUnit(scene?.grid?.units ?? scene?.gridUnits);
+  }
+
+  static getWaypointDistance(waypoint) {
+    const distance = Number(waypoint?.measurement?.cost ?? waypoint?.cost ?? 0);
+    return Number.isFinite(distance) ? distance : Number.NaN;
+  }
+
+  static getTravelConfiguration(token = null) {
+    const tokenDocument = token?.document ?? token;
+    const flags = tokenDocument?.getFlag?.(MODULE_ID, "travel")
+      ?? tokenDocument?.flags?.[MODULE_ID]?.travel;
+    return normalizeTravelConfiguration(flags);
+  }
+
+  static getTravelEstimate(distance, token = null) {
+    const configuration = this.getTravelConfiguration(token);
+    const rate = getTravelRate(configuration);
+    const numericDistance = Number(distance);
+    return {
+      ...configuration,
+      distance: Number.isFinite(numericDistance) ? Math.max(0, numericDistance) : 0,
+      rate,
+      days: Number.isFinite(numericDistance) && rate > 0 ? Math.max(0, numericDistance) / rate : 0
+    };
+  }
+
+  static addTravelHudControl(hud, html, token) {
+    const tokenDocument = token?.document ?? hud?.object?.document ?? hud?.object ?? token;
+    const scene = tokenDocument?.parent ?? globalThis.canvas?.scene;
+    if (!tokenDocument || !this.isTravelScene(scene) || !this.canConfigureTravel(tokenDocument)) return false;
+
+    const root = html?.querySelector ? html : html?.[0];
+    const column = root?.querySelector?.(".col.right, div.right");
+    if (!column || column.querySelector("[data-tenebre-travel-control]")) return false;
+
+    const control = document.createElement("button");
+    control.type = "button";
+    control.className = "control-icon tenebre-travel-control";
+    control.dataset.tenebreTravelControl = "true";
+    control.title = game.i18n.localize("TENEBRE.Travel.Configure");
+    control.setAttribute("aria-label", control.title);
+    control.innerHTML = '<i class="fa-solid fa-route"></i>';
+    control.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void this.configureTokenTravel(tokenDocument).catch((error) => {
+        console.warn(`${MODULE_ID} | Failed to configure token travel.`, error);
+        ui.notifications.error(game.i18n.localize("TENEBRE.Travel.ConfigureFailed"));
+      });
+    });
+    column.append(control);
+    return true;
+  }
+
+  static canConfigureTravel(tokenDocument) {
+    if (globalThis.game?.user?.isGM) return true;
+    if (typeof tokenDocument?.canUserModify === "function") {
+      return tokenDocument.canUserModify(game.user, "update");
+    }
+    return tokenDocument?.isOwner === true;
+  }
+
+  static async configureTokenTravel(tokenDocument) {
+    if (!this.canConfigureTravel(tokenDocument)) return false;
+    const configuration = await promptTravelConfiguration(this.getTravelConfiguration(tokenDocument));
+    if (!configuration) return false;
+    await tokenDocument.update({
+      [`flags.${MODULE_ID}.travel`]: configuration
+    }, { render: true });
+    return true;
   }
 
   static getUnitSystem() {
@@ -306,6 +418,133 @@ export class MovementService {
       ? game.i18n.localize("TENEBRE.Movement.UnitFeet")
       : game.i18n.localize("TENEBRE.Movement.UnitMeters");
   }
+}
+
+export function isKilometerUnit(unit) {
+  const normalized = String(unit ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/, "");
+  return ["km", "kms", "kilometer", "kilometers", "kilometre", "kilometres", "quilometro", "quilometros"].includes(normalized);
+}
+
+export function getTravelRate({ terrain = "plains", mode = "dayMarch", alongRiver = false } = {}) {
+  let terrainIndex = Math.max(0, TRAVEL_TERRAINS.indexOf(terrain));
+  if (alongRiver) terrainIndex = Math.max(0, terrainIndex - 1);
+  const effectiveTerrain = TRAVEL_TERRAINS[terrainIndex];
+  return TRAVEL_RATES_KM_PER_DAY[effectiveTerrain]?.[mode] ?? TRAVEL_RATES_KM_PER_DAY.plains.dayMarch;
+}
+
+export function normalizeTravelConfiguration(value = {}) {
+  return {
+    terrain: TRAVEL_TERRAINS.includes(value?.terrain) ? value.terrain : "plains",
+    mode: TRAVEL_MODES.includes(value?.mode) ? value.mode : "dayMarch",
+    alongRiver: value?.alongRiver === true || value?.alongRiver === "true"
+  };
+}
+
+function buildTravelDialogContent(configuration) {
+  const localize = (key) => game.i18n.localize(key);
+  const option = (value, labelKey, selected) => `<option value="${value}"${selected === value ? " selected" : ""}>${localize(labelKey)}</option>`;
+  return `
+    <div class="tenebre-travel-dialog">
+    <p class="hint">${localize("TENEBRE.Travel.TokenConfigurationHint")}</p>
+    <div class="form-group">
+      <label>${localize("TENEBRE.Travel.Terrain")}</label>
+      <div class="form-fields"><select name="terrain">
+        ${option("plains", "TENEBRE.Travel.TerrainPlains", configuration.terrain)}
+        ${option("brightDavokar", "TENEBRE.Travel.TerrainBrightDavokar", configuration.terrain)}
+        ${option("darkDavokar", "TENEBRE.Travel.TerrainDarkDavokar", configuration.terrain)}
+      </select></div>
+    </div>
+    <div class="form-group">
+      <label>${localize("TENEBRE.Travel.Mode")}</label>
+      <div class="form-fields"><select name="mode">
+        ${option("dayMarch", "TENEBRE.Travel.ModeDayMarch", configuration.mode)}
+        ${option("forcedMarch", "TENEBRE.Travel.ModeForcedMarch", configuration.mode)}
+        ${option("mortalMarch", "TENEBRE.Travel.ModeMortalMarch", configuration.mode)}
+        ${option("dayRide", "TENEBRE.Travel.ModeDayRide", configuration.mode)}
+        ${option("forcedRide", "TENEBRE.Travel.ModeForcedRide", configuration.mode)}
+        ${option("mortalRide", "TENEBRE.Travel.ModeMortalRide", configuration.mode)}
+      </select></div>
+    </div>
+    <div class="form-group">
+      <label>${localize("TENEBRE.Travel.AlongRiver")}</label>
+      <div class="form-fields"><select name="alongRiver">
+        <option value="false"${configuration.alongRiver ? "" : " selected"}>${localize("TENEBRE.Common.No")}</option>
+        <option value="true"${configuration.alongRiver ? " selected" : ""}>${localize("TENEBRE.Common.Yes")}</option>
+      </select></div>
+      <p class="hint">${localize("TENEBRE.Travel.AlongRiverHint")}</p>
+    </div>
+    </div>`;
+}
+
+function readTravelDialog(element) {
+  const root = element?.querySelector ? element : element?.[0];
+  const form = root?.querySelector?.(".tenebre-travel-dialog");
+  return normalizeTravelConfiguration({
+    terrain: form?.querySelector?.('[name="terrain"]')?.value,
+    mode: form?.querySelector?.('[name="mode"]')?.value,
+    alongRiver: form?.querySelector?.('[name="alongRiver"]')?.value
+  });
+}
+
+async function promptTravelConfiguration(configuration) {
+  const content = buildTravelDialogContent(configuration);
+  const title = game.i18n.localize("TENEBRE.Travel.TokenConfiguration");
+  const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
+  if (DialogV2?.wait) {
+    return DialogV2.wait({
+      window: { title },
+      position: { width: 430 },
+      content,
+      buttons: [
+        {
+          action: "save",
+          icon: "fas fa-save",
+          label: game.i18n.localize("TENEBRE.Common.Save"),
+          default: true,
+          callback: (_event, _button, dialog) => readTravelDialog(dialog?.element)
+        },
+        {
+          action: "cancel",
+          icon: "fas fa-times",
+          label: game.i18n.localize("TENEBRE.Common.Cancel"),
+          callback: () => null
+        }
+      ],
+      rejectClose: false
+    });
+  }
+
+  return new Promise((resolve) => {
+    let completed = false;
+    const complete = (value) => {
+      if (completed) return;
+      completed = true;
+      resolve(value);
+    };
+    new Dialog({
+      title,
+      content,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: game.i18n.localize("TENEBRE.Common.Save"),
+          callback: (html) => complete(readTravelDialog(html))
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: game.i18n.localize("TENEBRE.Common.Cancel"),
+          callback: () => complete(null)
+        }
+      },
+      default: "save",
+      close: () => complete(null)
+    }).render(true);
+  });
 }
 
 function getEffectId(effect) {
