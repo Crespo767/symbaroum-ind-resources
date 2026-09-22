@@ -5,6 +5,7 @@ const BERSERKER_REFERENCE = "berserker";
 const LAY_ON_HANDS_REFERENCE = "layonhands";
 const HOLY_AURA_REFERENCE = "holyaura";
 const BRIMSTONE_CASCADE_REFERENCE = "brimstonecascade";
+const ALCHEMY_REFERENCE = "alchemy";
 
 export class BerserkerChatService {
   static #registered = false;
@@ -44,9 +45,13 @@ export function isBrimstoneCascadeItem(item) {
   return item?.system?.reference === BRIMSTONE_CASCADE_REFERENCE;
 }
 
-export function enhanceBerserkerCards(scope, message) {
+export function isAlchemyItem(item) {
+  return item?.system?.reference === ALCHEMY_REFERENCE;
+}
+
+export function enhanceBerserkerCards(scope, message = null) {
   for (const root of matchingElements(scope, ".symbaroum.chat.ability")) {
-    enhanceBerserkerCard(root, message);
+    enhanceBerserkerCard(root, resolveChatMessage(root, message));
   }
 }
 
@@ -61,13 +66,16 @@ export function restoreBerserkerCards(scope) {
   }
 }
 
-function enhanceBerserkerCard(root, message) {
+function enhanceBerserkerCard(root, message = null) {
   if (root.dataset.tenebreBerserker === "true") return;
 
+  const resolvedMessage = resolveChatMessage(root, message);
   const source = root.querySelector(":scope > .foreground");
   const abilityCaption = cleanText(source?.querySelector(":scope > .subText")?.textContent);
-  const actor = resolveSpeakerActor(message);
-  const item = findDisplayedAbility(actor, abilityCaption);
+  const actor = resolveSpeakerActor(resolvedMessage);
+  const itemId = source?.querySelector("[data-item-id]")?.dataset?.itemId;
+  const item = (itemId ? actor?.items?.get?.(itemId) : null)
+    ?? findDisplayedAbility(actor, abilityCaption);
   if (!source || !actor || !item) return;
 
   const actorImage = backgroundImageUrl(source.querySelector(":scope > .introImg")?.getAttribute("style")) || actor.img;
@@ -320,9 +328,8 @@ export function parseSingleAbilityTest(value = "") {
 
 export function parseAbilityRoll(value = "") {
   const text = cleanText(value);
-  if (!/^(?:Rolagem|Roll)\s*:/iu.test(text)) return null;
-  const values = text.match(/-?\d+/g);
-  return values?.length ? Number(values.at(-1)) : null;
+  const match = text.match(/(?:Resultado da rolagem de dados|Dice roll result|Tärningsslag resultat|Würfelergebnis|Resultado de la tirada|Résultat du jet|Risultato del dado|Rolagem|Roll)\s*:\s*(-?\d+)/iu);
+  return match ? Number(match[1]) : null;
 }
 
 function findDisplayedAbility(actor, abilityCaption) {
@@ -340,6 +347,7 @@ function referenceLabel(item) {
   if (isLayOnHandsItem(item)) return localize("POWER_LABEL.LAY_ON_HANDS", "Lay on Hands");
   if (isHolyAuraItem(item)) return localize("POWER_LABEL.HOLY_AURA", "Holy Aura");
   if (isBrimstoneCascadeItem(item)) return localize("POWER_LABEL.BRIMSTONE_CASCADE", "Brimstone Cascade");
+  if (isAlchemyItem(item)) return localize("ABILITY_LABEL.ALCHEMY", "Alchemy");
   return item?.name ?? "";
 }
 
@@ -368,12 +376,23 @@ export function stripTargetLabel(value = "") {
   return stripParenthetical(cleanText(value).replace(/^(?:Paciente|Patient|Alvo|Target|V[ií]tima|Victim)\s*:\s*/iu, ""));
 }
 
+function resolveChatMessage(root, preferredMessage = null) {
+  if (preferredMessage) return preferredMessage;
+  const messageId = root?.closest?.("[data-message-id]")?.dataset?.messageId;
+  return messageId ? globalThis.game?.messages?.get?.(messageId) ?? null : null;
+}
+
 function resolveSpeakerActor(message) {
   const speaker = message?.speaker ?? {};
   const scene = globalThis.game?.scenes?.get?.(speaker.scene);
   const tokenActor = scene?.tokens?.get?.(speaker.token)?.actor
     ?? globalThis.canvas?.tokens?.get?.(speaker.token)?.actor;
-  return tokenActor ?? message?.speakerActor ?? globalThis.game?.actors?.get?.(speaker.actor) ?? null;
+  return tokenActor
+    ?? message?.actor
+    ?? message?.speakerActor
+    ?? globalThis.ChatMessage?.getSpeakerActor?.(speaker)
+    ?? globalThis.game?.actors?.get?.(speaker.actor)
+    ?? null;
 }
 
 function matchingElements(scope, selector) {

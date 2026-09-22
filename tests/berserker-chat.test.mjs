@@ -11,6 +11,7 @@ const init = read("scripts/init.mjs");
 const css = read("styles/symbaroum-ind-resources.css");
 
 const {
+  isAlchemyItem,
   isBerserkerItem,
   isBrimstoneCascadeItem,
   isHolyAuraItem,
@@ -88,6 +89,9 @@ test("ability resolution follows the attack-card objective and roll layout", () 
     testText: "Resultado (15) ← Rápido (3)"
   });
   assert.equal(parseAbilityRoll("Rolagem: 18"), 18);
+  assert.equal(parseAbilityRoll("Resultado da rolagem de dados: 14"), 14);
+  assert.equal(parseAbilityRoll("Resultado da rolagem de dados: 14  (14 , 8)"), 14);
+  assert.equal(parseAbilityRoll("Dice roll result : 12  (12 , 19)"), 12);
   assert.equal(parseAbilityRoll("Dano: 1d12 - 4"), null);
   assert.deepEqual(parseSingleAbilityTest("Astuto : (13)"), {
     attribute: { label: "Astuto", value: 13 },
@@ -130,6 +134,16 @@ test("Cascata de Enxofre uses the same targeted ability card", () => {
   assert.match(source, /POWER_LABEL\.BRIMSTONE_CASCADE/);
   assert.match(source, /targetImage = backgroundImageUrl/);
   assert.match(source, /source\.querySelectorAll\(":scope > \.finalTxt"\)/);
+});
+
+test("Alquimia uses the ability card and supports single-Attribute resolution", () => {
+  assert.equal(isAlchemyItem({ system: { reference: "alchemy" } }), true);
+  assert.equal(isAlchemyItem({ system: { reference: "berserker" } }), false);
+  assert.equal(isAlchemyItem(null), false);
+  assert.match(source, /isAlchemyItem\(item\)/);
+  assert.match(source, /ABILITY_LABEL\.ALCHEMY/);
+  assert.match(source, /source\?\.querySelector\("\[data-item-id\]"\)\?\.dataset\?\.itemId/);
+  assert.match(source, /resolveChatMessage\(root, message\)/);
 });
 
 test("the displayed ability name opens the owned ability sheet", () => {
