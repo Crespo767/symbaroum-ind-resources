@@ -122,4 +122,17 @@ test("selects localized presentation keys without formatting HTML", () => {
     { previous: quantity.data.previous, quantity: quantity.data.quantity, delta: quantity.data.delta },
     { previous: "2", quantity: "5", delta: "3" }
   );
+
+  const ability = gmLogEventPresentation({
+    eventId: "ability-a",
+    type: GM_LOG_EVENT_TYPES.ABILITY_ACTIVE_CHANGED,
+    actor: { name: "Crespo" },
+    subject: { name: "Alquimia" },
+    values: { level: "Novato", previous: false, active: true, state: "ativa" }
+  });
+  assert.equal(ability.key, "TENEBRE.GmLog.Ability.Activated");
+  assert.deepEqual(
+    { actor: ability.data.actor, item: ability.data.item, level: ability.data.level, state: ability.data.state },
+    { actor: "Crespo", item: "Alquimia", level: "Novato", state: "ativa" }
+  );
 });

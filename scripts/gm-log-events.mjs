@@ -11,6 +11,7 @@ export const GM_LOG_EVENT_TYPES = Object.freeze({
   EFFECT_CHANGED: "status.effect",
   WEAPON_READINESS: "inventory.weaponReadiness",
   ITEM_QUANTITY_CHANGED: "inventory.itemQuantityChanged",
+  ABILITY_ACTIVE_CHANGED: "status.abilityActiveChanged",
   ITEM_USED: "inventory.itemUse",
   SYSTEM_ACTION: "system.action"
 });
@@ -89,6 +90,14 @@ const TYPE_DEFINITIONS = Object.freeze({
   [GM_LOG_EVENT_TYPES.ITEM_QUANTITY_CHANGED]: {
     category: GM_LOG_EVENT_CATEGORIES.INVENTORY,
     presentation: "TENEBRE.GmLog.Inventory.QuantityChanged"
+  },
+  [GM_LOG_EVENT_TYPES.ABILITY_ACTIVE_CHANGED]: {
+    category: GM_LOG_EVENT_CATEGORIES.STATUS,
+    presentation: {
+      active: "TENEBRE.GmLog.Ability.Activated",
+      inactive: "TENEBRE.GmLog.Ability.Deactivated",
+      info: "TENEBRE.GmLog.Ability.Changed"
+    }
   },
   [GM_LOG_EVENT_TYPES.ITEM_USED]: {
     category: GM_LOG_EVENT_CATEGORIES.INVENTORY,
@@ -177,7 +186,9 @@ export function gmLogEventPresentation(input) {
   const definition = TYPE_DEFINITIONS[event.type];
   const selector = event.type === GM_LOG_EVENT_TYPES.WEAPON_READINESS
     ? cleanText(event.values.action, 20) || "info"
-    : event.outcome;
+    : event.type === GM_LOG_EVENT_TYPES.ABILITY_ACTIVE_CHANGED
+      ? event.values.active === true ? "active" : event.values.active === false ? "inactive" : "info"
+      : event.outcome;
   const key = typeof definition.presentation === "string"
     ? definition.presentation
     : definition.presentation[selector] ?? definition.presentation.info;
@@ -202,6 +213,8 @@ export function gmLogEventPresentation(input) {
       previous: scalarText(event.values.previous),
       quantity: scalarText(event.values.quantity),
       delta: scalarText(event.values.delta),
+      level: scalarText(event.values.level),
+      state: scalarText(event.values.state),
       effect: scalarText(event.values.effect),
       message: scalarText(event.values.message)
     })

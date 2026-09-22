@@ -216,3 +216,59 @@ test("creates a GM-only structured message for an inventory quantity change", as
     globalThis.ChatMessage = originalChatMessage;
   }
 });
+
+test("creates a GM-only structured message for an Ability activation change", async () => {
+  const originalGame = globalThis.game;
+  const originalChatMessage = globalThis.ChatMessage;
+  const created = [];
+  const actor = { id: "hero", uuid: "Actor.hero", name: "Crespo", isOwner: true };
+  const item = {
+    uuid: "Actor.hero.Item.alchemy",
+    name: "Alquimia",
+    parent: actor
+  };
+
+  globalThis.game = {
+    user: { id: "gm", isGM: true },
+    users: [{ id: "gm", isGM: true }],
+    settings: { get: (scope, key) => scope === MODULE_ID && key === "enableGmLog" },
+    i18n: {
+      localize: (key) => ({
+        "TAB.NOVICE": "Novato",
+        "TENEBRE.GmLog.Ability.StateActive": "ativa"
+      })[key] ?? key,
+      format: (_key, data) => `${data.actor}: ${data.item} (${data.level}) ${data.state}`
+    }
+  };
+  globalThis.ChatMessage = {
+    getSpeaker: ({ actor: speakerActor }) => ({ actor: speakerActor.id, alias: speakerActor.name }),
+    create: async (data) => {
+      created.push(data);
+      return data;
+    }
+  };
+
+  try {
+    await GmLogService.recordAbilityActiveChange({
+      actor,
+      item,
+      level: "novice",
+      previousActive: false,
+      active: true
+    });
+
+    assert.equal(created.length, 1);
+    assert.deepEqual(created[0].whisper, ["gm"]);
+    assert.equal(created[0].flags[MODULE_ID].gmLogOnly, true);
+    assert.equal(created[0].flags[MODULE_ID].gmLogAction.type, GM_LOG_EVENT_TYPES.ABILITY_ACTIVE_CHANGED);
+    assert.deepEqual(created[0].flags[MODULE_ID].gmLogAction.values, {
+      level: "Novato",
+      previous: false,
+      active: true,
+      state: "ativa"
+    });
+  } finally {
+    globalThis.game = originalGame;
+    globalThis.ChatMessage = originalChatMessage;
+  }
+});

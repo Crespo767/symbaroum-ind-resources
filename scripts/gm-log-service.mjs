@@ -163,6 +163,64 @@ export class GmLogService {
     });
   }
 
+  /** Create a GM-only audit entry after an owned Ability level was activated or deactivated. */
+  static async recordAbilityActiveChange({ actor, item, level, previousActive, active } = {}) {
+    const ChatMessageClass = globalThis.ChatMessage;
+    if (!isGmLogEnabled() || !actor || !item || typeof ChatMessageClass?.create !== "function") return null;
+    if (!game.user?.isGM && !actor.isOwner) return null;
+
+    const normalizedLevel = normalizeAbilityLevel(level);
+    const previous = Boolean(previousActive);
+    const next = Boolean(active);
+    if (!normalizedLevel || previous === next) return null;
+
+    const actorUuid = String(actor.uuid ?? "");
+    const itemUuid = String(item.uuid ?? "");
+    if (!actorUuid || !itemUuid || (item.parent?.uuid && item.parent.uuid !== actorUuid)) return null;
+
+    const whisper = Array.from(game.users ?? [])
+      .filter((user) => user?.isGM)
+      .map((user) => user.id)
+      .filter(Boolean);
+    if (!whisper.length) return null;
+
+    const localizedLevel = localizeAbilityLevel(normalizedLevel);
+    const state = game.i18n?.localize?.(next
+      ? "TENEBRE.GmLog.Ability.StateActive"
+      : "TENEBRE.GmLog.Ability.StateInactive") ?? (next ? "active" : "inactive");
+    const data = {
+      actor: actor.name ?? "",
+      item: item.name ?? "",
+      level: localizedLevel,
+      state
+    };
+    const key = next ? "TENEBRE.GmLog.Ability.Activated" : "TENEBRE.GmLog.Ability.Deactivated";
+    const content = game.i18n?.format?.(key, data)
+      ?? `${data.actor}: ${data.item} (${localizedLevel}) -> ${state}`;
+
+    return ChatMessageClass.create({
+      speaker: ChatMessageClass.getSpeaker?.({ actor }) ?? { actor: actor.id, alias: actor.name },
+      content: `<p>${escapeHtml(content)}</p>`,
+      whisper,
+      flags: {
+        [MODULE_ID]: {
+          gmLogOnly: true,
+          gmLogAction: {
+            type: GM_LOG_EVENT_TYPES.ABILITY_ACTIVE_CHANGED,
+            actorUuid,
+            subjectUuid: itemUuid,
+            values: {
+              level: localizedLevel,
+              previous,
+              active: next,
+              state
+            }
+          }
+        }
+      }
+    });
+  }
+
   static syncEnabledState(enabled = isGmLogEnabled()) {
     if (!game.user?.isGM) return;
     if (enabled) {
@@ -202,6 +260,20 @@ export class GmLogService {
 function normalizeQuantity(value) {
   const quantity = Number(value);
   return Number.isFinite(quantity) ? Math.max(0, Math.trunc(quantity)) : 0;
+}
+
+function normalizeAbilityLevel(value) {
+  const level = String(value ?? "").trim().toLowerCase();
+  return ["novice", "adept", "master"].includes(level) ? level : "";
+}
+
+function localizeAbilityLevel(level) {
+  const key = {
+    novice: "TAB.NOVICE",
+    adept: "TAB.ADEPT",
+    master: "TAB.MASTER"
+  }[level];
+  return game.i18n?.localize?.(key) ?? level;
 }
 
 function escapeHtml(value) {
