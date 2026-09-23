@@ -11,6 +11,10 @@ const init = read("scripts/init.mjs");
 const css = read("styles/symbaroum-ind-resources.css");
 
 const {
+  actorByDisplayedName,
+  cleanAbilityCaption,
+  extractAbilityNameFromIntro,
+  extractActorNameFromIntro,
   isAlchemyItem,
   isBerserkerItem,
   isBrimstoneCascadeItem,
@@ -19,6 +23,7 @@ const {
   parseAbilityRoll,
   parseSingleAbilityTest,
   parseAbilityTest,
+  resolveSpeakerActor,
   splitAbilityCaption,
   stripTargetLabel
 } = await import("../scripts/berserker-chat.mjs");
@@ -160,3 +165,93 @@ test("Amoque presentation follows the shared Original or Ind Resources setting",
   assert.match(init, /BerserkerChatService\.register\(\)/);
   assert.match(css, /\.symbaroum\.chat\.ability\.tenebre-berserker-compact/);
 });
+
+test("splitAbilityCaption strips markdown asterisks, quotes and formatting", () => {
+  assert.deepEqual(splitAbilityCaption("*Alquimia (Novato)*"), {
+    name: "Alquimia",
+    level: "Novato",
+    modifiers: ""
+  });
+  assert.deepEqual(splitAbilityCaption("*Cascata de Enxofre (Novato)*"), {
+    name: "Cascata de Enxofre",
+    level: "Novato",
+    modifiers: ""
+  });
+  assert.deepEqual(splitAbilityCaption('"Alquimia (Adepto)"'), {
+    name: "Alquimia",
+    level: "Adepto",
+    modifiers: ""
+  });
+  assert.equal(cleanAbilityCaption("*Alquimia*"), "Alquimia");
+});
+
+test("extractActorNameFromIntro and extractAbilityNameFromIntro extract names accurately", () => {
+  assert.equal(
+    extractActorNameFromIntro('Bartolom, Mago da Ordo Mágica tenta usar " Alquimia ".'),
+    "Bartolom, Mago da Ordo Mágica"
+  );
+  assert.equal(
+    extractAbilityNameFromIntro('Bartolom, Mago da Ordo Mágica tenta usar " Alquimia ".'),
+    "Alquimia"
+  );
+  assert.equal(
+    extractActorNameFromIntro('Bartolom attempts to use " Brimstone Cascade ".'),
+    "Bartolom"
+  );
+  assert.equal(
+    extractAbilityNameFromIntro('Bartolom attempts to use " Brimstone Cascade ".'),
+    "Brimstone Cascade"
+  );
+  assert.equal(
+    extractActorNameFromIntro("Bartolom, Mago da Ordo Mágica lança fogo contra seu alvo."),
+    "Bartolom, Mago da Ordo Mágica"
+  );
+});
+
+test("resolveSpeakerActor resolves synthetic canvas tokens and source intro names", () => {
+  const syntheticActor = { id: "synthetic_bartolom", name: "Bartolom, Mago da Ordo Mágica", items: [] };
+  const prevCanvas = globalThis.canvas;
+  const prevGame = globalThis.game;
+  try {
+    globalThis.canvas = {
+      tokens: {
+        placeables: [
+          { actor: syntheticActor, name: "Bartolom, Mago da Ordo Mágica" }
+        ]
+      }
+    };
+    globalThis.game = {
+      actors: new Map(),
+      scenes: new Map()
+    };
+
+    // Resolves synthetic actor when speaker has synthetic actor ID without token/scene
+    const fromId = resolveSpeakerActor({
+      speaker: { alias: "Kacique Testes", actor: "synthetic_bartolom" }
+    });
+    assert.equal(fromId, syntheticActor);
+
+    // Resolves actor from introTxt when speaker only has user alias
+    const mockSource = {
+      querySelector: (selector) => {
+        if (selector.includes("introTxt")) {
+          return { textContent: 'Bartolom, Mago da Ordo Mágica tenta usar " Alquimia ".' };
+        }
+        return null;
+      }
+    };
+    const fromSource = resolveSpeakerActor({ speaker: { alias: "Kacique Testes" } }, mockSource);
+    assert.equal(fromSource, syntheticActor);
+  } finally {
+    globalThis.canvas = prevCanvas;
+    globalThis.game = prevGame;
+  }
+});
+
+test("isBrimstoneCascadeItem and isAlchemyItem match canonical localized names", () => {
+  assert.equal(isBrimstoneCascadeItem({ name: "Cascata de Enxofre" }), true);
+  assert.equal(isBrimstoneCascadeItem({ name: "Brimstone Cascade" }), true);
+  assert.equal(isAlchemyItem({ name: "Alquimia" }), true);
+  assert.equal(isAlchemyItem({ name: "Alchemy" }), true);
+});
+

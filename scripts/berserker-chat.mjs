@@ -30,23 +30,33 @@ export class BerserkerChatService {
 }
 
 export function isBerserkerItem(item) {
-  return item?.system?.reference === BERSERKER_REFERENCE;
+  return item?.system?.reference === BERSERKER_REFERENCE
+    || normalize(item?.name) === "berserker"
+    || normalize(item?.name) === "amoque";
 }
 
 export function isLayOnHandsItem(item) {
-  return item?.system?.reference === LAY_ON_HANDS_REFERENCE;
+  return item?.system?.reference === LAY_ON_HANDS_REFERENCE
+    || normalize(item?.name) === "lay on hands"
+    || normalize(item?.name) === "imposicao de maos";
 }
 
 export function isHolyAuraItem(item) {
-  return item?.system?.reference === HOLY_AURA_REFERENCE;
+  return item?.system?.reference === HOLY_AURA_REFERENCE
+    || normalize(item?.name) === "holy aura"
+    || normalize(item?.name) === "aura sagrada";
 }
 
 export function isBrimstoneCascadeItem(item) {
-  return item?.system?.reference === BRIMSTONE_CASCADE_REFERENCE;
+  return item?.system?.reference === BRIMSTONE_CASCADE_REFERENCE
+    || normalize(item?.name) === "brimstone cascade"
+    || normalize(item?.name) === "cascata de enxofre";
 }
 
 export function isAlchemyItem(item) {
-  return item?.system?.reference === ALCHEMY_REFERENCE;
+  return item?.system?.reference === ALCHEMY_REFERENCE
+    || normalize(item?.name) === "alchemy"
+    || normalize(item?.name) === "alquimia";
 }
 
 export function enhanceBerserkerCards(scope, message = null) {
@@ -71,12 +81,16 @@ function enhanceBerserkerCard(root, message = null) {
 
   const resolvedMessage = resolveChatMessage(root, message);
   const source = root.querySelector(":scope > .foreground");
-  const abilityCaption = cleanText(source?.querySelector(":scope > .subText")?.textContent);
-  const actor = resolveSpeakerActor(resolvedMessage);
-  const itemId = source?.querySelector("[data-item-id]")?.dataset?.itemId;
+  if (!source) return;
+
+  const abilityCaption = cleanText(source.querySelector(":scope > .subText")?.textContent);
+  const actor = resolveSpeakerActor(resolvedMessage, source)
+    ?? createFallbackActor(source, resolvedMessage);
+  const itemId = source.querySelector("[data-item-id]")?.dataset?.itemId;
   const item = (itemId ? actor?.items?.get?.(itemId) : null)
-    ?? findDisplayedAbility(actor, abilityCaption);
-  if (!source || !actor || !item) return;
+    ?? findDisplayedAbility(actor, abilityCaption, source)
+    ?? createFallbackAbility(source, abilityCaption);
+  if (!actor || !item) return;
 
   const actorImage = backgroundImageUrl(source.querySelector(":scope > .introImg")?.getAttribute("style")) || actor.img;
   const abilityImage = source.querySelector(":scope > img")?.getAttribute("src") || item.img;
@@ -332,14 +346,95 @@ export function parseAbilityRoll(value = "") {
   return match ? Number(match[1]) : null;
 }
 
-function findDisplayedAbility(actor, abilityCaption) {
-  if (!actor || !abilityCaption) return null;
+export function cleanAbilityCaption(value = "") {
+  return cleanText(value)
+    .replace(/^[*_~"'“‘«\s]+|[*_~"'”’»\s]+$/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function extractActorNameFromIntro(introText = "") {
+  const text = cleanText(introText);
+  if (!text) return "";
+  const verbMatch = text.match(/^(.+?)\s+(?:tenta(?:r)?\s+usar|attempts?\s+to\s+use|f[oö]rs[oö]ker\s+anv[aä]nda|lan[cç]a|kastar|ativa|uses?|usa|casts?)\b/iu);
+  if (verbMatch?.[1]) return cleanText(verbMatch[1]);
+  const beforeQuoteMatch = text.match(/^(.+?)\s*["“'«]/u);
+  if (beforeQuoteMatch?.[1]) return cleanText(beforeQuoteMatch[1]);
+  return "";
+}
+
+export function extractAbilityNameFromIntro(introText = "") {
+  const text = cleanText(introText);
+  const match = text.match(/["“'«]\s*([^"”'»]+?)\s*["”'»]/u);
+  return cleanAbilityCaption(match?.[1] ?? "");
+}
+
+export function actorByDisplayedName(name) {
+  const expected = normalize(name);
+  if (!expected) return null;
+  const tokens = globalThis.canvas?.tokens?.placeables ?? [];
+  const token = tokens.find((candidate) => {
+    const candName = normalize(candidate.name);
+    const candActorName = normalize(candidate.actor?.name);
+    return candName === expected || candActorName === expected;
+  });
+  if (token?.actor) return token.actor;
+  return [...(globalThis.game?.actors ?? [])].find((actor) => normalize(actor.name) === expected) ?? null;
+}
+
+function createFallbackActor(source, message) {
+  const introText = cleanText(source?.querySelector(":scope > .introImg > .introTxt")?.textContent);
+  const name = stripParenthetical(extractActorNameFromIntro(introText) || message?.speaker?.alias || "Personagem");
+  const img = backgroundImageUrl(source?.querySelector(":scope > .introImg")?.getAttribute("style")) || "icons/svg/mystery-man.svg";
+  return { name, img, items: [] };
+}
+
+function createFallbackAbility(source, abilityCaption) {
+  const introText = cleanText(source?.querySelector(":scope > .introImg > .introTxt")?.textContent);
+  const { name: parsedName } = splitAbilityCaption(abilityCaption);
+  const name = parsedName || extractAbilityNameFromIntro(introText) || "Habilidade";
+  const img = source?.querySelector(":scope > img")?.getAttribute("src") || "icons/svg/item-bag.svg";
+  const id = source?.querySelector("[data-item-id]")?.dataset?.itemId ?? "";
+  return { name, img, uuid: "", id };
+}
+
+function findDisplayedAbility(actor, abilityCaption, source = null) {
+  if (!actor || (!abilityCaption && !source)) return null;
   const items = Array.from(actor.items ?? []);
   if (!items.length) return null;
 
-  const displayedName = normalize(abilityCaption);
+  const itemId = source?.querySelector("[data-item-id]")?.dataset?.itemId;
+  if (itemId && actor.items?.get?.(itemId)) return actor.items.get(itemId);
+
+  const cleanedCaption = cleanAbilityCaption(abilityCaption);
+  const { name: captionName } = splitAbilityCaption(cleanedCaption);
+  const displayedName = normalize(captionName || cleanedCaption || abilityCaption);
+
   return items.find((item) => displayedName.startsWith(normalize(item.name)))
-    ?? items.find((item) => displayedName.startsWith(normalize(referenceLabel(item))));
+    ?? items.find((item) => normalize(item.name).startsWith(displayedName))
+    ?? items.find((item) => displayedName.startsWith(normalize(referenceLabel(item))))
+    ?? items.find((item) => normalize(referenceLabel(item)).startsWith(displayedName))
+    ?? findAbilityByReference(items, displayedName)
+    ?? findAbilityByIntro(items, source);
+}
+
+function findAbilityByReference(items, displayedName) {
+  return items.find((item) => {
+    const ref = normalize(item?.system?.reference ?? "");
+    if (!ref) return false;
+    const compactTarget = displayedName.replace(/\s+/g, "");
+    return compactTarget.includes(ref) || ref.includes(compactTarget);
+  }) ?? null;
+}
+
+function findAbilityByIntro(items, source) {
+  const introText = cleanText(source?.querySelector(":scope > .introImg > .introTxt")?.textContent);
+  const quotedName = normalize(extractAbilityNameFromIntro(introText));
+  if (!quotedName) return null;
+  return items.find((item) => {
+    const itemName = normalize(item.name);
+    return quotedName.startsWith(itemName) || itemName.startsWith(quotedName);
+  }) ?? null;
 }
 
 function referenceLabel(item) {
@@ -352,11 +447,12 @@ function referenceLabel(item) {
 }
 
 export function splitAbilityCaption(value) {
-  const [caption, ...modifierParts] = cleanText(value).split(",");
+  const cleaned = cleanAbilityCaption(value);
+  const [caption, ...modifierParts] = cleaned.split(",");
   const rank = cleanText(caption).match(/^(.*?)\s*\(([^()]*)\)\s*$/u);
   return {
-    name: cleanText(rank?.[1] ?? caption),
-    level: cleanText(rank?.[2]),
+    name: cleanAbilityCaption(rank?.[1] ?? caption),
+    level: cleanAbilityCaption(rank?.[2]),
     modifiers: cleanAbilityModifiers(modifierParts)
   };
 }
@@ -382,17 +478,53 @@ function resolveChatMessage(root, preferredMessage = null) {
   return messageId ? globalThis.game?.messages?.get?.(messageId) ?? null : null;
 }
 
-function resolveSpeakerActor(message) {
+export function resolveSpeakerActor(message, source = null) {
   const speaker = message?.speaker ?? {};
   const scene = globalThis.game?.scenes?.get?.(speaker.scene);
   const tokenActor = scene?.tokens?.get?.(speaker.token)?.actor
     ?? globalThis.canvas?.tokens?.get?.(speaker.token)?.actor;
-  return tokenActor
-    ?? message?.actor
-    ?? message?.speakerActor
-    ?? globalThis.ChatMessage?.getSpeakerActor?.(speaker)
-    ?? globalThis.game?.actors?.get?.(speaker.actor)
-    ?? null;
+  if (tokenActor) return tokenActor;
+  if (message?.actor) return message.actor;
+  if (message?.speakerActor) return message.speakerActor;
+
+  const speakerDocActor = globalThis.ChatMessage?.getSpeakerActor?.(speaker);
+  if (speakerDocActor) return speakerDocActor;
+
+  if (speaker.actor) {
+    const directActor = globalThis.game?.actors?.get?.(speaker.actor);
+    if (directActor) return directActor;
+    const canvasActor = globalThis.canvas?.tokens?.placeables?.find(
+      (t) => t.actor?.id === speaker.actor || t.id === speaker.actor
+    )?.actor;
+    if (canvasActor) return canvasActor;
+  }
+
+  const introText = cleanText(source?.querySelector(":scope > .introImg > .introTxt")?.textContent);
+  const extractedName = extractActorNameFromIntro(introText);
+  if (extractedName) {
+    const actorByName = actorByDisplayedName(extractedName);
+    if (actorByName) return actorByName;
+  }
+
+  if (speaker.alias) {
+    const actorByAlias = actorByDisplayedName(speaker.alias);
+    if (actorByAlias) return actorByAlias;
+  }
+
+  if (introText) {
+    const normalizedIntro = normalize(introText);
+    const allActors = [
+      ...(globalThis.canvas?.tokens?.placeables ?? []).map((t) => t.actor).filter(Boolean),
+      ...(globalThis.game?.actors ?? [])
+    ];
+    const matchingActor = allActors.find((candidate) => {
+      const normCand = normalize(candidate.name);
+      return normCand && normalizedIntro.startsWith(normCand);
+    });
+    if (matchingActor) return matchingActor;
+  }
+
+  return null;
 }
 
 function matchingElements(scope, selector) {
