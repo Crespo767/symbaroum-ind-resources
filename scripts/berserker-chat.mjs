@@ -81,9 +81,11 @@ function enhanceBerserkerCard(root, message = null) {
 
   const resolvedMessage = resolveChatMessage(root, message);
   const source = root.querySelector(":scope > .foreground");
-  if (!source) return;
+  if (!source || !isNativeAbilityCard(source)) return;
 
   const abilityCaption = cleanText(source.querySelector(":scope > .subText")?.textContent);
+  if (!abilityCaption) return;
+
   const actor = resolveSpeakerActor(resolvedMessage, source)
     ?? createFallbackActor(source, resolvedMessage);
   const itemId = source.querySelector("[data-item-id]")?.dataset?.itemId;
@@ -382,17 +384,30 @@ export function actorByDisplayedName(name) {
   return [...(globalThis.game?.actors ?? [])].find((actor) => normalize(actor.name) === expected) ?? null;
 }
 
-function createFallbackActor(source, message) {
+export function isNativeAbilityCard(source) {
+  if (!source) return false;
+  if (source.querySelector("#applyEffect")) return false;
+  const subText = cleanText(source.querySelector(":scope > .subText")?.textContent);
+  if (!subText) return false;
+  const hasIntro = Boolean(source.querySelector(":scope > .introImg"));
+  const hasImage = Boolean(source.querySelector(":scope > img"));
+  return hasIntro || hasImage;
+}
+
+function createFallbackActor(source, _message) {
   const introText = cleanText(source?.querySelector(":scope > .introImg > .introTxt")?.textContent);
-  const name = stripParenthetical(extractActorNameFromIntro(introText) || message?.speaker?.alias || "Personagem");
+  const name = stripParenthetical(extractActorNameFromIntro(introText));
+  if (!name) return null;
   const img = backgroundImageUrl(source?.querySelector(":scope > .introImg")?.getAttribute("style")) || "icons/svg/mystery-man.svg";
   return { name, img, items: [] };
 }
 
 function createFallbackAbility(source, abilityCaption) {
+  const cleaned = cleanAbilityCaption(abilityCaption);
+  const { name: parsedName } = splitAbilityCaption(cleaned);
   const introText = cleanText(source?.querySelector(":scope > .introImg > .introTxt")?.textContent);
-  const { name: parsedName } = splitAbilityCaption(abilityCaption);
-  const name = parsedName || extractAbilityNameFromIntro(introText) || "Habilidade";
+  const name = parsedName || extractAbilityNameFromIntro(introText);
+  if (!name) return null;
   const img = source?.querySelector(":scope > img")?.getAttribute("src") || "icons/svg/item-bag.svg";
   const id = source?.querySelector("[data-item-id]")?.dataset?.itemId ?? "";
   return { name, img, uuid: "", id };
@@ -408,7 +423,8 @@ function findDisplayedAbility(actor, abilityCaption, source = null) {
 
   const cleanedCaption = cleanAbilityCaption(abilityCaption);
   const { name: captionName } = splitAbilityCaption(cleanedCaption);
-  const displayedName = normalize(captionName || cleanedCaption || abilityCaption);
+  const displayedName = normalize(captionName || cleanedCaption);
+  if (!displayedName) return null;
 
   return items.find((item) => displayedName.startsWith(normalize(item.name)))
     ?? items.find((item) => normalize(item.name).startsWith(displayedName))
@@ -419,6 +435,7 @@ function findDisplayedAbility(actor, abilityCaption, source = null) {
 }
 
 function findAbilityByReference(items, displayedName) {
+  if (!displayedName) return null;
   return items.find((item) => {
     const ref = normalize(item?.system?.reference ?? "");
     if (!ref) return false;

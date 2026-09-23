@@ -20,6 +20,7 @@ const {
   isBrimstoneCascadeItem,
   isHolyAuraItem,
   isLayOnHandsItem,
+  isNativeAbilityCard,
   parseAbilityRoll,
   parseSingleAbilityTest,
   parseAbilityTest,
@@ -254,4 +255,45 @@ test("isBrimstoneCascadeItem and isAlchemyItem match canonical localized names",
   assert.equal(isAlchemyItem({ name: "Alquimia" }), true);
   assert.equal(isAlchemyItem({ name: "Alchemy" }), true);
 });
+
+test("isNativeAbilityCard rejects system info messages and corruption threshold warnings", () => {
+  // chatInfoMessage.hbs (system notification): only <h4>, no subText
+  const infoMessageSource = {
+    querySelector: (selector) => {
+      if (selector.includes("h4")) return { textContent: "Mensagem do sistema" };
+      return null;
+    }
+  };
+  assert.equal(isNativeAbilityCard(infoMessageSource), false);
+
+  // Corruption warning (checkCorruptionThreshold): has introImg and finalText, but subText is empty
+  const corruptionWarningSource = {
+    querySelector: (selector) => {
+      if (selector.includes(".subText")) return { textContent: "" };
+      if (selector.includes(".introImg")) return {};
+      return null;
+    }
+  };
+  assert.equal(isNativeAbilityCard(corruptionWarningSource), false);
+
+  // applyEffect button
+  const applyEffectSource = {
+    querySelector: (selector) => {
+      if (selector.includes("#applyEffect")) return {};
+      return null;
+    }
+  };
+  assert.equal(isNativeAbilityCard(applyEffectSource), false);
+
+  // Real ability card: has subText and introImg
+  const realAbilitySource = {
+    querySelector: (selector) => {
+      if (selector.includes(".subText")) return { textContent: "*Cascata de Enxofre (Novato)*" };
+      if (selector.includes(".introImg")) return {};
+      return null;
+    }
+  };
+  assert.equal(isNativeAbilityCard(realAbilitySource), true);
+});
+
 
