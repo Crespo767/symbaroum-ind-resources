@@ -351,7 +351,8 @@ export function isPlayerNpcAttack(model) {
   const targetType = model.target.actor?.type;
   if (attackerType && targetType) {
     return (attackerType === "monster" && targetType === "player")
-      || (attackerType === "player" && targetType === "monster");
+      || (attackerType === "player" && targetType === "monster")
+      || (attackerType === "player" && targetType === "player");
   }
 
   const defenseLabel = normalize(localize("ARMOR.DEFENSE", "Defense"));
@@ -490,6 +491,12 @@ function createResolution(model) {
         "tenebre-npc-attack-protection",
         `${localize("TENEBRE.NpcAttackChat.Protection", "Proteção")}: ${model.protection}`
       ));
+    } else if (isPlayerAgainstPlayer(model) && model.protection !== null) {
+      resolution.append(createTextElement(
+        "p",
+        "tenebre-npc-attack-protection",
+        `${localize("TENEBRE.NpcAttackChat.Protection", "Proteção")}: ${model.protection}`
+      ));
     }
     if (showNpcDetails) {
       const painChoiceText = model.painStunned && model.painThresholdOutcome
@@ -501,7 +508,7 @@ function createResolution(model) {
         })
         : null;
       const receivedText = painChoiceText
-        ?? (isPlayerAgainstNpc(model) && model.damage === 0
+        ?? (((isPlayerAgainstNpc(model) && model.damage === 0) || (isPlayerAgainstPlayer(model) && model.damage === 0))
         ? format("TENEBRE.NpcAttackChat.ProtectedByArmor", "{name} está protegido pela armadura.", {
           name: model.target.name
         })
@@ -588,6 +595,13 @@ function isPlayerAgainstNpc(model) {
   const defenseLabel = normalize(localize("ARMOR.DEFENSE", "Defense"));
   return !model.resistedDescription
     && normalize(model.formula.attributes[1]?.label) === defenseLabel;
+}
+
+function isPlayerAgainstPlayer(model) {
+  const attackerType = model.attacker.actor?.type;
+  const targetType = model.target.actor?.type;
+  if (attackerType && targetType) return attackerType === "player" && targetType === "player";
+  return false;
 }
 
 function isNpcParticipant(actor, inferredNpc) {

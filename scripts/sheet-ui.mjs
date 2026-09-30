@@ -211,7 +211,7 @@ function patchSymbaroumSheetListeners() {
     }
   }
 
-  for (const type of ["equipment", "weapon", "armor"]) {
+  for (const type of ["equipment", "weapon", "armor", "artifact"]) {
     for (const SheetClass of getSymbaroumSheetClasses("Item", type)) {
       patchSheetActivateListeners(SheetClass, (app, html) => onRenderItemSheet(app, html));
     }
@@ -323,9 +323,9 @@ function patchContextMenu() {
         this.originalMenuItems.push({
           name: "TENEBRE.Containers.ConfigureContextMenu",
           icon: `<i class="fas fa-sliders-h" style="color: currentColor;"></i>`,
-          isVisible: (item) => game.user?.isGM
+          isVisible: (item) => Boolean((game.user?.isGM || item.isOwner)
             && TenebreSettings.get("enableContainers")
-            && ContainerService.isContainer(item),
+            && ContainerService.isContainer(item)),
           callback: function(elem) {
             const actor = getActorFromDom(elem);
             const itemId = elem.dataset.itemId;
@@ -1207,7 +1207,7 @@ function isSymbaroumActorSheetApplication(app) {
 }
 
 function isSymbaroumItemSheetApplication(app) {
-  return isRegisteredSymbaroumSheetApplication(app, "Item", ["equipment", "weapon", "armor"]);
+  return isRegisteredSymbaroumSheetApplication(app, "Item", ["equipment", "weapon", "armor", "artifact"]);
 }
 
 function isRegisteredSymbaroumSheetApplication(app, documentName, types) {
@@ -1538,8 +1538,44 @@ function onRenderItemSheet(app, html) {
   if (!item.isOwner && !game.user.isGM) return;
   if (skipDuplicateSheetRender(html, app, "item")) return;
 
+  if (TenebreSettings.get("enableContainers")) {
+    injectItemContainerControls(app, html, item);
+  }
+
   if (TenebreSettings.get("enableEncumbrance")) {
     injectItemWeightField(app, html, item);
+  }
+}
+
+function injectItemContainerControls(app, html, item) {
+  if (!item || !["equipment", "weapon", "armor", "artifact"].includes(item.type)) return;
+  if (!item.isOwner && !game.user?.isGM) return;
+
+  const root = getRoot(html) ?? getRoot(app?.element);
+  if (!root) return;
+
+  // Garantir remoção de qualquer botão no corpo da ficha
+  root.querySelectorAll?.(".tenebre-item-container-btn").forEach((el) => el.remove());
+
+  const isCont = ContainerService.isContainer(item);
+  const title = game.i18n.format?.("TENEBRE.ItemConfig.HeaderTitle", { item: item.name })
+    ?? (game.i18n.localize("TENEBRE.ItemConfig.HeaderTitle") || "Configurações Ind Resources");
+
+  const windowApp = root.classList?.contains?.("window-app") ? root : root.closest?.(".window-app");
+  const windowHeader = windowApp?.querySelector?.(".window-header");
+  if (windowHeader) {
+    windowHeader.querySelectorAll(".tenebre-item-ind-config, .tenebre-item-container-header-btn").forEach((el) => el.remove());
+    const insertBefore = windowHeader.querySelector(".configure-sheet, .close");
+    const headerBtn = document.createElement("a");
+    headerBtn.className = `header-button control tenebre-item-ind-config ${isCont ? "active" : ""}`;
+    headerBtn.title = title;
+    headerBtn.setAttribute("aria-label", title);
+    headerBtn.innerHTML = `<i class="fas fa-ellipsis-vertical"></i> ind`;
+    headerBtn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      await ContainerService.configureItemContainerPrompt(item);
+    });
+    windowHeader.insertBefore(headerBtn, insertBefore ?? null);
   }
 }
 

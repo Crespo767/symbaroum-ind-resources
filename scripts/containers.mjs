@@ -166,7 +166,10 @@ export class ContainerService {
 
   static isContainer(item) {
     if (!item || !STORABLE_TYPES.has(item.type)) return false;
-    if (item.getFlag?.(FLAG_SCOPE, "isContainer") === true) return true;
+    const flag = item.getFlag?.(FLAG_SCOPE, "isContainer")
+      ?? item.flags?.[FLAG_SCOPE]?.isContainer;
+    if (flag === false) return false;
+    if (flag === true) return true;
     const name = normalize(item.name);
     if (hasAlias(name, NON_CONTAINER_ALIASES)) return false;
     return hasAlias(name, LIGHT_CONTAINER_ALIASES) || hasAlias(name, BULKY_CONTAINER_ALIASES);
@@ -285,42 +288,128 @@ export class ContainerService {
     return true;
   }
 
-  static async configureContainerPrompt(actor, container) {
-    if (!game.user?.isGM || !isValidOwnedActorItem(actor, container) || !this.isContainer(container)) return false;
+  static async configureItemContainerPrompt(item, actor = item?.parent) {
+    if (!item) return false;
+    const canConfigure = Boolean(game.user?.isGM || item.isOwner || actor?.isOwner);
+    if (!canConfigure) return false;
 
-    const current = this.getContainerCapacity(container);
-    const slotsSelected = current.mode !== "unlimited";
+    const currentFlag = item.getFlag?.(FLAG_SCOPE, "isContainer")
+      ?? item.flags?.[FLAG_SCOPE]?.isContainer;
+    const isCurrentlyContainer = currentFlag !== undefined ? Boolean(currentFlag) : this.isContainer(item);
+    const configured = normalizeCapacityConfig(
+      item.getFlag?.(FLAG_SCOPE, CONTAINER_CAPACITY_FLAG)
+      ?? item.flags?.[FLAG_SCOPE]?.[CONTAINER_CAPACITY_FLAG]
+    );
+    const currentCapacity = this.getContainerCapacity(item);
+    const slotsSelected = configured ? configured.mode === "slots" : currentCapacity.mode !== "unlimited";
+    const capacityValue = configured && Number.isFinite(configured.value)
+      ? configured.value
+      : (Number.isFinite(currentCapacity.value) ? currentCapacity.value : 10);
+
+    const dialogTitle = game.i18n.format?.("TENEBRE.ItemConfig.HeaderTitle", { item: item.name })
+      ?? (game.i18n.localize("TENEBRE.ItemConfig.HeaderTitle") || "Configurações Ind Resources");
+
+    const yesLabel = game.i18n.localize("Yes") || "Sim";
+    const noLabel = game.i18n.localize("No") || "Não";
+
     const content = `
-      <form class="tenebre-container-capacity-form">
-        <p>${escapeHtml(game.i18n.format("TENEBRE.Containers.ConfigurePrompt", { container: container.name }))}</p>
-        <div class="form-group">
-          <label>${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityMode"))}</label>
-          <div class="tenebre-container-capacity-modes">
-            <label><input type="radio" name="capacityMode" value="slots" ${slotsSelected ? "checked" : ""}> ${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacitySlots"))}</label>
-            <label><input type="radio" name="capacityMode" value="unlimited" ${slotsSelected ? "" : "checked"}> ${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityUnlimited"))}</label>
+      <form class="standard-form">
+        <fieldset>
+          <legend>${escapeHtml(game.i18n.localize("TENEBRE.Containers.Container"))}</legend>
+          <div class="form-group">
+            <label for="tenebre-is-container">${escapeHtml(game.i18n.localize("TENEBRE.Containers.Container"))}</label>
+            <div class="form-fields">
+              <select id="tenebre-is-container" name="isContainer">
+                <option value="true" ${isCurrentlyContainer ? "selected" : ""}>${escapeHtml(yesLabel)}</option>
+                <option value="false" ${!isCurrentlyContainer ? "selected" : ""}>${escapeHtml(noLabel)}</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label>${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityValue"))}</label>
-          <input type="number" name="capacityValue" value="${slotsSelected ? current.value : 1}" min="1" max="999">
-        </div>
+
+          <div class="tenebre-capacity-section" style="${isCurrentlyContainer ? "" : "display: none;"}">
+            <div class="form-group">
+              <label for="tenebre-capacity-mode">${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityMode"))}</label>
+              <div class="form-fields">
+                <select id="tenebre-capacity-mode" name="capacityMode">
+                  <option value="slots" ${slotsSelected ? "selected" : ""}>${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacitySlots"))}</option>
+                  <option value="unlimited" ${slotsSelected ? "" : "selected"}>${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityUnlimited"))}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group tenebre-capacity-value-group" style="${slotsSelected ? "" : "display: none;"}">
+              <label for="tenebre-capacity-value">${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityValue"))}</label>
+              <div class="form-fields">
+                <input id="tenebre-capacity-value" type="number" name="capacityValue" value="${capacityValue}" min="1" max="999">
+              </div>
+            </div>
+          </div>
+        </fieldset>
       </form>
     `;
 
     const result = await promptDialog({
-      title: game.i18n.localize("TENEBRE.Containers.ConfigureTitle"),
+      title: dialogTitle,
       content,
+      okLabel: game.i18n.localize("TENEBRE.ItemConfig.Save") || "Salvar Configuração",
       okIcon: "fas fa-save",
-      width: 360,
-      contentClass: "tenebre-container-capacity-dialog",
+      cancelLabel: null,
+      width: 440,
+      symbaroumStyle: false,
+      render: (element) => {
+        const selectContainer = element.querySelector?.('[name="isContainer"]');
+        const capacitySection = element.querySelector?.('.tenebre-capacity-section');
+        const selectMode = element.querySelector?.('[name="capacityMode"]');
+        const valueGroups = element.querySelectorAll?.('.tenebre-capacity-value-group');
+
+        selectContainer?.addEventListener("change", (e) => {
+          if (capacitySection) capacitySection.style.display = e.target.value === "true" ? "" : "none";
+        });
+
+        selectMode?.addEventListener("change", (e) => {
+          valueGroups?.forEach?.((el) => {
+            el.style.display = e.target.value === "slots" ? "" : "none";
+          });
+        });
+      },
       callback: (element) => ({
-        mode: element.querySelector('[name="capacityMode"]:checked')?.value,
-        value: Number(element.querySelector('[name="capacityValue"]')?.value)
+        isContainer: element.querySelector?.('[name="isContainer"]')?.value === "true",
+        mode: element.querySelector?.('[name="capacityMode"]')?.value || "slots",
+        value: Number(element.querySelector?.('[name="capacityValue"]')?.value) || 10
       })
     });
 
     if (!result) return false;
-    return this.setContainerCapacity(actor, container, result);
+
+    if (!result.isContainer) {
+      if (actor && this.getStoredItems(actor, item).length > 0) {
+        ui.notifications.warn(game.i18n.format("TENEBRE.Containers.CannotDisableNotEmpty", {
+          container: item.name
+        }));
+        return false;
+      }
+      await item.setFlag(FLAG_SCOPE, "isContainer", false);
+    } else {
+      const normalizedCapacity = normalizeCapacityConfig({
+        mode: result.mode,
+        value: result.value
+      }) ?? { mode: "slots", value: 10 };
+
+      await item.setFlag(FLAG_SCOPE, "isContainer", true);
+      await item.setFlag(FLAG_SCOPE, CONTAINER_CAPACITY_FLAG, normalizedCapacity);
+    }
+
+    if (actor) {
+      rerenderActorSheets(actor);
+    }
+    if (typeof item.sheet?.render === "function") {
+      item.sheet.render(false);
+    }
+    return true;
+  }
+
+  static async configureContainerPrompt(actor, container) {
+    return this.configureItemContainerPrompt(container, actor);
   }
 
   static getStoredItems(actor, container) {

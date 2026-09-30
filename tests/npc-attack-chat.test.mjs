@@ -71,6 +71,16 @@ test("player attacks against NPCs preserve their opposed-test direction", () => 
   }), true);
 });
 
+test("player attacks against other players are supported in compact presentation", () => {
+  const parsed = parseOpposedTest("Preciso : (15) ⬅ Defesa : (3)");
+  assert.equal(isPlayerNpcAttack({
+    attacker: { actor: { type: "player" } },
+    target: { actor: { type: "player" } },
+    formula: parsed,
+    resistedDescription: ""
+  }), true);
+});
+
 test("attack portraits follow the player's perspective", () => {
   const player = { name: "Bartolom", actor: { type: "player" } };
   const npc = { name: "Humano", actor: { type: "monster" } };

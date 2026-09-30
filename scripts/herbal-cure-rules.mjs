@@ -26,7 +26,7 @@ export function medicusLevel(actor) {
 export function herbalCureFormula(level, success) {
   const normalizedLevel = Math.max(0, Math.min(3, Number(level) || 0));
   if (normalizedLevel === 0) return success ? "1" : null;
-  if (!success) return normalizedLevel === 3 ? "1d6" : null;
+  if (!success) return normalizedLevel === 3 ? "1d6" : "1";
   return normalizedLevel === 1 ? "1d6" : normalizedLevel === 2 ? "1d8" : "1d10";
 }
 

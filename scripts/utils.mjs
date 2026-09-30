@@ -38,6 +38,7 @@ export async function promptDialog({
   okIcon = "fas fa-check",
   width = 300,
   callback = () => null,
+  render = null,
   contentClass = "",
   symbaroumStyle = true
 }) {
@@ -45,16 +46,22 @@ export async function promptDialog({
     ? `<div class="symbaroum dialog tenebre-symbaroum-dialog ${escapeHtml(contentClass)}">${content}</div>`
     : content;
 
-  return foundry.applications.api.DialogV2.prompt({
-    window: { title },
-    position: { width },
-    content: wrappedContent,
-    buttons: [{
+  const buttons = [];
+  if (cancelLabel) {
+    buttons.push({
       action: "cancel",
       icon: "fas fa-times",
       label: cancelLabel,
       callback: () => null
-    }],
+    });
+  }
+
+  return foundry.applications.api.DialogV2.prompt({
+    window: { title },
+    position: { width },
+    content: wrappedContent,
+    render: render ? (event, dialog) => render(dialog?.element ?? event?.target, dialog) : undefined,
+    buttons,
     ok: {
       icon: okIcon,
       label: okLabel,

@@ -26,8 +26,8 @@ test("matches the Symbaroum Herbal Cure formulas for every Medicus level", () =>
   assert.equal(herbalCureFormula(1, true), "1d6");
   assert.equal(herbalCureFormula(2, true), "1d8");
   assert.equal(herbalCureFormula(3, true), "1d10");
-  assert.equal(herbalCureFormula(1, false), null);
-  assert.equal(herbalCureFormula(2, false), null);
+  assert.equal(herbalCureFormula(1, false), "1");
+  assert.equal(herbalCureFormula(2, false), "1");
   assert.equal(herbalCureFormula(3, false), "1d6");
 });
 

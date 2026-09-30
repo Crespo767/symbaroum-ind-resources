@@ -155,6 +155,117 @@ test("container recognition uses exact aliases and exclusions", () => {
   assert.equal(ContainerService.isContainer(createItem(actor, { id: "tool", name: "Caixa de Ferramentas" })), false);
 });
 
+test("custom container configuration respects explicit isContainer flag", () => {
+  const actor = createActor();
+  const customItem = createItem(actor, { id: "custom", name: "Caixa Misteriosa", type: "equipment" });
+  assert.equal(ContainerService.isContainer(customItem), false);
+
+  customItem.flags[scope] = { isContainer: true };
+  assert.equal(ContainerService.isContainer(customItem), true);
+
+  const backpack = createItem(actor, { id: "bag", name: "Mochila", type: "equipment" });
+  assert.equal(ContainerService.isContainer(backpack), true);
+
+  backpack.flags[scope] = { isContainer: false };
+  assert.equal(ContainerService.isContainer(backpack), false);
+});
+
+test("configureItemContainerPrompt toggles isContainer flag and sets capacity", async () => {
+  const actor = createActor({ isOwner: true });
+  const item = createItem(actor, { id: "chest", name: "Baú de Carvalho", type: "equipment" });
+  const originalApplications = globalThis.foundry.applications;
+
+  try {
+    globalThis.foundry.applications = {
+      api: {
+        DialogV2: {
+          async prompt(options) {
+            return options.ok.callback(null, null, {
+              element: {
+                querySelector: (sel) => {
+                  if (sel === '[name="isContainer"]') return { checked: true, value: "true" };
+                  if (sel.includes('[name="capacityMode"]')) return { value: "slots" };
+                  if (sel === '[name="capacityValue"]') return { value: "15" };
+                  return null;
+                }
+              }
+            });
+          }
+        }
+      }
+    };
+
+    const configured = await ContainerService.configureItemContainerPrompt(item, actor);
+    assert.equal(configured, true);
+    assert.equal(ContainerService.isContainer(item), true);
+    assert.deepEqual(ContainerService.getContainerCapacity(item), { mode: "slots", value: 15 });
+
+    // Test disabling container
+    globalThis.foundry.applications.api.DialogV2.prompt = async (options) => {
+      return options.ok.callback(null, null, {
+        element: {
+          querySelector: (sel) => {
+            if (sel === '[name="isContainer"]') return { checked: false, value: "false" };
+            return null;
+          }
+        }
+      });
+    };
+
+    const disabled = await ContainerService.configureItemContainerPrompt(item, actor);
+    assert.equal(disabled, true);
+    assert.equal(ContainerService.isContainer(item), false);
+  } finally {
+    globalThis.foundry.applications = originalApplications;
+  }
+});
+
+test("configureItemContainerPrompt prevents disabling container when it holds stored items", async () => {
+  const actor = createActor({ isOwner: true });
+  const container = createItem(actor, {
+    id: "bag",
+    name: "Mochila",
+    flags: { [scope]: { isContainer: true } }
+  });
+  createItem(actor, {
+    id: "stored-potion",
+    name: "Poção",
+    flags: containerFlags(container.id, container.name)
+  });
+
+  const originalApplications = globalThis.foundry.applications;
+  let warnMessage = "";
+  const originalWarn = globalThis.ui.notifications.warn;
+  globalThis.ui.notifications.warn = (msg) => { warnMessage = msg; };
+
+  try {
+    globalThis.foundry.applications = {
+      api: {
+        DialogV2: {
+          async prompt(options) {
+            return options.ok.callback(null, null, {
+              element: {
+                querySelector: (sel) => {
+                  if (sel === '[name="isContainer"]') return { checked: false, value: "false" };
+                  return null;
+                }
+              }
+            });
+          }
+        }
+      }
+    };
+
+    const result = await ContainerService.configureItemContainerPrompt(container, actor);
+    assert.equal(result, false);
+    assert.equal(ContainerService.isContainer(container), true);
+    assert.match(warnMessage, /TENEBRE\.Containers\.CannotDisableNotEmpty/);
+  } finally {
+    globalThis.foundry.applications = originalApplications;
+    globalThis.ui.notifications.warn = originalWarn;
+  }
+});
+
 test("camping equipment accepts only its six dedicated contents", async () => {
   const actor = createActor();
   const camping = createItem(actor, { id: "camping-kit", name: "Equipamentos de Acampar" });
