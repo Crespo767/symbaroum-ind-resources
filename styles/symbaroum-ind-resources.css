@@ -3741,9 +3741,4 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   display: none !important;
 }
 
-/* crlngn-ui item name fix */
-html.tenebre-crlngn-ui-active .symbaroum.sheet .item-list .item-row .name .item-edit,
-html.tenebre-crlngn-ui-active .symbaroum.sheet .item-list .item-row .name {
-  color: #ffffff !important;
-  text-shadow: none !important;
-}
+

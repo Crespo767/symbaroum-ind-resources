@@ -48,13 +48,46 @@ export class CompatibilityService {
     this.logSummary();
   }
 
-    static applyCrlngnUiCompatibility() {
+      static applyCrlngnUiCompatibility() {
     const active = this.isModuleActive(COMPAT_MODULES.crlngnUi);
     globalThis.document?.documentElement?.classList?.toggle(
       "tenebre-crlngn-ui-active",
       active
     );
+    if (!active) return;
+
+    Hooks.once("ready", () => {
+      try {
+        const patchRule = (rule) => {
+          if (rule.type === 1) {
+            let sel = rule.selectorText;
+            if (sel && (sel.includes(".application") || sel.includes(".window-app") || sel.includes(".app"))) {
+              const newSel = sel.split(",").map(part => {
+                if (part.includes(".symbaroum")) return part;
+                return part
+                  .replace(/\.application(?![a-zA-Z0-9_-])/g, ".application:not(.symbaroum.sheet)")
+                  .replace(/\.window-app(?![a-zA-Z0-9_-])/g, ".window-app:not(.symbaroum.sheet)")
+                  .replace(/\.app(?![a-zA-Z0-9_-])/g, ".app:not(.symbaroum.sheet)");
+              }).join(",");
+              if (newSel !== sel) rule.selectorText = newSel;
+            }
+          } else if ((rule.type === 4 || rule.type === 12) && rule.cssRules) {
+            for (let i = 0; i < rule.cssRules.length; i++) patchRule(rule.cssRules[i]);
+          }
+        };
+
+        const stylesheets = Array.from(globalThis.document.styleSheets).filter(s => s.href && s.href.includes("crlngn-ui"));
+        for (const sheet of stylesheets) {
+          try {
+            for (let i = 0; i < sheet.cssRules.length; i++) patchRule(sheet.cssRules[i]);
+          } catch(e) {}
+        }
+      } catch (err) {
+        console.warn("Symbaroum Ind Resources | Could not isolate sheets from crlngn-ui:", err);
+      }
+    });
   }
+
   static applySheetTitleBarCompatibility() {
     const active = this.isModuleActive(COMPAT_MODULES.cleanerSheetTitleBar);
     globalThis.document?.documentElement?.classList?.toggle(
