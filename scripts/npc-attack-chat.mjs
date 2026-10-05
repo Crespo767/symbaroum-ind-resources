@@ -19,6 +19,7 @@ export class NpcAttackChatService {
 
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key, value) => {
       if (!["enableCompactNpcAttackChat", "hideNpcDetailsInChat"].includes(key)) return;
+      _enabledCache = null;
       const scope = htmlElement(globalThis.ui?.chat?.element) ?? globalThis.document;
       restoreNpcAttackCards(scope);
       if (key === "enableCompactNpcAttackChat" ? value : isEnabled()) enhanceNpcAttackCards(scope);

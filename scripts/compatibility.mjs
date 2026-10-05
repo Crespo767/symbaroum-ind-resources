@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.mjs";
+﻿import { MODULE_ID } from "./constants.mjs";
 
 export const COMPAT_MODULES = {
   activeTokenEffects: "ATL",
@@ -6,6 +6,7 @@ export const COMPAT_MODULES = {
   calendaria: "calendaria",
   calendariaSdm: "calendaria-sdm",
   cleanerSheetTitleBar: "cleaner-sheet-title-bar",
+  crlngnUi: "crlngn-ui",
   dragRuler: "drag-ruler",
   libWrapper: "lib-wrapper",
   metamorph: "metamorph",
@@ -42,10 +43,18 @@ export class CompatibilityService {
 
   static register() {
     this.applySheetTitleBarCompatibility();
+    this.applyCrlngnUiCompatibility();
     this.refresh();
     this.logSummary();
   }
 
+    static applyCrlngnUiCompatibility() {
+    const active = this.isModuleActive(COMPAT_MODULES.crlngnUi);
+    globalThis.document?.documentElement?.classList?.toggle(
+      "tenebre-crlngn-ui-active",
+      active
+    );
+  }
   static applySheetTitleBarCompatibility() {
     const active = this.isModuleActive(COMPAT_MODULES.cleanerSheetTitleBar);
     globalThis.document?.documentElement?.classList?.toggle(
