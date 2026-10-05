@@ -1,3 +1,4 @@
+﻿import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
@@ -121,7 +122,7 @@ export class DeathAutomationService {
         if (this.isManager(actor)) void this.ensurePrompt(actor).catch(logError);
       }
     });
-    Hooks.on("renderChatMessageHTML", (message, html) => bindDeathPrompt(message, html));
+    ChatController.registerRenderHook( (message, html) => bindDeathPrompt(message, html));
     Hooks.on("renderActorSheet", (app, html) => this.syncNativeSheetButtons(app, html));
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key, enabled) => {
       if (key !== "enableDeathAutomation") return;

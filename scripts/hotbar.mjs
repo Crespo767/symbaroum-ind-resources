@@ -1,4 +1,4 @@
-import { AmmoService } from "./ammo.mjs";
+﻿import { AmmoService } from "./ammo.mjs";
 import { actorItems, getQuiverCapacity, getQuiverLoadedTotal, getWeaponAmmoType, isActiveOrEquipped, isQuiver, itemQuantity } from "./item-flags.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
@@ -17,9 +17,9 @@ export class HotbarService {
     Hooks.on("renderHotbar", () => this.refreshSoon());
     Hooks.on("renderChatLog", () => this.refreshSoon());
     Hooks.on("createItem", () => this.refreshSoon());
-    Hooks.on("updateItem", () => this.refreshSoon());
+    Hooks.on("updateItem", (i, changes) => { if (shouldRefreshHud(changes)) this.refreshSoon(); });
     Hooks.on("deleteItem", () => this.refreshSoon());
-    Hooks.on("updateActor", () => this.refreshSoon());
+    Hooks.on("updateActor", (a, changes) => { if (shouldRefreshHud(changes)) this.refreshSoon(); });
     Hooks.on("controlToken", () => this.refreshSoon());
     Hooks.on("canvasReady", () => this.refreshSoon());
     window.addEventListener("resize", () => this.refreshSoon());
@@ -255,4 +255,12 @@ function getPlayersBoundaryRect() {
   }
 
   return boundary ?? players.getBoundingClientRect();
+}
+
+function shouldRefreshHud(changes) {
+  if (!changes) return true;
+  const keys = Object.keys(changes);
+  if (keys.length === 0) return false;
+  if (keys.every(k => ["ownership", "folder", "sort", "x", "y", "elevation", "rotation", "_id"].includes(k))) return false;
+  return true;
 }

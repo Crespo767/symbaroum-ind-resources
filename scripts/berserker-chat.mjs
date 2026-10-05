@@ -1,3 +1,4 @@
+﻿import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
 
@@ -14,7 +15,7 @@ export class BerserkerChatService {
     if (this.#registered) return;
     this.#registered = true;
 
-    Hooks.on("renderChatMessageHTML", (message, html) => {
+    ChatController.registerRenderHook( (message, html) => {
       const scope = htmlElement(html);
       if (isEnabled()) enhanceBerserkerCards(scope, message);
       else restoreBerserkerCards(scope);
@@ -22,6 +23,7 @@ export class BerserkerChatService {
 
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key, value) => {
       if (key !== "enableCompactNpcAttackChat") return;
+      _enabledCache = null;
       const scope = htmlElement(globalThis.ui?.chat?.element) ?? globalThis.document;
       restoreBerserkerCards(scope);
       if (value) globalThis.ui?.chat?.render?.({ force: true });
@@ -594,9 +596,11 @@ function format(key, fallback, data) {
   return fallback.replace(/\{(\w+)\}/g, (_match, field) => String(data[field] ?? ""));
 }
 
+let _enabledCache = null;
 function isEnabled() {
+  if (_enabledCache !== null) return _enabledCache;
   try {
-    return game.settings.get(MODULE_ID, "enableCompactNpcAttackChat") !== false;
+    _enabledCache = game.settings.get(MODULE_ID, "enableCompactNpcAttackChat") !== false; return _enabledCache;
   } catch (_error) {
     return true;
   }

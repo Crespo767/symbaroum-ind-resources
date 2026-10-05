@@ -1,5 +1,6 @@
+﻿import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID } from "./constants.mjs";
-import { parseOpposedTest, stripNpcParenthetical } from "./npc-attack-chat.mjs";
+import { parseOpposedTest, parseRollValue, stripNpcParenthetical } from "./npc-attack-chat.mjs";
 import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
 
 const TARGET_FLAG = "opposedTestTarget";
@@ -15,7 +16,7 @@ export class OpposedTestChatService {
       captureOpposedTestTarget(message, data);
     });
 
-    Hooks.on("renderChatMessageHTML", (message, html) => {
+    ChatController.registerRenderHook( (message, html) => {
       const scope = htmlElement(html);
       if (isEnabled()) enhanceOpposedTestCards(scope, message);
       else restoreOpposedTestCards(scope);
@@ -23,6 +24,7 @@ export class OpposedTestChatService {
 
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key) => {
       if (key !== "enableCompactNpcAttackChat") return;
+      _enabledCache = null;
       const scope = htmlElement(globalThis.ui?.chat?.element) ?? globalThis.document;
       restoreOpposedTestCards(scope);
       globalThis.ui?.chat?.render?.({ force: true });
@@ -51,10 +53,12 @@ export function formatAttributeTestTitle(name, attribute) {
   );
 }
 
-export function formatAttributeTestResult(succeeded) {
-  return succeeded
+export function formatAttributeTestResult(succeeded, criticalText = "") {
+  const base = succeeded
     ? localize("TENEBRE.AttributeTestChat.Success", "Sucesso")
     : localize("TENEBRE.AttributeTestChat.Failure", "Falha");
+  const critical = cleanText(criticalText);
+  return critical ? `${base} — ${critical}` : base;
 }
 
 export function enhanceOpposedTestCards(scope, message) {
@@ -98,14 +102,108 @@ function captureOpposedTestTarget(message, data) {
   message.updateSource({ flags });
 }
 
+export function isDefenseRoll(formula, source = null) {
+  const firstAttr = normalize(formula?.attributes?.[0]?.label);
+  const defenseLabel = normalize(localize("ARMOR.DEFENSE", "Defense"));
+  if (firstAttr === "defesa" || firstAttr === "defense" || firstAttr === "defensa" || firstAttr === defenseLabel) {
+    return true;
+  }
+  if (source) {
+    const baseInfo = source.querySelector?.(".baseinfo")?.textContent ?? "";
+    const normBase = normalize(baseInfo);
+    const protectionLabel = normalize(localize("ARMOR.PROTECTION", "Proteção"));
+    if (normBase.includes(protectionLabel) || normBase.includes("protecao") || normBase.includes("protection")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function extractArmorData(source) {
+  const itemElement = source?.querySelector?.("[data-item-id]");
+  if (!itemElement) return null;
+
+  const id = itemElement.dataset?.itemId ?? "";
+  const name = cleanText(itemElement.textContent);
+
+  let img = "";
+  const prev = itemElement.previousElementSibling;
+  if (prev && prev.tagName?.toLowerCase() === "img") {
+    img = prev.getAttribute("src") || "";
+  } else {
+    const portraits = source.querySelectorAll?.(":scope > img.portrait") ?? [];
+    if (portraits.length > 1) {
+      img = portraits[1].getAttribute("src") || "";
+    }
+  }
+
+  const baseInfoEl = source.querySelector?.(".baseinfo strong") ?? source.querySelector?.(".baseinfo");
+  const valueText = cleanText(baseInfoEl?.textContent ?? "");
+  const protection = parseRollValue(valueText);
+
+  const tooltipEl = source.querySelector?.("[data-item-id] ~ .dice-roll .dice-tooltip")
+    ?? source.querySelectorAll?.(".dice-tooltip")?.[1]
+    ?? null;
+
+  return {
+    id,
+    name,
+    img: img || "icons/svg/shield.svg",
+    valueText,
+    protection,
+    tooltipEl
+  };
+}
+
+export function createArmorSummary(armor) {
+  const container = document.createElement("div");
+  container.className = "tenebre-defense-armor";
+
+  if (armor.img) {
+    const img = document.createElement("img");
+    img.className = "tenebre-defense-armor-img";
+    img.src = armor.img;
+    img.alt = armor.name;
+    img.loading = "lazy";
+    container.append(img);
+  }
+
+  const details = document.createElement("div");
+  details.className = "tenebre-defense-armor-details";
+
+  const nameEl = createTextElement("span", "tenebre-defense-armor-name", armor.name);
+  nameEl.title = armor.name;
+
+  const protectionLabel = localize("ARMOR.PROTECTION", "Proteção");
+  const protectionText = armor.protection !== null
+    ? format(
+        "TENEBRE.OpposedTestChat.ArmorProtection",
+        "{label}: {protection}",
+        {
+          label: protectionLabel,
+          protection: armor.protection
+        }
+      )
+    : (armor.valueText || `${protectionLabel}: 0`);
+
+  const protectionEl = createTextElement("span", "tenebre-defense-armor-protection", protectionText);
+
+  details.append(nameEl, protectionEl);
+  container.append(details);
+  return container;
+}
+
 function isNativeOpposedAttributeTest(content) {
   if (!content.includes("symbaroum") || !content.includes("chat") || !content.includes("roll")) return false;
   const template = document.createElement("template");
   template.innerHTML = content;
   const root = template.content.querySelector(".symbaroum.chat.roll");
   const source = root?.querySelector(":scope > .foreground");
-  if (!source || source.querySelector("[data-item-id]")) return false;
-  return parseOpposedTest(source.querySelector(":scope > h3")?.textContent).attributes.length === 2;
+  if (!source) return false;
+  const formula = parseOpposedTest(source.querySelector(":scope > h3")?.textContent);
+  if (formula.attributes.length !== 2) return false;
+  if (source.querySelector("[data-item-id]") && !isDefenseRoll(formula, source)) return false;
+  return true;
 }
 
 function enhanceOpposedTestCard(root, message) {
@@ -132,6 +230,9 @@ function enhanceOpposedTestCard(root, message) {
     createRollSummary(model),
     outcome
   );
+  if (model.armor) {
+    card.append(createArmorSummary(model.armor));
+  }
   appendOriginalChatPreview(card, source, {
     hasUnadaptedContent: model.hasUnadaptedContent,
     unadaptedElements: model.unadaptedElements
@@ -144,14 +245,17 @@ function enhanceOpposedTestCard(root, message) {
 }
 
 function buildOpposedTestModel(source, message) {
-  if (!source || source.querySelector("[data-item-id]")) return null;
+  if (!source) return null;
 
   const formula = parseOpposedTest(source.querySelector(":scope > h3")?.textContent);
+  if (formula.attributes.length < 2) return null;
+  if (source.querySelector("[data-item-id]") && !isDefenseRoll(formula, source)) return null;
+
   const rollElement = source.querySelector(".symba-rolls.roll.d20.success, .symba-rolls.roll.d20.failure");
   const target = messageFlag(message, TARGET_FLAG);
   const actorImage = source.querySelector(":scope > img.portrait")?.getAttribute("src") ?? "";
   const actorName = cleanText(message?.speaker?.alias);
-  if (formula.attributes.length < 2 || !rollElement || !actorImage || !actorName) return null;
+  if (!rollElement || !actorImage || !actorName) return null;
 
   const succeeded = rollElement.classList.contains("success");
   const criticalText = [...source.querySelectorAll(":scope > h4")]
@@ -163,7 +267,9 @@ function buildOpposedTestModel(source, message) {
   const tooltipElement = source.querySelector(".dice-tooltip");
   const marginText = cleanText(marginElement?.textContent);
   const isOpposed = Boolean(target?.img);
+  const armor = extractArmorData(source);
   const unadaptedElements = [marginText ? marginElement : null, tooltipElement].filter(Boolean);
+  if (armor?.tooltipEl) unadaptedElements.push(armor.tooltipEl);
   if (!isOpposed) {
     return {
       kind: "attribute",
@@ -172,10 +278,11 @@ function buildOpposedTestModel(source, message) {
       formulaText: `${actingAttribute.label} (${actingAttribute.value}) ← ${targetAttribute.label} (${signed(targetAttribute.value)})`,
       objective: formula.objective,
       roll: Number(cleanText(rollElement.textContent)),
-      outcome: formatAttributeTestResult(succeeded),
+      outcome: formatAttributeTestResult(succeeded, criticalText),
       succeeded,
       hasUnadaptedContent: unadaptedElements.length > 0,
-      unadaptedElements
+      unadaptedElements,
+      armor
     };
   }
   return {
@@ -187,7 +294,8 @@ function buildOpposedTestModel(source, message) {
     roll: Number(cleanText(rollElement.textContent)),
     outcome: formatOpposedTestResult(actorName, succeeded, criticalText),
     hasUnadaptedContent: unadaptedElements.length > 0,
-    unadaptedElements
+    unadaptedElements,
+    armor
   };
 }
 
@@ -258,9 +366,11 @@ function createTextElement(tag, className, value) {
   return element;
 }
 
+let _enabledCache = null;
 function isEnabled() {
+  if (_enabledCache !== null) return _enabledCache;
   try {
-    return game.settings.get(MODULE_ID, "enableCompactNpcAttackChat") !== false;
+    _enabledCache = game.settings.get(MODULE_ID, "enableCompactNpcAttackChat") !== false; return _enabledCache;
   } catch (_error) {
     return true;
   }
@@ -283,4 +393,12 @@ function format(key, fallback, data) {
   const value = globalThis.game?.i18n?.format?.(key, data);
   if (value && value !== key) return value;
   return fallback.replace(/\{(\w+)\}/g, (_match, field) => String(data[field] ?? ""));
+}
+
+function normalize(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }

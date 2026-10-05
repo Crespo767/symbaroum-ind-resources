@@ -772,6 +772,7 @@
   "TENEBRE.OpposedTestChat.Success": "success",
   "TENEBRE.OpposedTestChat.Failure": "failure",
   "TENEBRE.OpposedTestChat.Result": "{name} obtains {result}.",
+  "TENEBRE.OpposedTestChat.ArmorProtection": "{label}: {protection}",
   "TENEBRE.AttributeTestChat.Title": "{name} makes an {attribute} test",
   "TENEBRE.AttributeTestChat.Success": "Success",
   "TENEBRE.AttributeTestChat.Failure": "Failure",

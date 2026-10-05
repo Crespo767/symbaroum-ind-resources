@@ -1,3 +1,4 @@
+﻿import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { GM_LOG_EVENT_CATEGORIES, gmLogEventPresentation } from "./gm-log-events.mjs";
 import { GmLogService, isGmLogEnabled } from "./gm-log-service.mjs";
@@ -63,7 +64,7 @@ export class GmLogUiService {
       if (application?.isPopout) return;
       this.#mount(resolveChatRoot(element));
     });
-    Hooks.on("renderChatMessageHTML", (message, element) => {
+    ChatController.registerRenderHook( (message, element) => {
       hideGmLogOnlyMessage(message, element);
     });
     Hooks.on(UPDATE_HOOK, () => {

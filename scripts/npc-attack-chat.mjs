@@ -1,3 +1,4 @@
+﻿import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG } from "./constants.mjs";
 import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
 
@@ -10,7 +11,7 @@ export class NpcAttackChatService {
     if (this.#registered) return;
     this.#registered = true;
 
-    Hooks.on("renderChatMessageHTML", (message, html) => {
+    ChatController.registerRenderHook( (message, html) => {
       const scope = htmlElement(html);
       if (isEnabled()) enhanceNpcAttackCards(scope, message);
       else restoreNpcAttackCards(scope);
@@ -640,9 +641,11 @@ function createTextElement(tag, className, value) {
   return element;
 }
 
+let _enabledCache = null;
 function isEnabled() {
+  if (_enabledCache !== null) return _enabledCache;
   try {
-    return game.settings.get(MODULE_ID, "enableCompactNpcAttackChat") !== false;
+    _enabledCache = game.settings.get(MODULE_ID, "enableCompactNpcAttackChat") !== false; return _enabledCache;
   } catch (_error) {
     return true;
   }

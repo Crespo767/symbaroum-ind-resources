@@ -11,9 +11,12 @@ const init = read("scripts/init.mjs");
 const css = read("styles/symbaroum-ind-resources.css");
 
 const {
+  createArmorSummary,
+  extractArmorData,
   formatAttributeTestResult,
   formatAttributeTestTitle,
-  formatOpposedTestResult
+  formatOpposedTestResult,
+  isDefenseRoll
 } = await import("../scripts/opposed-test-chat.mjs");
 
 test("opposed-test outcome reports success or failure and keeps critical text", () => {
@@ -90,3 +93,53 @@ test("unadapted opposed-test details remain available to the GM through the orig
   assert.match(source, /unadaptedElements: model\.unadaptedElements/);
   assert.match(source, /appendOriginalChatPreview\(card, source/);
 });
+
+test("isDefenseRoll identifies defense tests by formula or armor protection text", () => {
+  assert.equal(isDefenseRoll({ attributes: [{ label: "Defesa" }, { label: "Personalizado" }] }), true);
+  assert.equal(isDefenseRoll({ attributes: [{ label: "Defense" }, { label: "Precise" }] }), true);
+  assert.equal(isDefenseRoll({ attributes: [{ label: "Discreto" }, { label: "Atento" }] }), false);
+  const mockSource = {
+    querySelector(selector) {
+      if (selector === ".baseinfo") return { textContent: "PROTEÇÃO: 3" };
+      return null;
+    }
+  };
+  assert.equal(isDefenseRoll({ attributes: [{ label: "Discreto" }] }, mockSource), true);
+});
+
+test("extractArmorData extracts armor fields from native roll markup", () => {
+  const mockSource = {
+    querySelector(selector) {
+      if (selector === "[data-item-id]") {
+        return {
+          dataset: { itemId: "armor99" },
+          textContent: "Cota de malha fortificada",
+          previousElementSibling: {
+            tagName: "IMG",
+            getAttribute(attr) { return attr === "src" ? "icons/armor.png" : null; }
+          }
+        };
+      }
+      if (selector === ".baseinfo strong") return { textContent: "PROTEÇÃO: 4" };
+      return null;
+    },
+    querySelectorAll() { return []; }
+  };
+  const armor = extractArmorData(mockSource);
+  assert.equal(armor.id, "armor99");
+  assert.equal(armor.name, "Cota de malha fortificada");
+  assert.equal(armor.img, "icons/armor.png");
+  assert.equal(armor.protection, 4);
+});
+
+test("defense card integrates armor and CSS styles the armor block", () => {
+  assert.match(source, /isDefenseRoll/);
+  assert.match(source, /extractArmorData/);
+  assert.match(source, /createArmorSummary/);
+  assert.match(source, /tenebre-defense-armor/);
+  assert.match(css, /\.tenebre-defense-armor\s*\{[\s\S]*?display:\s*flex;/);
+  assert.match(css, /\.tenebre-defense-armor-img\s*\{[\s\S]*?object-fit:\s*cover;/);
+  assert.match(css, /\.tenebre-defense-armor-name\s*\{[\s\S]*?font-weight:\s*700;/);
+  assert.match(css, /\.tenebre-defense-armor-protection\s*\{[\s\S]*?font-size:\s*12px;/);
+});
+

@@ -1,3 +1,4 @@
+﻿import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG } from "./constants.mjs";
 import { SocketService } from "./sockets.mjs";
 
@@ -33,7 +34,7 @@ export class PainThresholdChoiceService {
       });
     });
 
-    Hooks.on("renderChatMessageHTML", (message, html) => {
+    ChatController.registerRenderHook( (message, html) => {
       bindPainThresholdUi(message, html);
     });
 

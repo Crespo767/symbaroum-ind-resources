@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.mjs";
+﻿import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { WEAPON_READINESS_ICON, WeaponReadinessService } from "./weapon-readiness.mjs";
 
@@ -20,9 +20,9 @@ export class WeaponReadinessHudService {
 
     Hooks.on("renderHotbar", () => this.refreshSoon());
     Hooks.on("createItem", () => this.refreshSoon());
-    Hooks.on("updateItem", () => this.refreshSoon());
+    Hooks.on("updateItem", (i, changes) => { if (shouldRefreshHud(changes)) this.refreshSoon(); });
     Hooks.on("deleteItem", () => this.refreshSoon());
-    Hooks.on("updateActor", () => this.refreshSoon());
+    Hooks.on("updateActor", (a, changes) => { if (shouldRefreshHud(changes)) this.refreshSoon(); });
     Hooks.on("controlToken", () => this.refreshSoon());
     Hooks.on("canvasReady", () => this.refreshSoon());
     Hooks.on(`${MODULE_ID}.settingsChanged`, () => this.refreshSoon());
@@ -321,4 +321,12 @@ function getInitialPosition() {
 function setButtonPosition(button, { left, top }) {
   button.style.left = `${Math.round(left)}px`;
   button.style.top = `${Math.round(top)}px`;
+}
+
+function shouldRefreshHud(changes) {
+  if (!changes) return true;
+  const keys = Object.keys(changes);
+  if (keys.length === 0) return false;
+  if (keys.every(k => ["ownership", "folder", "sort", "x", "y", "elevation", "rotation", "_id"].includes(k))) return false;
+  return true;
 }
