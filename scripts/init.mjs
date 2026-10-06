@@ -1,4 +1,4 @@
-import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
+﻿import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { patchWeaponRolls } from "./weapon-wrapper.mjs";
 import { registerSheetHooks } from "./sheet-ui.mjs";
@@ -116,6 +116,53 @@ Hooks.once("ready", async () => {
   patchSymbaroumActorUsePower();
   patchSymbaroumDerivedPenalties();
   Hooks.on("preCreateChatMessage", applyPowerChatContextToMessage);
+Hooks.on("preCreateChatMessage", applyNpcAttackContextToMessage);
+
+function applyNpcAttackContextToMessage(message, data, options, userId) {
+  if (userId !== game.user.id) return;
+  if (!TenebreSettings.get("enableAutomatedAnimationsIntegration")) return;
+
+  const content = String(message?.content ?? data?.content ?? "");
+  const isCombat = content.includes("symbaroum chat combat") || message.flags?.symbaroum?.type === "combat";
+  if (!isCombat && !content.match(/^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)[.!]?$/i)) return;
+
+  const flags = message?.flags ?? data?.flags ?? {};
+  if (flags.world?.context?.itemUuid) return;
+
+  const textContent = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const match = textContent.match(/^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)[.!]?$/i);
+  if (!match) return;
+
+  const speaker = message.speaker ?? data.speaker ?? {};
+  if (!speaker.actor) return;
+  
+  const actor = game.actors.get(speaker.actor);
+  if (!actor) return;
+
+  const weaponName = match[2].trim().toLowerCase();
+  const item = actor.items.find(i => i.name.toLowerCase() === weaponName || i.name.toLowerCase().includes(weaponName));
+  if (!item) return;
+
+  const token = canvas?.tokens?.get(speaker.token) ?? actor.getActiveTokens()[0] ?? null;
+  const targetToken = Array.from(game.user.targets)[0] ?? null;
+
+  const context = {
+    itemUuid: item.uuid,
+    actorUuid: actor.uuid,
+    tokenUuid: token?.document?.uuid ?? token?.uuid ?? null,
+    targetTokenUuid: targetToken?.document?.uuid ?? targetToken?.uuid ?? null,
+    criticaled: false,
+    fumbled: false
+  };
+
+  const newFlags = foundry.utils.deepClone(flags);
+  newFlags.world = {
+    ...(newFlags.world ?? {}),
+    context
+  };
+
+  message.updateSource({ flags: newFlags });
+}
 
   // Aplica desvantagem de Fome para a rota simples de atributo.
   if (game.symbaroum?.api?.rollAttribute) {
