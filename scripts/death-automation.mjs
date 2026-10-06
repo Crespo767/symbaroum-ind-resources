@@ -100,8 +100,8 @@ export class DeathAutomationService {
             Hooks.on("deleteActiveEffect", (effect, options, userId) => {
       if (effect.parent instanceof Actor && effect.parent.type === "player") {
           const actor = effect.parent;
-          if (effect.statuses.has(DYING_STATUS_ID) || effect.flags?.[MODULE_ID]?.deathAutomation) {
-              if (getDeathState(actor)?.status === "dying" && this.isManager(actor, userId)) {
+          if (effect.statuses.has(DYING_STATUS_ID) || effect.statuses.has("dead") || effect.flags?.[MODULE_ID]?.deathAutomation) {
+              if (["dying", "dead"].includes(getDeathState(actor)?.status) && this.isManager(actor, userId)) {
                   void this.recoverActor(actor, { announce: false }).catch(logError);
               }
           }
@@ -109,7 +109,7 @@ export class DeathAutomationService {
     });
 
     Hooks.on("updateActor", (actor, changes, options, userId) => {
-      if (changes.system?.nbrOfFailedDeathRoll === 0 && getDeathState(actor)?.status === "dying") {
+      if (changes.system?.nbrOfFailedDeathRoll === 0 && ["dying", "dead"].includes(getDeathState(actor)?.status)) {
           if (this.isManager(actor, userId)) {
               void this.recoverActor(actor, { announce: false }).catch(logError);
           }
@@ -193,7 +193,7 @@ export class DeathAutomationService {
     try {
       const state = getDeathState(actor);
       const current = toughness(actor);
-      if (current > 0 && state?.status === "dying") {
+      if (current > 0 && ["dying", "dead"].includes(state?.status)) {
         await this.recoverActor(actor, { healing: Math.max(0, current - Number(previousToughness || 0)), announce });
         return true;
       }
@@ -318,7 +318,7 @@ export class DeathAutomationService {
     if (recoverBtn && !recoverBtn.dataset.tenebreRecoverBound) {
         recoverBtn.dataset.tenebreRecoverBound = "true";
         recoverBtn.addEventListener("click", () => {
-            if (this.isEnabled() && getDeathState(app.actor)?.status === "dying") {
+            if (this.isEnabled() && ["dying", "dead"].includes(getDeathState(app.actor)?.status)) {
                 if (this.isManager(app.actor, game.user.id)) {
                     void this.recoverActor(app.actor, { announce: false }).catch(logError);
                 }
