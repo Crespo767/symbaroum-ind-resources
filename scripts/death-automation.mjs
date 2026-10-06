@@ -97,7 +97,13 @@ export class DeathAutomationService {
     registered = true;
     SocketService.registerHandler(SOCKET_HANDLER, resolveDeathTestAsAuthority);
 
-    Hooks.on("updateActor", (actor, changes, options, userId) => {
+        Hooks.on("updateActor", (actor, changes, options, userId) => {
+      if (changes.system?.nbrOfFailedDeathRoll === 0 && getDeathState(actor)?.status === "dying") {
+          if (this.isManager(actor, userId)) {
+              void this.recoverActor(actor, { announce: false }).catch(logError);
+          }
+      }
+
       const current = toughness(actor);
       const previous = Number(options?.[MODULE_ID]?.previousToughness ?? knownToughness.get(actorKey(actor)) ?? current);
       knownToughness.set(actorKey(actor), current);
@@ -288,11 +294,11 @@ export class DeathAutomationService {
     }
   }
 
-  static syncNativeSheetButtons(app, html) {
+    static syncNativeSheetButtons(app, html) {
     if (app?.actor?.type !== "player") return;
     const root = html?.[0] ?? html ?? app.element;
     const windowRoot = root?.closest?.(".window-app") ?? app.element ?? root;
-    for (const button of windowRoot?.querySelectorAll?.(".death-roll, .recover-death-roll") ?? []) {
+    for (const button of windowRoot?.querySelectorAll?.(".death-roll") ?? []) {
       button.hidden = this.isEnabled();
       button.classList.toggle("tenebre-death-system-hidden", this.isEnabled());
     }
