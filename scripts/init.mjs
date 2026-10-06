@@ -1,4 +1,4 @@
-﻿import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
+import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { patchWeaponRolls } from "./weapon-wrapper.mjs";
 import { registerSheetHooks } from "./sheet-ui.mjs";
@@ -124,13 +124,14 @@ function applyNpcAttackContextToMessage(message, data, options, userId) {
 
   const content = String(message?.content ?? data?.content ?? "");
   const isCombat = content.includes("symbaroum chat combat") || message.flags?.symbaroum?.type === "combat";
-  if (!isCombat && !content.match(/^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)[.!]?$/i)) return;
+  if (!isCombat) return;
 
   const flags = message?.flags ?? data?.flags ?? {};
   if (flags.world?.context?.itemUuid) return;
 
-  const textContent = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  const match = textContent.match(/^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)[.!]?$/i);
+  const doc = new DOMParser().parseFromString(content, "text/html");
+  const introTxt = doc.querySelector(".introTxt")?.textContent?.trim() || "";
+  const match = introTxt.match(/^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)[.!]?$/i);
   if (!match) return;
 
   const speaker = message.speaker ?? data.speaker ?? {};
@@ -144,7 +145,13 @@ function applyNpcAttackContextToMessage(message, data, options, userId) {
   if (!item) return;
 
   const token = canvas?.tokens?.get(speaker.token) ?? actor.getActiveTokens()[0] ?? null;
-  const targetToken = Array.from(game.user.targets)[0] ?? null;
+
+  // Find target from the chat card or current selection
+  let targetToken = Array.from(game.user.targets)[0] ?? null;
+  const targetText = doc.querySelector(".targetText")?.textContent?.replace(/^(?:V[ií]tima|Victim)\s*:\s*/i, "")?.trim();
+  if (targetText && !targetToken) {
+    targetToken = canvas?.tokens?.placeables.find(t => t.name === targetText) ?? null;
+  }
 
   const context = {
     itemUuid: item.uuid,
@@ -159,6 +166,10 @@ function applyNpcAttackContextToMessage(message, data, options, userId) {
   newFlags.world = {
     ...(newFlags.world ?? {}),
     context
+  };
+  newFlags[MODULE_ID] = {
+    ...(newFlags[MODULE_ID] ?? {}),
+    autoAnimationTrigger: true
   };
 
   message.updateSource({ flags: newFlags });
@@ -638,3 +649,31 @@ function normalizeText(value) {
     .trim()
     .toLowerCase();
 }
+
+Hooks.on("createChatMessage", (message, options, userId) => {
+  if (userId !== game.user.id) return;
+  if (!TenebreSettings.get("enableAutomatedAnimationsIntegration")) return;
+
+  if (message.flags?.[MODULE_ID]?.autoAnimationTrigger) {
+      const context = message.flags.world?.context;
+      if (!context) return;
+      
+      const token = canvas.tokens.get(context.tokenUuid?.split('.').pop());
+      const target = canvas.tokens.get(context.targetTokenUuid?.split('.').pop());
+      
+      let item = null;
+      if (context.itemUuid) {
+          // fromUuidSync might return a Compendium index instead of the item if not loaded, 
+          // but for actor items it works fine.
+          item = fromUuidSync(context.itemUuid);
+      }
+      
+      if (token && item && game.modules.get("autoanimations")?.active) {
+          if (typeof AutoAnimations !== "undefined" && AutoAnimations.playAnimation) {
+              AutoAnimations.playAnimation(token, target ? [target] : [], item);
+          } else if (game.modules.get("autoanimations")?.api?.playAnimation) {
+              game.modules.get("autoanimations").api.playAnimation(token, target ? [target] : [], item);
+          }
+      }
+  }
+});
