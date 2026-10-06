@@ -40,7 +40,7 @@ import { PainThresholdChoiceService } from "./pain-threshold-choice.mjs";
 import { StandUpService } from "./stand-up.mjs";
 import { DeathAutomationService, isDeathIncapacitated } from "./death-automation.mjs";
 import { ActorCreationService } from "./actor-creation.mjs";
-import { HerbalCureService } from "./herbal-cure.mjs";
+import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 
 Hooks.once("init", () => {
   ActorCreationService.register();
@@ -291,6 +291,18 @@ function exposePublicApi() {
     money: MoneyService,
     journalIntegration: JournalIntegrationService,
     bithir: game.bithirmod,
+    herbalCure: HerbalCureService,
+    isHerbalCure: isHerbalCureItem,
+    useItem: async (actor, item) => {
+      if (!actor || !item) return null;
+      if (isHerbalCureItem(item)) return HerbalCureService.use(actor, item);
+      if (isRation(item)) return RationService.consumeDay(actor, item);
+      return null;
+    },
+    isUsableItem: (item) => {
+      if (!item) return false;
+      return isHerbalCureItem(item) || isRation(item);
+    },
     inspectActorResources,
     diagnostics: {
       version: game.modules.get(MODULE_ID)?.version ?? null,
