@@ -1,4 +1,4 @@
-import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
+﻿import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { patchWeaponRolls } from "./weapon-wrapper.mjs";
 import { registerSheetHooks } from "./sheet-ui.mjs";
@@ -189,7 +189,7 @@ function applyNpcAttackContextToMessage(message, data, options, userId) {
     };
 
     if (CompatibilityService.canUseLibWrapper()) {
-      libWrapper.register(MODULE_ID, "game.symbaroum.api.rollAttribute", wrappedRollAttribute, "WRAPPER");
+      libWrapper.register(MODULE_ID, "game.symbaroum.api.rollAttribute", wrappedRollAttribute, "MIXED");
     } else if (!originalRollAttribute._tenebreWrapped) {
       game.symbaroum.api.rollAttribute = function tenebreRollAttribute(...args) {
         return wrappedRollAttribute.call(this, originalRollAttribute, ...args);
@@ -452,7 +452,7 @@ function patchSymbaroumActorUsePower() {
     }
   };
   if (CompatibilityService.canUseLibWrapper()) {
-    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.usePower", wrappedUsePower, "WRAPPER");
+    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.usePower", wrappedUsePower, "MIXED");
   } else {
     ActorClass.prototype.usePower = async function tenebreUsePower(...args) {
       return wrappedUsePower.call(this, originalUsePower, ...args);
