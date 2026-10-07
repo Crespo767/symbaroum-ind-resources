@@ -13,8 +13,17 @@ const indicatorSyncs = new Map();
 
 export const WeaponReadinessVisualService = {
   registerHooks() {
-    Hooks.on("updateItem", (item) => {
-      if (item?.type === "weapon") queueIndicatorSync(item.parent);
+    Hooks.on("updateItem", (item, changes) => {
+      if (item?.type === "weapon") {
+        queueIndicatorSync(item.parent);
+        if (changes?.system?.state !== undefined || changes?.flags?.[FLAG_SCOPE]?.[WEAPON_READINESS_INDICATOR_WEAPON_FLAG] !== undefined) {
+          const actor = item.parent;
+          if (actor) {
+            const weapons = Array.from(actor.items ?? []).filter((i) => isEligibleWeapon(i) && isDrawn(i));
+            void syncActorCombatState(actor, weapons);
+          }
+        }
+      }
     });
     Hooks.on("deleteItem", (item) => {
       if (item?.type === "weapon") queueIndicatorSync(item.parent);
@@ -228,41 +237,51 @@ async function syncActorCombatState(actor, currentWeapons = []) {
   if (tokens.length === 0) return;
 
   const isArmed = Array.isArray(currentWeapons) && currentWeapons.length > 0;
+  console.info(`${MODULE_ID} | syncActorCombatState: ${actor?.name} (armas sacadas: ${isArmed})`);
 
   for (const token of tokens) {
-    if (!token?.document) continue;
+    const tokenDoc = token?.document ?? token;
+    if (!tokenDoc) continue;
 
     if (isArmed) {
-      if (!token.inCombat) {
+      if (!tokenDoc.inCombat) {
         try {
-          let combat = game.combat;
-          if (!combat) {
-            if (game.user.isGM) {
-              combat = await Combat.create({ scene: canvas.scene?.id });
-            }
+          let combat = game.combats?.find((c) => c.scene?.id === canvas.scene?.id) ?? game.combat;
+          if (!combat && game.user.isGM) {
+            combat = await Combat.create({ scene: canvas.scene?.id });
           }
           if (combat) {
-            await token.toggleCombatant();
+            if (typeof tokenDoc.toggleCombatant === "function") {
+              await tokenDoc.toggleCombatant({ combat });
+            } else if (typeof token.toggleCombatant === "function") {
+              await token.toggleCombatant({ combat });
+            } else {
+              await combat.createEmbeddedDocuments("Combatant", [{
+                tokenId: tokenDoc.id,
+                sceneId: canvas.scene?.id,
+                actorId: actor?.id
+              }]);
+            }
           }
         } catch (error) {
-          console.warn(`${MODULE_ID} | Não foi possível colocar token em combate: ${token.name}`, error);
+          console.warn(`${MODULE_ID} | Não foi possível colocar token em combate: ${tokenDoc.name}`, error);
         }
       }
     } else {
-      if (token.inCombat) {
+      if (tokenDoc.inCombat) {
         try {
-          const combat = game.combat;
-          const combatant = combat?.getCombatantByToken?.(token.id);
+          const combat = game.combats?.find((c) => c.scene?.id === canvas.scene?.id) ?? game.combat;
+          const combatant = combat?.combatants?.find((c) => c.tokenId === tokenDoc.id);
           if (combatant) {
             await combatant.delete();
           }
         } catch (error) {
-          console.warn(`${MODULE_ID} | Não foi possível remover token de combate: ${token.name}`, error);
+          console.warn(`${MODULE_ID} | Não foi possível remover token de combate: ${tokenDoc.name}`, error);
         }
       }
     }
 
-    // Se o Token Variant Art estiver instalado e expuser API de reavaliação de efeitos/expressões
+    // Dispara a reavaliação de imagem no Token Variant Art se o módulo estiver presente
     try {
       const tva = game.modules.get("token-variants");
       if (tva?.active) {
