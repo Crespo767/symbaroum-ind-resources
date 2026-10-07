@@ -10,6 +10,7 @@ export const WEAPON_READINESS_STATUS_ID = `${MODULE_ID}.weapon-readiness`;
 const DRAW_ANIMATION = "jb2a.impact.006.yellow";
 const SHEATHE_ANIMATION = "jb2a.impact.003.blue";
 const indicatorSyncs = new Map();
+const combatSyncTimers = new Map();
 
 export const WeaponReadinessVisualService = {
   registerHooks() {
@@ -17,11 +18,7 @@ export const WeaponReadinessVisualService = {
       if (item?.type === "weapon") {
         queueIndicatorSync(item.parent);
         if (changes?.system?.state !== undefined || changes?.flags?.[FLAG_SCOPE]?.[WEAPON_READINESS_INDICATOR_WEAPON_FLAG] !== undefined) {
-          const actor = item.parent;
-          if (actor) {
-            const weapons = Array.from(actor.items ?? []).filter((i) => isEligibleWeapon(i) && isDrawn(i));
-            void syncActorCombatState(actor, weapons);
-          }
+          queueCombatSync(item.parent);
         }
       }
     });
@@ -31,7 +28,7 @@ export const WeaponReadinessVisualService = {
     Hooks.on(`${MODULE_ID}.weaponReadinessChanged`, ({ actor, drawn, sheathed, current }) => {
       queueIndicatorSync(actor);
       void playReadinessAnimation(actor, drawn, sheathed);
-      void syncActorCombatState(actor, current);
+      queueCombatSync(actor, current);
     });
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key) => {
       if (key === "enableWeaponReadiness" || key === "showWeaponReadinessTokenIndicator") {
@@ -61,6 +58,22 @@ export const WeaponReadinessVisualService = {
     return state.promise;
   }
 };
+
+function queueCombatSync(actor, currentWeapons = null) {
+  if (!actor || !TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
+  const actorKey = actor.uuid ?? actor.id;
+  if (combatSyncTimers.has(actorKey)) {
+    window.clearTimeout(combatSyncTimers.get(actorKey));
+  }
+  const timer = window.setTimeout(() => {
+    combatSyncTimers.delete(actorKey);
+    const weapons = currentWeapons !== null
+      ? currentWeapons
+      : Array.from(actor.items ?? []).filter((i) => isEligibleWeapon(i) && isDrawn(i));
+    void syncActorCombatState(actor, weapons);
+  }, 100);
+  combatSyncTimers.set(actorKey, timer);
+}
 
 async function runQueuedIndicatorSync(actor, state) {
   let changed = false;
@@ -237,7 +250,6 @@ async function syncActorCombatState(actor, currentWeapons = []) {
   if (tokens.length === 0) return;
 
   const isArmed = Array.isArray(currentWeapons) && currentWeapons.length > 0;
-  console.info(`${MODULE_ID} | syncActorCombatState: ${actor?.name} (armas sacadas: ${isArmed})`);
 
   for (const token of tokens) {
     const tokenDoc = token?.document ?? token;
@@ -272,11 +284,11 @@ async function syncActorCombatState(actor, currentWeapons = []) {
         try {
           const combat = game.combats?.find((c) => c.scene?.id === canvas.scene?.id) ?? game.combat;
           const combatant = combat?.combatants?.find((c) => c.tokenId === tokenDoc.id);
-          if (combatant) {
+          if (combatant && combat.combatants.has(combatant.id)) {
             await combatant.delete();
           }
         } catch (error) {
-          console.warn(`${MODULE_ID} | Não foi possível remover token de combate: ${tokenDoc.name}`, error);
+          // Ignora silenciosamente se o combatente já foi removido por outro evento
         }
       }
     }
