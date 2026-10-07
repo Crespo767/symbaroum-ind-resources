@@ -59,8 +59,13 @@ export const WeaponReadinessVisualService = {
   }
 };
 
+function isPlayerActor(actor) {
+  const type = String(actor?.type ?? "").toLowerCase();
+  return type === "player" || type === "character";
+}
+
 function queueCombatSync(actor, currentWeapons = null) {
-  if (!actor || !TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
+  if (!actor || !isPlayerActor(actor) || !TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
   const actorKey = actor.uuid ?? actor.id;
   if (combatSyncTimers.has(actorKey)) {
     window.clearTimeout(combatSyncTimers.get(actorKey));
@@ -241,7 +246,7 @@ function getActorToken(actor) {
 }
 
 async function syncActorCombatState(actor, currentWeapons = []) {
-  if (!TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
+  if (!actor || !isPlayerActor(actor) || !TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
 
   const isExecutor = isIndicatorExecutor(actor) || actor?.isOwner || game.user?.isGM;
   if (!isExecutor) return;

@@ -132,6 +132,9 @@ export function buildWeaponReadinessDialogContent(weapons, labels = {}) {
 
 export function canAttackWithWeapon(item) {
   if (item?.type !== "weapon") return true;
+  const actor = item.parent;
+  const actorType = String(actor?.type ?? "").toLowerCase();
+  if (actor && actorType !== "player" && actorType !== "character") return true;
   if (String(item.system?.reference ?? "").toLowerCase() === "unarmed") return true;
   return isEligibleWeapon(item) && isDrawn(item);
 }
