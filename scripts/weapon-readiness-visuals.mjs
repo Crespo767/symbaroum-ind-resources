@@ -220,37 +220,62 @@ function getActorToken(actor) {
 
 async function syncActorCombatState(actor, currentWeapons = []) {
   if (!TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
-  if (!isIndicatorExecutor(actor)) return;
 
-  const token = getActorToken(actor);
-  if (!token?.document) return;
+  const isExecutor = isIndicatorExecutor(actor) || actor?.isOwner || game.user?.isGM;
+  if (!isExecutor) return;
+
+  const tokens = actor?.getActiveTokens?.(true, true) ?? [];
+  if (tokens.length === 0) return;
 
   const isArmed = Array.isArray(currentWeapons) && currentWeapons.length > 0;
-  const combat = game.combat;
 
-  if (isArmed) {
-    if (!token.inCombat) {
-      try {
-        if (!combat) {
-          if (game.user.isGM) {
-            await Combat.create({ scene: canvas.scene?.id });
-          } else {
-            return;
+  for (const token of tokens) {
+    if (!token?.document) continue;
+
+    if (isArmed) {
+      if (!token.inCombat) {
+        try {
+          let combat = game.combat;
+          if (!combat) {
+            if (game.user.isGM) {
+              combat = await Combat.create({ scene: canvas.scene?.id });
+            }
           }
+          if (combat) {
+            await token.toggleCombatant();
+          }
+        } catch (error) {
+          console.warn(`${MODULE_ID} | Não foi possível colocar token em combate: ${token.name}`, error);
         }
-        await token.toggleCombatant();
-      } catch (error) {
-        console.warn(`${MODULE_ID} | Não foi possível sincronizar entrada em combate para ${actor?.name}.`, error);
+      }
+    } else {
+      if (token.inCombat) {
+        try {
+          const combat = game.combat;
+          const combatant = combat?.getCombatantByToken?.(token.id);
+          if (combatant) {
+            await combatant.delete();
+          }
+        } catch (error) {
+          console.warn(`${MODULE_ID} | Não foi possível remover token de combate: ${token.name}`, error);
+        }
       }
     }
-  } else if (token.inCombat && combat) {
+
+    // Se o Token Variant Art estiver instalado e expuser API de reavaliação de efeitos/expressões
     try {
-      const combatant = combat.getCombatantByToken(token.id);
-      if (combatant) {
-        await combatant.delete();
+      const tva = game.modules.get("token-variants");
+      if (tva?.active) {
+        if (typeof globalThis.tokenVariants?.updateTokenImage === "function") {
+          void globalThis.tokenVariants.updateTokenImage(token);
+        } else if (typeof globalThis.TokenVariants?.evaluateEffects === "function") {
+          void globalThis.TokenVariants.evaluateEffects(token);
+        } else if (typeof tva.api?.evaluateEffects === "function") {
+          void tva.api.evaluateEffects(token);
+        }
       }
-    } catch (error) {
-      console.warn(`${MODULE_ID} | Não foi possível sincronizar saída de combate para ${actor?.name}.`, error);
+    } catch (_tvaErr) {
+      // Ignora silenciosamente caso não possua a API exposta
     }
   }
 }
