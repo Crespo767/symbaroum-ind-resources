@@ -1,5 +1,6 @@
 import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { COMPAT_MODULES, CompatibilityService } from "./compatibility.mjs";
+import { TenebreSettings } from "./settings.mjs";
 import { isDrawn, isEligibleWeapon } from "./weapon-readiness.mjs";
 
 export const WEAPON_READINESS_INDICATOR_FLAG = "weaponReadinessIndicator";
@@ -18,9 +19,10 @@ export const WeaponReadinessVisualService = {
     Hooks.on("deleteItem", (item) => {
       if (item?.type === "weapon") queueIndicatorSync(item.parent);
     });
-    Hooks.on(`${MODULE_ID}.weaponReadinessChanged`, ({ actor, drawn, sheathed }) => {
+    Hooks.on(`${MODULE_ID}.weaponReadinessChanged`, ({ actor, drawn, sheathed, current }) => {
       queueIndicatorSync(actor);
       void playReadinessAnimation(actor, drawn, sheathed);
+      void syncActorCombatState(actor, current);
     });
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key) => {
       if (key === "enableWeaponReadiness" || key === "showWeaponReadinessTokenIndicator") {
@@ -214,4 +216,41 @@ async function playReadinessAnimation(actor, drawn, sheathed) {
 function getActorToken(actor) {
   const tokens = actor?.getActiveTokens?.(true, true) ?? [];
   return tokens.find((token) => token.document?.parent?.id === canvas.scene?.id) ?? tokens[0] ?? null;
+}
+
+async function syncActorCombatState(actor, currentWeapons = []) {
+  if (!TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
+  if (!isIndicatorExecutor(actor)) return;
+
+  const token = getActorToken(actor);
+  if (!token?.document) return;
+
+  const isArmed = Array.isArray(currentWeapons) && currentWeapons.length > 0;
+  const combat = game.combat;
+
+  if (isArmed) {
+    if (!token.inCombat) {
+      try {
+        if (!combat) {
+          if (game.user.isGM) {
+            await Combat.create({ scene: canvas.scene?.id });
+          } else {
+            return;
+          }
+        }
+        await token.toggleCombatant();
+      } catch (error) {
+        console.warn(`${MODULE_ID} | Não foi possível sincronizar entrada em combate para ${actor?.name}.`, error);
+      }
+    }
+  } else if (token.inCombat && combat) {
+    try {
+      const combatant = combat.getCombatantByToken(token.id);
+      if (combatant) {
+        await combatant.delete();
+      }
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Não foi possível sincronizar saída de combate para ${actor?.name}.`, error);
+    }
+  }
 }

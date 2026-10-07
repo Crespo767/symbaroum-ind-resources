@@ -538,6 +538,8 @@
   "TENEBRE.Settings.HideNpcDetailsInChatHint": "When enabled, only the Game Master sees NPC Protection and the effective damage received.",
   "TENEBRE.Settings.EnableWeaponReadiness": "Enable Draw/Sheathe Weapon",
   "TENEBRE.Settings.EnableWeaponReadinessHint": "Allows weapons to be declared drawn and swaps several weapons in one operation while synchronizing their native item state.",
+  "TENEBRE.Settings.EnableWeaponReadinessCombatSync": "Enter combat when drawing a weapon",
+  "TENEBRE.Settings.EnableWeaponReadinessCombatSyncHint": "Adds the token to the active Combat encounter when drawing a weapon and removes it when sheathing all weapons (triggering integrations like Token Variants token-variants-combat).",
   "TENEBRE.Settings.ShowWeaponReadinessButton": "Show floating Draw/Sheathe Weapon button",
   "TENEBRE.Settings.ShowWeaponReadinessButtonHint": "Shows a draggable Draw/Sheathe Weapon shortcut. Its position is saved separately for each user.",
   "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator": "Show drawn weapon on token",

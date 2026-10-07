@@ -147,6 +147,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableCompactNpcAttackChat",
       "hideNpcDetailsInChat",
       "enableWeaponReadiness",
+      "enableWeaponReadinessCombatSync",
       "showWeaponReadinessButton",
       "showWeaponReadinessTokenIndicator",
       "enableWeaponReadinessAnimation",
@@ -330,6 +331,7 @@ export class TenebreSettings {
     register("enableCompactNpcAttackChat", Boolean, true, "TENEBRE.Settings.ChatMessageStyle", "TENEBRE.Settings.ChatMessageStyleHint");
     register("hideNpcDetailsInChat", Boolean, false, "TENEBRE.Settings.HideNpcDetailsInChat", "TENEBRE.Settings.HideNpcDetailsInChatHint");
     register("enableWeaponReadiness", Boolean, true, "TENEBRE.Settings.EnableWeaponReadiness", "TENEBRE.Settings.EnableWeaponReadinessHint");
+    register("enableWeaponReadinessCombatSync", Boolean, false, "TENEBRE.Settings.EnableWeaponReadinessCombatSync", "TENEBRE.Settings.EnableWeaponReadinessCombatSyncHint");
     register("showWeaponReadinessButton", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessButton", "TENEBRE.Settings.ShowWeaponReadinessButtonHint");
     register("showWeaponReadinessTokenIndicator", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator", "TENEBRE.Settings.ShowWeaponReadinessTokenIndicatorHint");
     register("enableWeaponReadinessAnimation", Boolean, true, "TENEBRE.Settings.EnableWeaponReadinessAnimation", "TENEBRE.Settings.EnableWeaponReadinessAnimationHint");

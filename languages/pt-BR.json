@@ -538,6 +538,8 @@
   "TENEBRE.Settings.HideNpcDetailsInChatHint": "Quando ativado, somente o Mestre vê a Proteção e o dano efetivamente recebido pelo NPC.",
   "TENEBRE.Settings.EnableWeaponReadiness": "Ativar Sacar/Guardar Arma",
   "TENEBRE.Settings.EnableWeaponReadinessHint": "Permite declarar quais armas estão sacadas e trocar várias armas em uma única operação, sincronizando o estado nativo dos itens.",
+  "TENEBRE.Settings.EnableWeaponReadinessCombatSync": "Colocar em combate ao sacar arma",
+  "TENEBRE.Settings.EnableWeaponReadinessCombatSyncHint": "Adiciona o token ao Combate ativo ao sacar uma arma e remove do combate ao guardar todas as armas (ativando integrações como Token Variants com token-variants-combat).",
   "TENEBRE.Settings.ShowWeaponReadinessButton": "Exibir botão flutuante Sacar/Guardar Arma",
   "TENEBRE.Settings.ShowWeaponReadinessButtonHint": "Exibe um atalho arrastável para Sacar/Guardar Arma. A posição é salva separadamente para cada usuário.",
   "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator": "Exibir arma sacada no token",
