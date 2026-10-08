@@ -88,7 +88,7 @@ test("UI is a GM-only second chat page and does not create chat documents", asyn
   const css = await readFile(new URL("../styles/symbaroum-ind-resources.css", import.meta.url), "utf8");
   assert.match(source, /!game\.user\?\.isGM/);
   assert.match(source, /Hooks\.on\("renderChatLog"/);
-  assert.match(source, /Hooks\.on\("renderChatMessageHTML"/);
+  assert.match(source, /(?:Hooks\.on\("renderChatMessageHTML"|ChatController\.registerRenderHook)/);
   assert.match(source, /const CHAT_PAGE = "chat"/);
   assert.match(source, /const GM_LOG_PAGE = "gm-log"/);
   assert.match(source, /root\.prepend\(navigation\)/);

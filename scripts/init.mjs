@@ -1,4 +1,4 @@
-﻿import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
+import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { patchWeaponRolls } from "./weapon-wrapper.mjs";
 import { registerSheetHooks } from "./sheet-ui.mjs";
@@ -139,6 +139,10 @@ function applyNpcAttackContextToMessage(message, data, options, userId) {
   
   const actor = game.actors.get(speaker.actor);
   if (!actor) return;
+
+  // Automação exclusiva para NPCs/monstros. Personagens de jogadores utilizam o fluxo nativo do Automated Animations.
+  const isPlayer = actor.type === "player" || actor.type === "character" || Boolean(actor.hasPlayerOwner);
+  if (isPlayer) return;
 
   const weaponName = match[2].trim().toLowerCase();
   const item = actor.items.find(i => i.name.toLowerCase() === weaponName || i.name.toLowerCase().includes(weaponName));
@@ -681,10 +685,15 @@ Hooks.on("createChatMessage", (message, options, userId) => {
       }
       
       if (token && item && game.modules.get("autoanimations")?.active) {
-          if (typeof AutoAnimations !== "undefined" && AutoAnimations.playAnimation) {
-              AutoAnimations.playAnimation(token, target ? [target] : [], item);
+          const targets = target ? [target] : [];
+          if (typeof AutomatedAnimations !== "undefined" && typeof AutomatedAnimations.playAnimation === "function") {
+              AutomatedAnimations.playAnimation(token, item, { targets });
+          } else if (typeof AutomatedAnimations !== "undefined" && typeof AutomatedAnimations.PlayAnimation === "function") {
+              AutomatedAnimations.PlayAnimation(token, item, { targets });
+          } else if (typeof AutoAnimations !== "undefined" && AutoAnimations.playAnimation) {
+              AutoAnimations.playAnimation(token, targets, item);
           } else if (game.modules.get("autoanimations")?.api?.playAnimation) {
-              game.modules.get("autoanimations").api.playAnimation(token, target ? [target] : [], item);
+              game.modules.get("autoanimations").api.playAnimation(token, targets, item);
           }
       }
   }

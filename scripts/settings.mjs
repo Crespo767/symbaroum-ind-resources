@@ -2,10 +2,13 @@ import { DEFAULTS, MODULE_ID } from "./constants.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { StatusEffectPickerService } from "./status-effect-picker.mjs";
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { ApplicationV2, HandlebarsApplicationMixin } = globalThis.foundry?.applications?.api ?? {};
+const BaseSettingsForm = typeof HandlebarsApplicationMixin === "function"
+  ? HandlebarsApplicationMixin(ApplicationV2 ?? class {})
+  : class {};
 let pendingSheetRerender = null;
 
-export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV2) {
+export class TenebreSettingsForm extends BaseSettingsForm {
   static settingCategory = "rations";
 
   static DEFAULT_OPTIONS = {

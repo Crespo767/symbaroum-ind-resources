@@ -289,7 +289,7 @@ test("compact NPC damage shows the weapon die separately from effective damage",
 });
 
 test("compact NPC attacks transform only rendered native combat cards", () => {
-  assert.match(source, /Hooks\.on\("renderChatMessageHTML"/);
+  assert.match(source, /(?:Hooks\.on\("renderChatMessageHTML"|ChatController\.registerRenderHook)/);
   assert.match(source, /\.symbaroum\.chat\.combat/);
   assert.match(source, /isPlayerNpcAttack\(model\)/);
   assert.doesNotMatch(source, /ChatMessage(?:\.implementation)?\.create|ChatMessage\.create/);

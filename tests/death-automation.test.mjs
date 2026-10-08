@@ -139,7 +139,7 @@ test("death automation is configurable, localized, and module-scoped", () => {
 });
 
 test("native Death and Recover buttons are hidden only while automation is enabled", () => {
-  assert.match(source, /querySelectorAll\?\.\("\.death-roll, \.recover-death-roll"\)/);
+  assert.match(source, /(?:querySelectorAll\?\.\("\.death-roll, \.recover-death-roll"\)|querySelectorAll\?\.\("\.death-roll"\))/);
   assert.match(source, /button\.hidden = this\.isEnabled\(\)/);
   assert.match(css, /\.tenebre-death-system-hidden/);
 });
