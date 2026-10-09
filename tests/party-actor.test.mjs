@@ -290,3 +290,27 @@ test("PartyActorSheet template contains only total and artifactrr experience fie
   assert.ok(en["TENEBRE.Party.ExperienceArtifactrrTooltip"], "en has ExperienceArtifactrrTooltip");
 });
 
+test("PartyActorSheet member cards have parchment background and foreground class", () => {
+  const templatePath = path.join(root, "templates/party-sheet.hbs");
+  const templateContent = fs.readFileSync(templatePath, "utf8");
+  assert.match(
+    templateContent,
+    /class="[^"]*party-member-card\s+foreground[^"]*"/,
+    "party-member-card has foreground class"
+  );
+
+  const cssPath = path.join(root, "styles/symbaroum-ind-resources.css");
+  const cssContent = fs.readFileSync(cssPath, "utf8");
+  assert.match(
+    cssContent,
+    /\.tenebre-party-sheet\s+\.party-member-card\s*\{[^}]*background-image:\s*url\(["']?\/systems\/symbaroum\/asset\/image\/foreground\.webp["']?\)/,
+    "party-member-card has foreground.webp background-image"
+  );
+  assert.match(
+    cssContent,
+    /\.tenebre-party-sheet\s+\.party-member-card\s*\{[^}]*background-color:\s*#e2ddcf/,
+    "party-member-card has solid fallback background-color"
+  );
+});
+
+
