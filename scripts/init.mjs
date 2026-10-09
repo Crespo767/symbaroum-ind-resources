@@ -44,31 +44,63 @@ import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import { PartyActorService } from "./party-actor.mjs";
 
 Hooks.once("init", () => {
-  PartyActorService.register();
-  ActorCreationService.register();
-  HerbalCureService.register();
-  InventoryDefaultStateService.registerHooks();
-  TenebreSettings.register();
-  CompatibilityService.register();
-  MovementService.register();
-  RollPrivacyService.register();
-  NpcAttackChatService.register();
-  OpposedTestChatService.register();
-  BerserkerChatService.register();
-  ResistanceChatService.register();
-  PainThresholdChoiceService.register();
-  StandUpService.register();
-  DeathAutomationService.register();
-  registerKeybindings();
-  TokenActionHudIntegration.register();
+  try {
+    TenebreSettings.register();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao registrar TenebreSettings:", err);
+  }
 
-  HungerService.registerStatusEffect();
-  ManeuverService.registerStatusEffects();
-  setupBithirMod();
+  try {
+    PartyActorService.register();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao registrar PartyActorService:", err);
+  }
+
+  try {
+    ActorCreationService.register();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao registrar ActorCreationService:", err);
+  }
+
+  try {
+    HerbalCureService.register();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao registrar HerbalCureService:", err);
+  }
+
+  try {
+    InventoryDefaultStateService.registerHooks();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao registrar InventoryDefaultStateService:", err);
+  }
+
+  try {
+    CompatibilityService.register();
+    MovementService.register();
+    RollPrivacyService.register();
+    NpcAttackChatService.register();
+    OpposedTestChatService.register();
+    BerserkerChatService.register();
+    ResistanceChatService.register();
+    PainThresholdChoiceService.register();
+    StandUpService.register();
+    DeathAutomationService.register();
+    registerKeybindings();
+    TokenActionHudIntegration.register();
+    HungerService.registerStatusEffect();
+    ManeuverService.registerStatusEffects();
+    setupBithirMod();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao inicializar serviços complementares:", err);
+  }
 });
 
 Hooks.once("setup", () => {
-  PartyActorService.registerSetup();
+  try {
+    PartyActorService.registerSetup();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha em PartyActorService.registerSetup:", err);
+  }
   exposePublicApi();
 });
 

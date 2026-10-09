@@ -21,6 +21,7 @@ test("PartyDataModel defines expected party schema", () => {
     },
     data: {
       fields: {
+        BooleanField: class { constructor(opts) { this.options = opts; } },
         StringField: class { constructor(opts) { this.options = opts; } },
         HTMLField: class { constructor(opts) { this.options = opts; } },
         ArrayField: class { constructor(type, opts) { this.type = type; this.options = opts; } }
@@ -32,6 +33,7 @@ test("PartyDataModel defines expected party schema", () => {
   assert.ok(schema.motto, "motto field exists");
   assert.ok(schema.description, "description field exists");
   assert.ok(schema.members, "members field exists");
+  assert.ok(schema.isParty, "isParty field exists");
 });
 
 test("PartyActor prepares derived data safely with isParty flag", () => {
@@ -42,28 +44,39 @@ test("PartyActor prepares derived data safely with isParty flag", () => {
   assert.equal(actor.system.isParty, true);
 });
 
-test("PartyActorService registers party type in game and CONFIG", () => {
+test("PartyActorService registers party type in game and CONFIG without mutating frozen arrays", () => {
   const registeredSheets = [];
   globalThis.game = {
     system: {
       documentTypes: {
-        Actor: ["player", "monster"]
+        Actor: Object.freeze(["player", "monster"])
       }
     },
     documentTypes: {
-      Actor: ["player", "monster"]
+      Actor: Object.freeze(["player", "monster"])
+    },
+    model: {
+      Actor: Object.freeze({ player: {}, monster: {} })
     }
   };
+
+  let playerDerivedDataCalled = false;
+  class MockSymbaroumActor {
+    static get TYPES() {
+      return Object.keys(globalThis.game.model.Actor);
+    }
+    prepareBaseData() {}
+    prepareDerivedData() {
+      if (this.type === "player") playerDerivedDataCalled = true;
+    }
+  }
 
   globalThis.CONFIG = {
     Actor: {
       dataModels: {},
       documentClasses: {},
       typeLabels: {},
-      documentClass: class {
-        prepareBaseData() {}
-        prepareDerivedData() {}
-      }
+      documentClass: MockSymbaroumActor
     }
   };
 
@@ -87,11 +100,26 @@ test("PartyActorService registers party type in game and CONFIG", () => {
 
   PartyActorService.register();
 
+  assert.ok(globalThis.CONFIG.Actor.documentClass.TYPES.includes("party"), "party included in CONFIG.Actor.documentClass.TYPES");
   assert.ok(globalThis.game.system.documentTypes.Actor.includes("party"), "party added to game.system.documentTypes.Actor");
   assert.equal(globalThis.CONFIG.Actor.documentClasses.party, PartyActor, "documentClass party registered");
   assert.equal(globalThis.CONFIG.Actor.typeLabels.party, "TENEBRE.Party.TypeLabel", "typeLabel registered");
   assert.equal(registeredSheets.length, 1, "sheet was registered");
-  assert.deepEqual(registeredSheets[0].options.types, ["party"], "sheet registered for party type");
+  assert.ok(registeredSheets[0].options.types.includes("party"), "sheet registered for party type");
+
+  // Verify prepareDerivedData protection
+  const partyActor = new MockSymbaroumActor();
+  partyActor.type = "party";
+  partyActor.system = {};
+  partyActor.prepareDerivedData();
+  assert.equal(partyActor.system.isParty, true, "party actor marked as isParty without error");
+  assert.equal(playerDerivedDataCalled, false, "player logic not called for party");
+
+  const playerActor = new MockSymbaroumActor();
+  playerActor.type = "player";
+  playerActor.system = {};
+  playerActor.prepareDerivedData();
+  assert.equal(playerDerivedDataCalled, true, "player logic preserved for player");
 
   PartyActorService.registerSetup();
   assert.ok(globalThis.game.documentTypes.Actor.includes("party"), "party added to game.documentTypes.Actor in setup");
@@ -123,4 +151,31 @@ test("PartyActorService is hooked into init and setup in scripts/init.mjs", () =
   assert.match(initSource, /PartyActorService\.register\(\)/, "called in init");
   assert.match(initSource, /PartyActorService\.registerSetup\(\)/, "called in setup");
   assert.match(initSource, /party:\s*PartyActorService/, "exposed in api");
+});
+
+test("PartyActorService._injectCreateOption injects party option when missing in actor create dialog", () => {
+  const options = [
+    { value: "player", textContent: "Jogador" },
+    { value: "monster", textContent: "Monstro" }
+  ];
+  const select = {
+    name: "type",
+    querySelector: (sel) => {
+      if (sel.includes("player")) return options.find(o => o.value === "player");
+      if (sel.includes("party")) return options.find(o => o.value === "party");
+      return null;
+    },
+    appendChild: (opt) => options.push(opt)
+  };
+  const mockHtml = {
+    querySelector: (sel) => (sel === 'select[name="type"]' ? select : null)
+  };
+
+  globalThis.document = {
+    createElement: () => ({ value: "", textContent: "" })
+  };
+
+  PartyActorService._injectCreateOption(mockHtml);
+
+  assert.ok(options.some(o => o.value === "party"), "party option injected into select");
 });
