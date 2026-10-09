@@ -32,32 +32,39 @@
 
         <div class="sheet-body">
             <div class="tab" data-group="primary" data-tab="characters">
-                <div class="party-members-list" style="display: flex; flex-direction: column; gap: 8px; margin: 5px;">
+                <div class="party-members-list">
                     {{#each members}}
-                    <div class="party-member-row" data-actor-id="{{id}}" style="display: flex; flex-direction: row; align-items: stretch; gap: 6px; width: 100%;">
-                        <div class="member-portrait foreground border" data-action="open-member-sheet" data-actor-id="{{id}}" data-tooltip="{{name}}" style="flex: 0 0 90px; height: 80px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; padding: 2px;">
-                            <img src="{{img}}" alt="{{name}}" style="width: 100%; height: 100%; object-fit: cover; border: 0 none; display: block;" />
+                    <div class="party-member-card" data-actor-id="{{id}}">
+                        <!-- Imagem do Personagem -->
+                        <div class="member-portrait" data-action="open-member-sheet" data-actor-id="{{id}}" data-tooltip="{{name}}">
+                            <img src="{{img}}" alt="{{name}}" />
                         </div>
-                        <div class="member-info foreground border" style="flex: 1; min-height: 80px; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px;">
-                            <div class="member-details" data-action="open-member-sheet" data-actor-id="{{id}}" style="cursor: pointer; display: flex; flex-direction: column; gap: 4px;">
-                                <span class="member-name" style="font-family: var(--font-title); font-size: 1.15em; font-weight: bold; color: var(--color-title);">{{name}}</span>
-                                {{#if system.bio.race}}
-                                <span class="member-sub" style="font-size: 0.85em; opacity: 0.85;">{{system.bio.race}}{{#if system.bio.occupation}} · {{system.bio.occupation}}{{/if}}</span>
-                                {{/if}}
-                            </div>
-                            {{#if ../editable}}
-                            <div class="member-actions" style="display: flex; align-items: center;">
-                                <a class="item-control member-delete" data-action="remove-member" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.RemoveMember"}}" style="color: #8b0000; cursor: pointer; padding: 6px 8px; font-size: 1.1em;">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
+
+                        <!-- Nome, Ocupação, Quantidade de XP -->
+                        <div class="member-identity" data-action="open-member-sheet" data-actor-id="{{id}}">
+                            <span class="member-name">{{name}}</span>
+                            {{#if occupation}}
+                            <span class="member-occupation">• {{occupation}}</span>
                             {{/if}}
+                            <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
                         </div>
+
+                        <!-- Campo de informações (reservado para novas funcionalidades) -->
+                        <div class="member-info-box"></div>
+
+                        <!-- Botão de exclusão / remover membro -->
+                        {{#if ../editable}}
+                        <div class="member-actions">
+                            <a class="item-control member-delete" data-action="remove-member" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.RemoveMember"}}">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
+                        </div>
+                        {{/if}}
                     </div>
                     {{/each}}
 
                     {{#unless members.length}}
-                    <div class="party-empty-dropzone" style="text-align: center; color: var(--color-title); padding: 35px 20px; border: 2px dashed rgba(60, 40, 20, 0.4); border-radius: 4px; background: rgba(0, 0, 0, 0.03); margin: 10px 0;">
+                    <div class="party-empty-dropzone">
                         <i class="fas fa-user-plus" style="font-size: 2.2em; opacity: 0.55; margin-bottom: 10px; display: block;"></i>
                         <h4 style="margin: 0 0 5px; font-weight: bold; font-family: var(--font-title); font-size: 1.1em;">{{localize "TENEBRE.Party.CharactersEmptyTitle"}}</h4>
                         <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">{{localize "TENEBRE.Party.CharactersEmptyHint"}}</p>

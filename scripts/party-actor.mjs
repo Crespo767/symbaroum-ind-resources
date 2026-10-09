@@ -112,13 +112,25 @@ export class PartyActorSheet extends BaseActorSheet {
         } catch {}
       }
       if (memberActor) {
+        const sys = memberActor.system ?? {};
+        const bio = sys.bio ?? {};
+        const exp = sys.experience ?? {};
+        const totalXp = Number(exp.total) || 0;
+        const availableXp = exp.available !== undefined ? (Number(exp.available) || 0) : totalXp;
+        const occupation = (bio.occupation && typeof bio.occupation === "string") ? bio.occupation.trim() : "";
+        const race = (bio.race && typeof bio.race === "string") ? bio.race.trim() : "";
+        const occupationDisplay = occupation || race || "";
+
         members.push({
           id: memberActor.id,
           uuid: memberActor.uuid,
           name: memberActor.name,
           img: memberActor.img,
+          occupation: occupationDisplay,
+          totalXp: totalXp,
+          availableXp: availableXp,
           actor: memberActor,
-          system: memberActor.system
+          system: sys
         });
       }
     }

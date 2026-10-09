@@ -212,7 +212,17 @@ test("PartyActorSheet manages members via _onDropActor, _onRemoveMember, and get
     }
   };
 
-  const hero1 = { id: "hero1", uuid: "Actor.hero1", name: "Hero 1", img: "hero1.png", type: "player", system: { bio: { race: "Ambriano" } } };
+  const hero1 = {
+    id: "hero1",
+    uuid: "Actor.hero1",
+    name: "Hero 1",
+    img: "hero1.png",
+    type: "player",
+    system: {
+      bio: { occupation: "Médico", race: "Ambriano" },
+      experience: { total: 30, available: 12 }
+    }
+  };
   const hero2 = { id: "hero2", uuid: "Actor.hero2", name: "Hero 2", img: "hero2.png", type: "player", system: { bio: { race: "Bárbaro" } } };
   const anotherParty = { id: "party999", uuid: "Actor.party999", type: "party" };
 
@@ -229,10 +239,13 @@ test("PartyActorSheet manages members via _onDropActor, _onRemoveMember, and get
   sheet.actor = mockPartyActor;
   sheet.isEditable = true;
 
-  // 1. getData resolves members
+  // 1. getData resolves members with occupation and XP
   const data = await sheet.getData();
   assert.equal(data.members.length, 1);
   assert.equal(data.members[0].name, "Hero 1");
+  assert.equal(data.members[0].occupation, "Médico");
+  assert.equal(data.members[0].totalXp, 30);
+  assert.equal(data.members[0].availableXp, 12);
 
   // 2. _onDropActor rejects self
   const dropSelf = await sheet._onDropActor({}, { id: "party123" });

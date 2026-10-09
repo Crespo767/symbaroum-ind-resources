@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
    Tenebre Resources — Stylesheet v2
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -3739,6 +3739,130 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 
 .tenebre-death-system-hidden {
   display: none !important;
+}
+
+/* ========================================================================== */
+/* Tenebre Party Sheet - Members List Layout                                 */
+/* ========================================================================== */
+
+.tenebre-party-sheet .party-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 5px 2px;
+}
+
+.tenebre-party-sheet .party-member-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: var(--chat-background, #e2ddcf);
+  border: 1px solid #3c3022;
+  border-radius: 3px;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.2);
+  padding: 5px 8px;
+  min-height: 84px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tenebre-party-sheet .member-portrait {
+  flex: 0 0 76px;
+  width: 76px;
+  height: 76px;
+  cursor: pointer;
+  border: 1px solid #2b2015;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #1a1612;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tenebre-party-sheet .member-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0 none;
+  display: block;
+  transition: transform 0.15s ease;
+}
+
+.tenebre-party-sheet .member-portrait:hover img {
+  transform: scale(1.04);
+}
+
+.tenebre-party-sheet .member-identity {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  margin-left: 14px;
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.tenebre-party-sheet .member-identity .member-name {
+  font-family: var(--font-title, serif);
+  font-size: 1.25em;
+  font-weight: bold;
+  color: #1a1612;
+  line-height: 1.2;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.tenebre-party-sheet .member-identity .member-occupation,
+.tenebre-party-sheet .member-identity .member-xp {
+  font-size: 0.9em;
+  color: #3e3224;
+  line-height: 1.2;
+}
+
+.tenebre-party-sheet .member-info-box {
+  flex: 1;
+  min-height: 72px;
+  margin: 0 14px;
+  border: 1px dashed rgba(80, 60, 40, 0.4);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.015);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tenebre-party-sheet .member-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.tenebre-party-sheet .member-delete {
+  color: #3c3022;
+  cursor: pointer;
+  padding: 8px 10px;
+  font-size: 1.4em;
+  opacity: 0.75;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.tenebre-party-sheet .member-delete:hover {
+  color: #8b1111;
+  opacity: 1;
+}
+
+.tenebre-party-sheet .party-empty-dropzone {
+  text-align: center;
+  color: var(--color-title, #2b2015);
+  padding: 40px 20px;
+  border: 2px dashed rgba(60, 40, 20, 0.4);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
+  margin: 10px 0;
 }
 
 
