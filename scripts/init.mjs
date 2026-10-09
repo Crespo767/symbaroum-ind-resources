@@ -41,8 +41,10 @@ import { StandUpService } from "./stand-up.mjs";
 import { DeathAutomationService, isDeathIncapacitated } from "./death-automation.mjs";
 import { ActorCreationService } from "./actor-creation.mjs";
 import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
+import { PartyActorService } from "./party-actor.mjs";
 
 Hooks.once("init", () => {
+  PartyActorService.register();
   ActorCreationService.register();
   HerbalCureService.register();
   InventoryDefaultStateService.registerHooks();
@@ -66,6 +68,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("setup", () => {
+  PartyActorService.registerSetup();
   exposePublicApi();
 });
 
@@ -294,6 +297,7 @@ function exposePublicApi() {
     statusEffects: StatusEffectPickerService,
     money: MoneyService,
     journalIntegration: JournalIntegrationService,
+    party: PartyActorService,
     bithir: game.bithirmod,
     herbalCure: HerbalCureService,
     isHerbalCure: isHerbalCureItem,
@@ -391,11 +395,13 @@ function patchSymbaroumRollDialogs() {
   const originalRender = Dialog.prototype.render;
   const wrappedRender = function(wrapped, ...args) {
     const content = String(this.data?.content ?? this.content ?? "");
-    if (content.includes("symbaroum dialog") && hasFavourRollOptions(content)) {
-      if (this.data?.content !== undefined) {
-        this.data.content = RollPrivacyService.injectField(content);
-      } else if (this.content !== undefined) {
-        this.content = RollPrivacyService.injectField(content);
+    if (content.includes("symbaroum dialog")) {
+      if (hasFavourRollOptions(content)) {
+        if (this.data?.content !== undefined) {
+          this.data.content = RollPrivacyService.injectField(content);
+        } else if (this.content !== undefined) {
+          this.content = RollPrivacyService.injectField(content);
+        }
       }
       const actorId = pendingDialogActorId ?? extractActorIdFromDialogContent(content);
       if (actorId) {
@@ -450,9 +456,6 @@ function patchSymbaroumActorUsePower() {
     } finally {
       pendingDialogActorId = previousActorId;
       pendingPowerUseContext = previousPowerContext;
-      if (activePowerChatContext?.itemUuid === powerContext?.itemUuid) {
-        setActivePowerChatContext(null);
-      }
     }
   };
   if (CompatibilityService.canUseLibWrapper()) {
@@ -488,14 +491,17 @@ function patchSymbaroumDerivedPenalties() {
 }
 
 function wrapDialogRollButton(dialog) {
-  const rollButton = dialog.data?.buttons?.roll;
+  const buttons = dialog.data?.buttons ?? dialog.buttons ?? {};
+  const rollButton = buttons.roll ?? Object.values(buttons)[0];
   if (!rollButton?.callback || rollButton.callback._tenebreWrapped) return;
 
   const originalCallback = rollButton.callback;
   rollButton.callback = async function tenebreRollDialogCallback(html, ...args) {
     const privateRoll = RollPrivacyService.isChecked(html);
     return RollPrivacyService.runPrivateRoll(privateRoll, async () => {
-      setActivePowerChatContext(dialog?._tenebrePowerChatContext ?? null);
+      if (dialog?._tenebrePowerChatContext) {
+        setActivePowerChatContext(dialog._tenebrePowerChatContext);
+      }
       applyStatusFavourToDialog(html, dialog);
       return originalCallback.call(this, html, ...args);
     });
@@ -504,13 +510,46 @@ function wrapDialogRollButton(dialog) {
 }
 
 function applyPowerChatContextToMessage(message, data) {
-  if (!activePowerChatContext) return;
   if (!TenebreSettings.get("enableAutomatedAnimationsIntegration")) return;
 
   const content = String(message?.content ?? data?.content ?? "");
   if (!isSymbaroumAbilityChat(content)) return;
 
-  const context = foundry.utils.deepClone(activePowerChatContext);
+  let context = activePowerChatContext ? foundry.utils.deepClone(activePowerChatContext) : null;
+
+  if (!context) {
+    const speaker = message?.speaker ?? data?.speaker ?? {};
+    const actor = speaker.actor ? game.actors.get(speaker.actor) : null;
+    if (actor) {
+      const doc = new DOMParser().parseFromString(content, "text/html");
+      const subText = doc.querySelector(".subText")?.textContent?.trim() || "";
+      const abilityName = subText.split("(")[0]?.trim().toLowerCase();
+      const introTxt = doc.querySelector(".introTxt")?.textContent?.trim() || "";
+
+      let item = null;
+      if (abilityName) {
+        item = actor.items.find(i => ["ability", "mysticalPower", "mystical-power", "ritual", "trait"].includes(i.type) && i.name.toLowerCase() === abilityName)
+          ?? actor.items.find(i => ["ability", "mysticalPower", "mystical-power", "ritual", "trait"].includes(i.type) && i.name.toLowerCase().includes(abilityName));
+      }
+
+      if (!item) {
+        const itemId = doc.querySelector("[data-item-id]")?.dataset?.itemId;
+        if (itemId) item = actor.items.get(itemId);
+      }
+
+      if (!item && introTxt) {
+        const lowerIntro = introTxt.toLowerCase();
+        item = actor.items.find(i => ["ability", "mysticalPower", "mystical-power", "ritual", "trait"].includes(i.type) && lowerIntro.includes(i.name.toLowerCase()));
+      }
+
+      if (item) {
+        context = buildPowerUseChatContext(actor, item);
+      }
+    }
+  }
+
+  if (!context) return;
+
   const flags = foundry.utils.deepClone(message?.flags ?? data?.flags ?? {});
   if (flags.world?.context?.itemUuid) return;
 
@@ -520,6 +559,7 @@ function applyPowerChatContextToMessage(message, data) {
   };
   flags[MODULE_ID] = {
     ...(flags[MODULE_ID] ?? {}),
+    autoAnimationTrigger: true,
     chatItemUse: true,
     itemUuid: context.itemUuid,
     actorUuid: context.actorUuid,
@@ -538,7 +578,7 @@ function isSymbaroumAbilityChat(content) {
 
 function buildPowerUseChatContext(actor, item) {
   if (!TenebreSettings.get("enableAutomatedAnimationsIntegration")) return null;
-  if (!actor || !item || !ChatItemUseService.canSend(item)) return null;
+  if (!actor || !item) return null;
 
   const token = getActorTokenForContext(actor);
   const targetToken = Array.from(game.user?.targets ?? [])[0] ?? null;
@@ -674,8 +714,14 @@ Hooks.on("createChatMessage", (message, options, userId) => {
       const context = message.flags.world?.context;
       if (!context) return;
       
-      const token = canvas.tokens.get(context.tokenUuid?.split('.').pop());
-      const target = canvas.tokens.get(context.targetTokenUuid?.split('.').pop());
+      let token = canvas.tokens.get(context.tokenUuid?.split('.').pop());
+      if (!token && context.tokenUuid) token = fromUuidSync(context.tokenUuid)?.object ?? null;
+      if (!token && context.actorUuid) {
+          const actor = fromUuidSync(context.actorUuid);
+          token = actor?.getActiveTokens?.()?.[0] ?? null;
+      }
+      let target = canvas.tokens.get(context.targetTokenUuid?.split('.').pop());
+      if (!target && context.targetTokenUuid) target = fromUuidSync(context.targetTokenUuid)?.object ?? null;
       
       let item = null;
       if (context.itemUuid) {

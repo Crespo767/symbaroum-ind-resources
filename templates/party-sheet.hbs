@@ -1,0 +1,31 @@
+<form class="{{cssClass}}" autocomplete="off">
+    <div class="player party">
+        <div class="sheet-header foreground border">
+            <div class="avatar" style="position:relative">
+                <img class="profile-img" src="{{actor.img}}" data-edit="img" data-tooltip="{{actor.name}}" />
+            </div>
+            <div class="wrapper-column">
+                <div class="wrapper-row">
+                    <div class="name">
+                        <label for="{{id}}-name">{{localize "BIO.NAME"}}</label>
+                        <input id="{{id}}-name" name="name" type="text" value="{{actor.name}}" />
+                    </div>
+                </div>
+                <div class="wrapper-row">
+                    <div class="occupation" style="flex: 1;">
+                        <label for="{{id}}-system-motto">{{localize "TENEBRE.Party.Motto"}}</label>
+                        <input id="{{id}}-system-motto" name="system.motto" type="text" value="{{system.motto}}" placeholder="{{localize "TENEBRE.Party.MottoPlaceholder"}}" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sheet-body" style="padding: 20px 15px; min-height: 240px;">
+            <div class="party-clean-container" style="text-align: center; color: #5a4a3a; padding: 40px 20px; border: 1px dashed rgba(100, 75, 45, 0.3); border-radius: 4px; background: rgba(0, 0, 0, 0.02);">
+                <i class="fas fa-users" style="font-size: 2.4em; opacity: 0.5; margin-bottom: 12px; display: block;"></i>
+                <h3 style="margin: 0 0 6px; font-weight: bold; font-size: 1.15em;">{{localize "TENEBRE.Party.Title"}}</h3>
+                <p style="margin: 0; font-size: 0.9em; opacity: 0.85;">{{localize "TENEBRE.Party.EmptyHint"}}</p>
+            </div>
+        </div>
+    </div>
+</form>

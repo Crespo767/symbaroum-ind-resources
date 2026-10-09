@@ -846,5 +846,12 @@
   "TENEBRE.HerbalCure.MethodPrompt": "How do you want to use the Herbal Cure?",
   "TENEBRE.HerbalCure.UseMedicus": "Use with Medicus",
   "TENEBRE.HerbalCure.UseStandard": "Use normally (heal 1)",
-  "TENEBRE.HerbalCure.MedicusUnavailable": "This character does not have the Medicus ability; only normal healing is available."
+  "TENEBRE.HerbalCure.MedicusUnavailable": "This character does not have the Medicus ability; only normal healing is available.",
+  "TYPES.Actor.party": "Party",
+  "TENEBRE.Party.TypeLabel": "Party Sheet",
+  "TENEBRE.Party.SheetLabel": "Party Sheet",
+  "TENEBRE.Party.Title": "Party Sheet",
+  "TENEBRE.Party.Motto": "Motto / Description",
+  "TENEBRE.Party.MottoPlaceholder": "E.g.: Company of Davokar",
+  "TENEBRE.Party.EmptyHint": "Party sheet created successfully. We will build party members and features step by step."
 }
