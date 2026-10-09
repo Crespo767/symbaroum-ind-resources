@@ -47,8 +47,19 @@
                             <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
                         </div>
 
-                        <!-- Campo de informações (reservado para novas funcionalidades) -->
-                        <div class="member-info-box"></div>
+                        <!-- Campo de informações: 4 maiores atributos no canto esquerdo -->
+                        <div class="member-info-box">
+                            {{#if topAttributes.length}}
+                            <div class="member-top-attributes" data-tooltip="{{localize "TENEBRE.Party.TopAttributesTooltip"}}">
+                                {{#each topAttributes}}
+                                <div class="member-attr-badge" data-action="roll-member-attribute" data-actor-id="{{../id}}" data-attribute="{{key}}" data-tooltip="{{label}}: {{total}}">
+                                    <span class="attr-abbr">{{abbr}}</span>
+                                    <span class="attr-val">{{total}}</span>
+                                </div>
+                                {{/each}}
+                            </div>
+                            {{/if}}
+                        </div>
 
                         <!-- Botão de exclusão / remover membro -->
                         {{#if ../editable}}

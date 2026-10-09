@@ -860,5 +860,6 @@
   "TENEBRE.Party.CharactersEmptyTitle": "No characters in party",
   "TENEBRE.Party.CharactersEmptyHint": "Drag character sheets from the sidebar here to add them.",
   "TENEBRE.Party.ExperienceTotalTooltip": "Total Party XP",
-  "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Spent on Rerolls/Artifacts"
+  "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Spent on Rerolls/Artifacts",
+  "TENEBRE.Party.TopAttributesTooltip": "Top attributes (click to roll)"
 }

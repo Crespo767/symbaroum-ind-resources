@@ -313,4 +313,86 @@ test("PartyActorSheet member cards have parchment background and foreground clas
   );
 });
 
+test("PartyActorSheet resolves top 4 attributes and delegates attribute rolls", async () => {
+  let rolledAttribute = null;
+  const mockHero = {
+    id: "heroX",
+    name: "Hero X",
+    system: {
+      attributes: {
+        accurate: { total: 13, label: "ATTRIBUTE.ACCURATE" },
+        cunning: { total: 15, label: "ATTRIBUTE.CUNNING" },
+        discreet: { total: 10, label: "ATTRIBUTE.DISCREET" },
+        persuasive: { total: 9, label: "ATTRIBUTE.PERSUASIVE" },
+        quick: { total: 11, label: "ATTRIBUTE.QUICK" },
+        resolute: { total: 7, label: "ATTRIBUTE.RESOLUTE" },
+        strong: { total: 10, label: "ATTRIBUTE.STRONG" },
+        vigilant: { total: 5, label: "ATTRIBUTE.VIGILANT" }
+      }
+    },
+    rollAttribute: async (attr) => {
+      rolledAttribute = attr;
+      return true;
+    }
+  };
+
+  const sheet = new PartyActorSheet();
+  sheet.actor = { system: { members: ["heroX"] } };
+  globalThis.game = {
+    actors: new Map([["heroX", mockHero]]),
+    i18n: {
+      localize: (key) => {
+        const dict = {
+          "ATTRIBUTE.CUNNING": "Astuto",
+          "ATTRIBUTE.CUNNINGABBR": "AST",
+          "ATTRIBUTE.ACCURATE": "Preciso",
+          "ATTRIBUTE.ACCURATEABBR": "PRE",
+          "ATTRIBUTE.QUICK": "Rápido",
+          "ATTRIBUTE.QUICKABBR": "RAP",
+          "ATTRIBUTE.STRONG": "Vigoroso",
+          "ATTRIBUTE.STRONGABBR": "VGR"
+        };
+        return dict[key] || key;
+      }
+    }
+  };
+
+  const top = sheet._getMemberTopAttributes(mockHero, 4);
+  assert.equal(top.length, 4, "returns exactly 4 attributes");
+  assert.equal(top[0].key, "cunning");
+  assert.equal(top[0].total, 15);
+  assert.equal(top[0].abbr, "AST");
+  assert.equal(top[1].key, "accurate");
+  assert.equal(top[1].total, 13);
+  assert.equal(top[1].abbr, "PRE");
+  assert.equal(top[2].key, "quick");
+  assert.equal(top[2].total, 11);
+  assert.equal(top[2].abbr, "RAP");
+  assert.equal(top[3].total, 10);
+
+  // Test roll delegation
+  await sheet._onRollMemberAttribute("heroX", "cunning");
+  assert.equal(rolledAttribute, "cunning", "delegates roll to memberActor.rollAttribute");
+
+  // Test template includes attributes badges
+  const templatePath = path.join(root, "templates/party-sheet.hbs");
+  const templateContent = fs.readFileSync(templatePath, "utf8");
+  assert.match(templateContent, /class="member-top-attributes"/);
+  assert.match(templateContent, /data-action="roll-member-attribute"/);
+  assert.match(templateContent, /class="member-attr-badge"/);
+
+  // Test css styles
+  const cssPath = path.join(root, "styles/symbaroum-ind-resources.css");
+  const cssContent = fs.readFileSync(cssPath, "utf8");
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.member-top-attributes/);
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.member-attr-badge/);
+
+  // Test localization
+  const ptBr = JSON.parse(fs.readFileSync(path.join(root, "languages/pt-BR.json"), "utf8"));
+  const en = JSON.parse(fs.readFileSync(path.join(root, "languages/en.json"), "utf8"));
+  assert.ok(ptBr["TENEBRE.Party.TopAttributesTooltip"], "pt-BR has TopAttributesTooltip");
+  assert.ok(en["TENEBRE.Party.TopAttributesTooltip"], "en has TopAttributesTooltip");
+});
+
+
 

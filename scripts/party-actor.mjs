@@ -120,6 +120,7 @@ export class PartyActorSheet extends BaseActorSheet {
         const occupation = (bio.occupation && typeof bio.occupation === "string") ? bio.occupation.trim() : "";
         const race = (bio.race && typeof bio.race === "string") ? bio.race.trim() : "";
         const occupationDisplay = occupation || race || "";
+        const topAttributes = this._getMemberTopAttributes(memberActor, 4);
 
         members.push({
           id: memberActor.id,
@@ -129,6 +130,7 @@ export class PartyActorSheet extends BaseActorSheet {
           occupation: occupationDisplay,
           totalXp: totalXp,
           availableXp: availableXp,
+          topAttributes: topAttributes,
           actor: memberActor,
           system: sys
         });
@@ -136,6 +138,69 @@ export class PartyActorSheet extends BaseActorSheet {
     }
     data.members = members;
     return data;
+  }
+
+  _getMemberTopAttributes(memberActor, count = 4) {
+    const sys = memberActor?.system ?? {};
+    const attrs = sys.attributes ?? {};
+    const list = [];
+
+    const ATTR_ABBR_MAP = {
+      accurate: "PRE",
+      cunning: "AST",
+      discreet: "DIS",
+      persuasive: "PER",
+      quick: "RAP",
+      resolute: "RES",
+      strong: "VGR",
+      vigilant: "VGL"
+    };
+
+    for (const [key, attrData] of Object.entries(attrs)) {
+      if (!attrData || typeof attrData !== "object") continue;
+      const total = Number(attrData.total ?? attrData.value ?? 0);
+      const labelKey = attrData.label || `ATTRIBUTE.${key.toUpperCase()}`;
+      const abbrKey = `ATTRIBUTE.${key.toUpperCase()}ABBR`;
+      const label = globalThis.game?.i18n?.localize ? globalThis.game.i18n.localize(labelKey) : labelKey;
+      let abbr = globalThis.game?.i18n?.localize ? globalThis.game.i18n.localize(abbrKey) : "";
+      if (!abbr || abbr === abbrKey) {
+        abbr = ATTR_ABBR_MAP[key] || key.substring(0, 3).toUpperCase();
+      }
+      list.push({
+        key,
+        total,
+        label,
+        abbr,
+        modifier: attrData.modifier
+      });
+    }
+
+    list.sort((a, b) => b.total - a.total);
+    return list.slice(0, count);
+  }
+
+  async _onRollMemberAttribute(actorId, attributeKey) {
+    let memberActor = globalThis.game?.actors?.get(actorId);
+    if (!memberActor && globalThis.fromUuidSync) {
+      try {
+        const doc = globalThis.fromUuidSync(actorId);
+        memberActor = doc?.actor ?? doc;
+      } catch {}
+    }
+    if (!memberActor) return;
+
+    if (typeof memberActor.rollAttribute === "function") {
+      return memberActor.rollAttribute(attributeKey);
+    }
+    if (typeof memberActor.sheet?._prepareRollAttribute === "function") {
+      return memberActor.sheet._prepareRollAttribute({
+        preventDefault: () => {},
+        target: { dataset: { attribute: attributeKey } }
+      });
+    }
+    if (typeof globalThis.game?.symbaroum?.api?.rollAttribute === "function") {
+      return globalThis.game.symbaroum.api.rollAttribute(memberActor, attributeKey);
+    }
   }
 
   activateListeners(html) {
@@ -151,6 +216,17 @@ export class PartyActorSheet extends BaseActorSheet {
         const targetActor = globalThis.game?.actors?.get(actorId)
           ?? (globalThis.fromUuid ? await globalThis.fromUuid(actorId) : null);
         targetActor?.sheet?.render(true);
+      });
+    });
+
+    root.querySelectorAll('[data-action="roll-member-attribute"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const actorId = el.dataset.actorId;
+        const attrKey = el.dataset.attribute;
+        if (!actorId || !attrKey) return;
+        await this._onRollMemberAttribute(actorId, attrKey);
       });
     });
 

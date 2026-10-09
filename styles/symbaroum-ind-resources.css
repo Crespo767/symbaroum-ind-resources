@@ -3832,7 +3832,59 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   background: rgba(0, 0, 0, 0.015);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding: 6px 10px;
+  box-sizing: border-box;
+}
+
+.tenebre-party-sheet .member-top-attributes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(56px, auto));
+  grid-auto-rows: 25px;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.tenebre-party-sheet .member-attr-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 2px 7px;
+  background: rgba(43, 32, 21, 0.08);
+  border: 1px solid rgba(60, 48, 34, 0.4);
+  border-radius: 2px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.tenebre-party-sheet .member-attr-badge:hover {
+  background: rgba(43, 32, 21, 0.18);
+  border-color: #2b2015;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.tenebre-party-sheet .member-attr-badge:active {
+  transform: translateY(0);
+}
+
+.tenebre-party-sheet .member-attr-badge .attr-abbr {
+  font-family: var(--font-title, serif);
+  font-size: 0.85em;
+  font-weight: bold;
+  color: #3c3022;
+  letter-spacing: 0.5px;
+}
+
+.tenebre-party-sheet .member-attr-badge .attr-val {
+  font-family: var(--font-text, sans-serif);
+  font-size: 0.95em;
+  font-weight: bold;
+  color: #1a1612;
 }
 
 .tenebre-party-sheet .member-actions {

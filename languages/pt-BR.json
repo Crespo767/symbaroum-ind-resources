@@ -860,5 +860,6 @@
   "TENEBRE.Party.CharactersEmptyTitle": "Nenhum personagem no grupo",
   "TENEBRE.Party.CharactersEmptyHint": "Arraste as fichas dos personagens da barra lateral para cá para adicioná-los.",
   "TENEBRE.Party.ExperienceTotalTooltip": "XP Total do Grupo",
-  "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Gasto com Rerolagens/Artefatos"
+  "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Gasto com Rerolagens/Artefatos",
+  "TENEBRE.Party.TopAttributesTooltip": "Maiores atributos (clique para rolar)"
 }
