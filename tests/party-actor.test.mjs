@@ -100,7 +100,9 @@ test("PartyActorService registers party type in game and CONFIG without mutating
 
   PartyActorService.register();
 
-  assert.ok(globalThis.CONFIG.Actor.documentClass.TYPES.includes("party"), "party included in CONFIG.Actor.documentClass.TYPES");
+  const types = globalThis.CONFIG.Actor.documentClass.TYPES;
+  const partyTypes = types.filter(t => t === "party" || t.endsWith(".party"));
+  assert.equal(partyTypes.length, 1, "exactly one party type exists in TYPES without duplicate");
   assert.ok(globalThis.game.system.documentTypes.Actor.includes("party"), "party added to game.system.documentTypes.Actor");
   assert.equal(globalThis.CONFIG.Actor.documentClasses.party, PartyActor, "documentClass party registered");
   assert.equal(globalThis.CONFIG.Actor.typeLabels.party, "TENEBRE.Party.TypeLabel", "typeLabel registered");
@@ -153,7 +155,7 @@ test("PartyActorService is hooked into init and setup in scripts/init.mjs", () =
   assert.match(initSource, /party:\s*PartyActorService/, "exposed in api");
 });
 
-test("PartyActorService._injectCreateOption injects party option when missing in actor create dialog", () => {
+test("PartyActorService._injectCreateOption injects party option when missing in actor create dialog and does not duplicate", () => {
   const options = [
     { value: "player", textContent: "Jogador" },
     { value: "monster", textContent: "Monstro" }
@@ -162,7 +164,7 @@ test("PartyActorService._injectCreateOption injects party option when missing in
     name: "type",
     querySelector: (sel) => {
       if (sel.includes("player")) return options.find(o => o.value === "player");
-      if (sel.includes("party")) return options.find(o => o.value === "party");
+      if (sel.includes("party")) return options.find(o => o.value === "party" || o.value.endsWith(".party"));
       return null;
     },
     appendChild: (opt) => options.push(opt)
@@ -177,5 +179,9 @@ test("PartyActorService._injectCreateOption injects party option when missing in
 
   PartyActorService._injectCreateOption(mockHtml);
 
-  assert.ok(options.some(o => o.value === "party"), "party option injected into select");
+  assert.equal(options.filter(o => o.value === "party" || o.value.endsWith(".party")).length, 1, "exactly one party option injected into select");
+
+  // Running again should not inject a second option
+  PartyActorService._injectCreateOption(mockHtml);
+  assert.equal(options.filter(o => o.value === "party" || o.value.endsWith(".party")).length, 1, "party option remains deduplicated");
 });

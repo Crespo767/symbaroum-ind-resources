@@ -95,7 +95,22 @@ export class PartyActorService {
           get() {
             const list = origDesc ? origDesc.get.call(this) : (Object.keys(globalThis.game?.model?.Actor ?? {}));
             const safeList = Array.isArray(list) ? [...list] : [];
-            if (!safeList.includes("party")) safeList.push("party");
+            const moduleType = `${MODULE_ID}.party`;
+
+            // Se o tipo do módulo já existir, remove qualquer "party" solto para evitar duplicata
+            if (safeList.includes(moduleType)) {
+              const partyIndex = safeList.indexOf("party");
+              if (partyIndex !== -1) safeList.splice(partyIndex, 1);
+              return safeList;
+            }
+
+            // Se já contiver "party", mantém apenas ele
+            if (safeList.includes("party")) {
+              return safeList;
+            }
+
+            // Se nenhum dos dois estiver presente, adiciona o tipo do módulo
+            safeList.push(moduleType);
             return safeList;
           },
           configurable: true,
@@ -198,13 +213,13 @@ export class PartyActorService {
     if (symbaroumActorClass?.prototype && !symbaroumActorClass.prototype._tenebrePartyProtected) {
       const origBaseData = symbaroumActorClass.prototype.prepareBaseData;
       symbaroumActorClass.prototype.prepareBaseData = function() {
-        if (this.type === "party" || this.type === `${MODULE_ID}.party`) return;
+        if (this.type === "party" || this.type === `${MODULE_ID}.party` || this.type?.endsWith(".party")) return;
         return origBaseData?.apply(this, arguments);
       };
 
       const origDerivedData = symbaroumActorClass.prototype.prepareDerivedData;
       symbaroumActorClass.prototype.prepareDerivedData = function() {
-        if (this.type === "party" || this.type === `${MODULE_ID}.party`) {
+        if (this.type === "party" || this.type === `${MODULE_ID}.party` || this.type?.endsWith(".party")) {
           if (this.system) this.system.isParty = true;
           return;
         }
@@ -215,7 +230,7 @@ export class PartyActorService {
   }
 
   /**
-   * Injeta com segurança a opção de "Ficha de Grupo" no diálogo de criação de ator,
+   * Injeta com segurança a opção de "Grupo" no diálogo de criação de ator,
    * servindo como camada extra de segurança caso o sistema ou outro módulo interfira.
    */
   static _injectCreateOption(html) {
@@ -229,14 +244,18 @@ export class PartyActorService {
       const hasActorOption = typeSelect.querySelector('option[value="player"], option[value="monster"]');
       if (!hasActorOption) return;
 
-      if (!typeSelect.querySelector('option[value="party"]')) {
-        const doc = globalThis.document;
-        if (!doc?.createElement) return;
-        const option = doc.createElement("option");
-        option.value = "party";
-        option.textContent = globalThis.game?.i18n?.localize("TENEBRE.Party.TypeLabel") || "Ficha de Grupo";
-        typeSelect.appendChild(option);
-      }
+      // Se qualquer opção de grupo já estiver presente no select, não adiciona duplicata
+      const existing = typeSelect.querySelector(
+        `option[value="party"], option[value="${MODULE_ID}.party"], option[value$=".party"]`
+      );
+      if (existing) return;
+
+      const doc = globalThis.document;
+      if (!doc?.createElement) return;
+      const option = doc.createElement("option");
+      option.value = `${MODULE_ID}.party`;
+      option.textContent = globalThis.game?.i18n?.localize("TENEBRE.Party.TypeLabel") || "Grupo";
+      typeSelect.appendChild(option);
     } catch {
       // Ignora erro de renderização
     }
