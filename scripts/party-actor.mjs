@@ -15,6 +15,14 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
     if (fields.BooleanField) {
       schema.isParty = new fields.BooleanField({ initial: true });
     }
+    if (fields.SchemaField && fields.NumberField) {
+      schema.experience = new fields.SchemaField({
+        total: new fields.NumberField({ initial: 0, integer: true, min: 0 }),
+        artifactrr: new fields.NumberField({ initial: 0, integer: true, min: 0 }),
+        spent: new fields.NumberField({ initial: 0, integer: true, min: 0 }),
+        available: new fields.NumberField({ initial: 0, integer: true })
+      });
+    }
     return schema;
   }
 }
@@ -33,6 +41,14 @@ export class PartyActor extends BaseActorClass {
   prepareDerivedData() {
     if (this.system) {
       this.system.isParty = true;
+      if (!this.system.experience) {
+        this.system.experience = { total: 0, artifactrr: 0, spent: 0, available: 0 };
+      }
+      const exp = this.system.experience;
+      const total = Number(exp.total) || 0;
+      const artifactrr = Number(exp.artifactrr) || 0;
+      const spent = Number(exp.spent) || 0;
+      exp.available = total - artifactrr - spent;
     }
   }
 }
@@ -49,13 +65,13 @@ export class PartyActorSheet extends BaseActorSheet {
     return globalThis.foundry?.utils?.mergeObject(superOptions, {
       classes: ["symbaroum", "sheet", "actor", "player", "party", "tenebre-party-sheet"],
       template: `modules/${MODULE_ID}/templates/party-sheet.hbs`,
-      width: 720,
+      width: 800,
       height: 580,
       resizable: true
     }) ?? {
       classes: ["symbaroum", "sheet", "actor", "player", "party", "tenebre-party-sheet"],
       template: `modules/${MODULE_ID}/templates/party-sheet.hbs`,
-      width: 720,
+      width: 800,
       height: 580,
       resizable: true
     };
@@ -63,8 +79,9 @@ export class PartyActorSheet extends BaseActorSheet {
 
   async getData(options) {
     const data = await super.getData?.(options) ?? {};
+    data.id = this.actor?.id;
     data.actor = this.actor;
-    data.system = this.actor.system;
+    data.system = this.actor?.system;
     data.cssClass = this.isEditable ? "editable" : "locked";
     data.editable = this.isEditable;
     return data;
@@ -220,7 +237,17 @@ export class PartyActorService {
       const origDerivedData = symbaroumActorClass.prototype.prepareDerivedData;
       symbaroumActorClass.prototype.prepareDerivedData = function() {
         if (this.type === "party" || this.type === `${MODULE_ID}.party` || this.type?.endsWith(".party")) {
-          if (this.system) this.system.isParty = true;
+          if (this.system) {
+            this.system.isParty = true;
+            if (!this.system.experience) {
+              this.system.experience = { total: 0, artifactrr: 0, spent: 0, available: 0 };
+            }
+            const exp = this.system.experience;
+            const total = Number(exp.total) || 0;
+            const artifactrr = Number(exp.artifactrr) || 0;
+            const spent = Number(exp.spent) || 0;
+            exp.available = total - artifactrr - spent;
+          }
           return;
         }
         return origDerivedData?.apply(this, arguments);

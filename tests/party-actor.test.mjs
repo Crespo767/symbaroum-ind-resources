@@ -24,7 +24,9 @@ test("PartyDataModel defines expected party schema", () => {
         BooleanField: class { constructor(opts) { this.options = opts; } },
         StringField: class { constructor(opts) { this.options = opts; } },
         HTMLField: class { constructor(opts) { this.options = opts; } },
-        ArrayField: class { constructor(type, opts) { this.type = type; this.options = opts; } }
+        ArrayField: class { constructor(type, opts) { this.type = type; this.options = opts; } },
+        SchemaField: class { constructor(fields) { this.fields = fields; } },
+        NumberField: class { constructor(opts) { this.options = opts; } }
       }
     }
   };
@@ -34,14 +36,18 @@ test("PartyDataModel defines expected party schema", () => {
   assert.ok(schema.description, "description field exists");
   assert.ok(schema.members, "members field exists");
   assert.ok(schema.isParty, "isParty field exists");
+  assert.ok(schema.experience, "experience field exists");
 });
 
-test("PartyActor prepares derived data safely with isParty flag", () => {
+test("PartyActor prepares derived data safely with isParty flag and experience calculation", () => {
   const actor = new PartyActor();
-  actor.system = {};
+  actor.system = {
+    experience: { total: 100, artifactrr: 10, spent: 25, available: 0 }
+  };
   actor.prepareBaseData();
   actor.prepareDerivedData();
   assert.equal(actor.system.isParty, true);
+  assert.equal(actor.system.experience.available, 65);
 });
 
 test("PartyActorService registers party type in game and CONFIG without mutating frozen arrays", () => {
