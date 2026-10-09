@@ -67,13 +67,27 @@ export class PartyActorSheet extends BaseActorSheet {
       template: `modules/${MODULE_ID}/templates/party-sheet.hbs`,
       width: 800,
       height: 580,
-      resizable: true
+      resizable: true,
+      tabs: [
+        {
+          navSelector: ".sheet-tabs",
+          contentSelector: ".sheet-body",
+          initial: "characters"
+        }
+      ]
     }) ?? {
       classes: ["symbaroum", "sheet", "actor", "player", "party", "tenebre-party-sheet"],
       template: `modules/${MODULE_ID}/templates/party-sheet.hbs`,
       width: 800,
       height: 580,
-      resizable: true
+      resizable: true,
+      tabs: [
+        {
+          navSelector: ".sheet-tabs",
+          contentSelector: ".sheet-body",
+          initial: "characters"
+        }
+      ]
     };
   }
 

@@ -854,5 +854,6 @@
   "TENEBRE.Party.Title": "Grupo",
   "TENEBRE.Party.Motto": "Lema / Descrição",
   "TENEBRE.Party.MottoPlaceholder": "Ex.: Comitiva de Davokar",
-  "TENEBRE.Party.EmptyHint": "Ficha criada com sucesso. Esta tela servirá de base para adicionarmos os membros e funcionalidades do grupo passo a passo."
+  "TENEBRE.Party.EmptyHint": "Ficha criada com sucesso. Esta tela servirá de base para adicionarmos os membros e funcionalidades do grupo passo a passo.",
+  "TENEBRE.Party.TabCharacters": "PERSONAGENS"
 }

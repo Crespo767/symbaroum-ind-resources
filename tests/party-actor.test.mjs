@@ -153,6 +153,8 @@ test("PartyActorSheet has symbaroum classes and valid template path", () => {
   assert.ok(options.classes.includes("symbaroum"), "has symbaroum class");
   assert.ok(options.classes.includes("party"), "has party class");
   assert.match(options.template, /templates\/party-sheet\.hbs$/, "template matches party-sheet.hbs");
+  assert.ok(Array.isArray(options.tabs), "has tabs configured");
+  assert.equal(options.tabs[0].initial, "characters", "initial tab is characters");
 });
 
 test("PartyActorService is hooked into init and setup in scripts/init.mjs", () => {

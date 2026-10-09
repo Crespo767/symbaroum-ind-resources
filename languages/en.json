@@ -854,5 +854,6 @@
   "TENEBRE.Party.Title": "Party",
   "TENEBRE.Party.Motto": "Motto / Description",
   "TENEBRE.Party.MottoPlaceholder": "E.g.: Company of Davokar",
-  "TENEBRE.Party.EmptyHint": "Party sheet created successfully. We will build party members and features step by step."
+  "TENEBRE.Party.EmptyHint": "Party sheet created successfully. We will build party members and features step by step.",
+  "TENEBRE.Party.TabCharacters": "CHARACTERS"
 }
