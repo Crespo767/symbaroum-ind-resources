@@ -856,9 +856,12 @@
   "TENEBRE.Party.MottoPlaceholder": "E.g.: Company of Davokar",
   "TENEBRE.Party.EmptyHint": "Party sheet created successfully. We will build party members and features step by step.",
   "TENEBRE.Party.TabCharacters": "CHARACTERS",
+  "TENEBRE.Party.TabInventory": "INVENTORY",
   "TENEBRE.Party.RemoveMember": "Remove from party",
   "TENEBRE.Party.CharactersEmptyTitle": "No characters in party",
   "TENEBRE.Party.CharactersEmptyHint": "Drag character sheets from the sidebar here to add them.",
+  "TENEBRE.Party.InventoryEmptyTitle": "Party Inventory",
+  "TENEBRE.Party.InventoryEmptyHint": "Reserved area for party inventory and equipment.",
   "TENEBRE.Party.ExperienceTotalTooltip": "Total Party XP",
   "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Spent on Rerolls/Artifacts",
   "TENEBRE.Party.TopAttributesTooltip": "Top attributes (click to roll)"

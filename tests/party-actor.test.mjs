@@ -394,5 +394,26 @@ test("PartyActorSheet resolves top 4 attributes and delegates attribute rolls", 
   assert.ok(en["TENEBRE.Party.TopAttributesTooltip"], "en has TopAttributesTooltip");
 });
 
+test("PartyActorSheet defines Inventory tab next to Characters tab", () => {
+  const templatePath = path.join(root, "templates/party-sheet.hbs");
+  const templateContent = fs.readFileSync(templatePath, "utf8");
+
+  assert.match(templateContent, /data-tab="characters"/, "has characters tab item");
+  assert.match(templateContent, /data-tab="inventory"/, "has inventory tab item");
+  assert.match(templateContent, /class="[^"]*tab[^"]*"\s+data-group="primary"\s+data-tab="inventory"/, "has inventory tab content container");
+
+  const ptBr = JSON.parse(fs.readFileSync(path.join(root, "languages/pt-BR.json"), "utf8"));
+  const en = JSON.parse(fs.readFileSync(path.join(root, "languages/en.json"), "utf8"));
+  assert.equal(ptBr["TENEBRE.Party.TabInventory"], "INVENTÁRIO");
+  assert.equal(en["TENEBRE.Party.TabInventory"], "INVENTORY");
+  assert.ok(ptBr["TENEBRE.Party.InventoryEmptyTitle"], "pt-BR has InventoryEmptyTitle");
+  assert.ok(en["TENEBRE.Party.InventoryEmptyTitle"], "en has InventoryEmptyTitle");
+
+  const cssPath = path.join(root, "styles/symbaroum-ind-resources.css");
+  const cssContent = fs.readFileSync(cssPath, "utf8");
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-inventory/);
+});
+
+
 
 

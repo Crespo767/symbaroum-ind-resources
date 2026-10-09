@@ -26,6 +26,7 @@
 
         <div class="sheet-tabs tabs" data-group="primary">
             <b class="item" data-tab="characters">{{localize "TENEBRE.Party.TabCharacters"}}</b>
+            <b class="item" data-tab="inventory">{{localize "TENEBRE.Party.TabInventory"}}</b>
         </div>
 
         <div class="sheet-body">
@@ -79,6 +80,16 @@
                         <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">{{localize "TENEBRE.Party.CharactersEmptyHint"}}</p>
                     </div>
                     {{/unless}}
+                </div>
+            </div>
+
+            <div class="tab" data-group="primary" data-tab="inventory">
+                <div class="party-inventory">
+                    <div class="party-empty-dropzone">
+                        <i class="fas fa-boxes" style="font-size: 2.2em; opacity: 0.55; margin-bottom: 10px; display: block;"></i>
+                        <h4 style="margin: 0 0 5px; font-weight: bold; font-family: var(--font-title); font-size: 1.1em;">{{localize "TENEBRE.Party.InventoryEmptyTitle"}}</h4>
+                        <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">{{localize "TENEBRE.Party.InventoryEmptyHint"}}</p>
+                    </div>
                 </div>
             </div>
         </div>

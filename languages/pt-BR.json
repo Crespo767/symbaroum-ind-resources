@@ -856,9 +856,12 @@
   "TENEBRE.Party.MottoPlaceholder": "Ex.: Comitiva de Davokar",
   "TENEBRE.Party.EmptyHint": "Ficha criada com sucesso. Esta tela servirá de base para adicionarmos os membros e funcionalidades do grupo passo a passo.",
   "TENEBRE.Party.TabCharacters": "PERSONAGENS",
+  "TENEBRE.Party.TabInventory": "INVENTÁRIO",
   "TENEBRE.Party.RemoveMember": "Remover do grupo",
   "TENEBRE.Party.CharactersEmptyTitle": "Nenhum personagem no grupo",
   "TENEBRE.Party.CharactersEmptyHint": "Arraste as fichas dos personagens da barra lateral para cá para adicioná-los.",
+  "TENEBRE.Party.InventoryEmptyTitle": "Inventário do Grupo",
+  "TENEBRE.Party.InventoryEmptyHint": "Área reservada para o inventário e equipamentos do grupo.",
   "TENEBRE.Party.ExperienceTotalTooltip": "XP Total do Grupo",
   "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Gasto com Rerolagens/Artefatos",
   "TENEBRE.Party.TopAttributesTooltip": "Maiores atributos (clique para rolar)"

@@ -3919,4 +3919,15 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   margin: 10px 0;
 }
 
+.tenebre-party-sheet .sheet-tabs .item {
+  cursor: pointer;
+  margin-right: 25px;
+  user-select: none;
+}
+
+.tenebre-party-sheet .party-inventory {
+  padding: 10px 5px;
+}
+
+
 
