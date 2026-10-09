@@ -855,5 +855,8 @@
   "TENEBRE.Party.Motto": "Motto / Description",
   "TENEBRE.Party.MottoPlaceholder": "E.g.: Company of Davokar",
   "TENEBRE.Party.EmptyHint": "Party sheet created successfully. We will build party members and features step by step.",
-  "TENEBRE.Party.TabCharacters": "CHARACTERS"
+  "TENEBRE.Party.TabCharacters": "CHARACTERS",
+  "TENEBRE.Party.RemoveMember": "Remove from party",
+  "TENEBRE.Party.CharactersEmptyTitle": "No characters in party",
+  "TENEBRE.Party.CharactersEmptyHint": "Drag character sheets from the sidebar here to add them."
 }

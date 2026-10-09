@@ -855,5 +855,8 @@
   "TENEBRE.Party.Motto": "Lema / Descrição",
   "TENEBRE.Party.MottoPlaceholder": "Ex.: Comitiva de Davokar",
   "TENEBRE.Party.EmptyHint": "Ficha criada com sucesso. Esta tela servirá de base para adicionarmos os membros e funcionalidades do grupo passo a passo.",
-  "TENEBRE.Party.TabCharacters": "PERSONAGENS"
+  "TENEBRE.Party.TabCharacters": "PERSONAGENS",
+  "TENEBRE.Party.RemoveMember": "Remover do grupo",
+  "TENEBRE.Party.CharactersEmptyTitle": "Nenhum personagem no grupo",
+  "TENEBRE.Party.CharactersEmptyHint": "Arraste as fichas dos personagens da barra lateral para cá para adicioná-los."
 }

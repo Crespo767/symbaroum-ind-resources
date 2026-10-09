@@ -193,3 +193,65 @@ test("PartyActorService._injectCreateOption injects party option when missing in
   PartyActorService._injectCreateOption(mockHtml);
   assert.equal(options.filter(o => o.value === "party" || o.value.endsWith(".party")).length, 1, "party option remains deduplicated");
 });
+
+test("PartyActorSheet manages members via _onDropActor, _onRemoveMember, and getData", async () => {
+  const updates = [];
+  const mockPartyActor = {
+    id: "party123",
+    uuid: "Actor.party123",
+    type: "party",
+    system: {
+      members: ["hero1"]
+    },
+    update: async (data) => {
+      updates.push(data);
+      if (data["system.members"]) {
+        mockPartyActor.system.members = data["system.members"];
+      }
+      return mockPartyActor;
+    }
+  };
+
+  const hero1 = { id: "hero1", uuid: "Actor.hero1", name: "Hero 1", img: "hero1.png", type: "player", system: { bio: { race: "Ambriano" } } };
+  const hero2 = { id: "hero2", uuid: "Actor.hero2", name: "Hero 2", img: "hero2.png", type: "player", system: { bio: { race: "Bárbaro" } } };
+  const anotherParty = { id: "party999", uuid: "Actor.party999", type: "party" };
+
+  const actorsMap = new Map([
+    ["hero1", hero1],
+    ["hero2", hero2],
+    ["party999", anotherParty]
+  ]);
+  globalThis.game = {
+    actors: actorsMap
+  };
+
+  const sheet = new PartyActorSheet();
+  sheet.actor = mockPartyActor;
+  sheet.isEditable = true;
+
+  // 1. getData resolves members
+  const data = await sheet.getData();
+  assert.equal(data.members.length, 1);
+  assert.equal(data.members[0].name, "Hero 1");
+
+  // 2. _onDropActor rejects self
+  const dropSelf = await sheet._onDropActor({}, { id: "party123" });
+  assert.equal(dropSelf, false, "cannot drop self onto party");
+
+  // 3. _onDropActor rejects another party actor
+  const dropParty = await sheet._onDropActor({}, { id: "party999" });
+  assert.equal(dropParty, false, "cannot drop party actor onto party");
+
+  // 4. _onDropActor rejects already existing member
+  const dropDuplicate = await sheet._onDropActor({}, { id: "hero1" });
+  assert.equal(dropDuplicate, false, "cannot drop duplicate member");
+
+  // 5. _onDropActor successfully adds a new character
+  const dropSuccess = await sheet._onDropActor({}, { id: "hero2" });
+  assert.ok(dropSuccess, "adds new member successfully");
+  assert.deepEqual(mockPartyActor.system.members, ["hero1", "hero2"]);
+
+  // 6. _onRemoveMember removes a member
+  await sheet._onRemoveMember("hero1");
+  assert.deepEqual(mockPartyActor.system.members, ["hero2"]);
+});

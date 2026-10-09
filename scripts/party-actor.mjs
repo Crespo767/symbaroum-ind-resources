@@ -68,6 +68,7 @@ export class PartyActorSheet extends BaseActorSheet {
       width: 800,
       height: 580,
       resizable: true,
+      dragDrop: [{ dragSelector: null, dropSelector: null }],
       tabs: [
         {
           navSelector: ".sheet-tabs",
@@ -81,6 +82,7 @@ export class PartyActorSheet extends BaseActorSheet {
       width: 800,
       height: 580,
       resizable: true,
+      dragDrop: [{ dragSelector: null, dropSelector: null }],
       tabs: [
         {
           navSelector: ".sheet-tabs",
@@ -98,7 +100,102 @@ export class PartyActorSheet extends BaseActorSheet {
     data.system = this.actor?.system;
     data.cssClass = this.isEditable ? "editable" : "locked";
     data.editable = this.isEditable;
+
+    const memberIds = Array.isArray(this.actor?.system?.members) ? this.actor.system.members : [];
+    const members = [];
+    for (const memberId of memberIds) {
+      let memberActor = globalThis.game?.actors?.get(memberId);
+      if (!memberActor && globalThis.fromUuidSync) {
+        try {
+          const doc = globalThis.fromUuidSync(memberId);
+          memberActor = doc?.actor ?? doc;
+        } catch {}
+      }
+      if (memberActor) {
+        members.push({
+          id: memberActor.id,
+          uuid: memberActor.uuid,
+          name: memberActor.name,
+          img: memberActor.img,
+          actor: memberActor,
+          system: memberActor.system
+        });
+      }
+    }
+    data.members = members;
     return data;
+  }
+
+  activateListeners(html) {
+    super.activateListeners?.(html);
+    const root = html?.[0] ?? html;
+    if (!root?.querySelectorAll) return;
+
+    root.querySelectorAll('[data-action="open-member-sheet"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const actorId = el.dataset.actorId;
+        if (!actorId) return;
+        const targetActor = globalThis.game?.actors?.get(actorId)
+          ?? (globalThis.fromUuid ? await globalThis.fromUuid(actorId) : null);
+        targetActor?.sheet?.render(true);
+      });
+    });
+
+    root.querySelectorAll('[data-action="remove-member"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const actorId = el.dataset.actorId;
+        this._onRemoveMember(actorId);
+      });
+    });
+  }
+
+  async _onDrop(event) {
+    let data = null;
+    try {
+      data = globalThis.TextEditor?.getDragEventData?.(event)
+        ?? JSON.parse(event.dataTransfer?.getData("text/plain") ?? "null");
+    } catch {
+      data = null;
+    }
+    if (!data) return false;
+
+    if (data.type === "Actor" || data.type === "Token") {
+      return this._onDropActor(event, data);
+    }
+    return super._onDrop ? super._onDrop(event) : false;
+  }
+
+  async _onDropActor(event, data) {
+    if (!this.isEditable) return false;
+    let droppedActor = null;
+    if (data.uuid) {
+      const doc = await globalThis.fromUuid?.(data.uuid);
+      droppedActor = doc?.actor ?? doc;
+    } else if (data.id) {
+      droppedActor = globalThis.game?.actors?.get(data.id);
+    }
+    if (!droppedActor || !droppedActor.id) return false;
+
+    if (droppedActor.id === this.actor?.id || droppedActor.uuid === this.actor?.uuid) return false;
+    if (droppedActor.type === "party" || droppedActor.type?.endsWith(".party")) return false;
+
+    const currentMembers = Array.isArray(this.actor?.system?.members) ? [...this.actor.system.members] : [];
+    if (currentMembers.includes(droppedActor.id) || (droppedActor.uuid && currentMembers.includes(droppedActor.uuid))) return false;
+
+    currentMembers.push(droppedActor.id);
+    return this.actor.update({ "system.members": currentMembers });
+  }
+
+  async _onRemoveMember(actorId) {
+    if (!this.isEditable || !actorId) return;
+    const currentMembers = Array.isArray(this.actor?.system?.members) ? [...this.actor.system.members] : [];
+    const filtered = currentMembers.filter(id => id !== actorId);
+    if (filtered.length !== currentMembers.length) {
+      return this.actor.update({ "system.members": filtered });
+    }
   }
 }
 
