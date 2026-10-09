@@ -268,3 +268,25 @@ test("PartyActorSheet manages members via _onDropActor, _onRemoveMember, and get
   await sheet._onRemoveMember("hero1");
   assert.deepEqual(mockPartyActor.system.members, ["hero2"]);
 });
+
+test("PartyActorSheet template contains only total and artifactrr experience fields with correct tooltips", () => {
+  const templatePath = path.join(root, "templates/party-sheet.hbs");
+  const templateContent = fs.readFileSync(templatePath, "utf8");
+
+  assert.match(templateContent, /name="system\.experience\.total"/, "has experience.total field");
+  assert.match(templateContent, /name="system\.experience\.artifactrr"/, "has experience.artifactrr field");
+  assert.ok(!templateContent.includes('name="system.experience.spent"'), "does not contain experience.spent field");
+  assert.ok(!templateContent.includes('name="system.experience.available"'), "does not contain experience.available field");
+
+  assert.match(templateContent, /data-tooltip="\{\{localize ["']TENEBRE\.Party\.ExperienceTotalTooltip["']\}\}"/);
+  assert.match(templateContent, /data-tooltip="\{\{localize ["']TENEBRE\.Party\.ExperienceArtifactrrTooltip["']\}\}"/);
+
+  const ptBr = JSON.parse(fs.readFileSync(path.join(root, "languages/pt-BR.json"), "utf8"));
+  const en = JSON.parse(fs.readFileSync(path.join(root, "languages/en.json"), "utf8"));
+
+  assert.ok(ptBr["TENEBRE.Party.ExperienceTotalTooltip"], "pt-BR has ExperienceTotalTooltip");
+  assert.ok(ptBr["TENEBRE.Party.ExperienceArtifactrrTooltip"], "pt-BR has ExperienceArtifactrrTooltip");
+  assert.ok(en["TENEBRE.Party.ExperienceTotalTooltip"], "en has ExperienceTotalTooltip");
+  assert.ok(en["TENEBRE.Party.ExperienceArtifactrrTooltip"], "en has ExperienceArtifactrrTooltip");
+});
+

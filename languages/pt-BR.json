@@ -858,5 +858,7 @@
   "TENEBRE.Party.TabCharacters": "PERSONAGENS",
   "TENEBRE.Party.RemoveMember": "Remover do grupo",
   "TENEBRE.Party.CharactersEmptyTitle": "Nenhum personagem no grupo",
-  "TENEBRE.Party.CharactersEmptyHint": "Arraste as fichas dos personagens da barra lateral para cá para adicioná-los."
+  "TENEBRE.Party.CharactersEmptyHint": "Arraste as fichas dos personagens da barra lateral para cá para adicioná-los.",
+  "TENEBRE.Party.ExperienceTotalTooltip": "XP Total do Grupo",
+  "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Gasto com Rerolagens/Artefatos"
 }
