@@ -254,7 +254,8 @@ export class ManeuverService {
   }
 
   static registerHooks() {
-    Hooks.on("updateCombat", async () => {
+    Hooks.on("updateCombat", async (_combat, changes) => {
+      if (!("round" in (changes ?? {})) && !("turn" in (changes ?? {}))) return;
       if (!SocketService.isPrimaryGM()) return;
       try {
         await ManeuverService.cleanupExpiredEffects();

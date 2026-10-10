@@ -167,7 +167,8 @@ export class DeathAutomationService {
       };
     });
 
-    Hooks.on("updateCombat", (combat) => {
+    Hooks.on("updateCombat", (combat, changes) => {
+      if (!("round" in (changes ?? {})) && !("turn" in (changes ?? {}))) return;
       void this.promptCurrentCombatant(combat).catch(logError);
     });
     Hooks.on("deleteCombat", () => {

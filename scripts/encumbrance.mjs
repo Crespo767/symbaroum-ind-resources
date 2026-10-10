@@ -6,6 +6,7 @@ import {
   detectEncumbranceSlots,
   getDynamicEncumbranceWeights,
   getStackBundleRule,
+  getWeightConfigVersion,
   hasConfiguredEncumbranceRule,
   hasExactEncumbranceItem,
   hasMassiveQuality,
@@ -15,6 +16,15 @@ import {
 } from "./encumbrance-db.mjs";
 import { ContainerService } from "./containers.mjs";
 import { normalize } from "./utils.mjs";
+
+// Espaços por item só mudam quando o item é atualizado (modifiedTime) ou a tabela de pesos muda.
+const itemSlotsCache = new WeakMap();
+
+function itemSlotsCacheKey(item) {
+  const modifiedTime = item?._stats?.modifiedTime;
+  if (!item || typeof item !== "object" || !Number.isFinite(modifiedTime)) return null;
+  return `${getWeightConfigVersion()}|${modifiedTime}`;
+}
 
 const GEAR_ITEM_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
 
@@ -190,6 +200,15 @@ export class EncumbranceService {
    * Prioridade: flag manual > detecção automática.
    */
   static getItemSlots(item) {
+    const key = itemSlotsCacheKey(item);
+    const cached = key ? itemSlotsCache.get(item) : null;
+    if (cached?.key === key) return cached.slots;
+    const slots = this.computeItemSlots(item);
+    if (key) itemSlotsCache.set(item, { key, slots });
+    return slots;
+  }
+
+  static computeItemSlots(item) {
     if (!item) return ENC_SLOTS.ONE;
 
     if (ContainerService.isCampingEquipment(item)) return ENC_SLOTS.TWO;

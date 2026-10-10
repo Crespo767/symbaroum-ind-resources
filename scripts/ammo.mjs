@@ -3,7 +3,7 @@ import { TenebreSettings } from "./settings.mjs";
 import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverCapacity, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
 import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryClass, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
 import { documentSourceUuid, escapeHtml, promptDialog } from "./utils.mjs";
-import { evaluateRoll, rollTotal, showDice3dRoll } from "./dice.mjs";
+import { evaluateRoll, showDice3dRoll } from "./dice.mjs";
 
 export class AmmoService {
   static #recoveringActors = new Set();
@@ -420,129 +420,71 @@ export class AmmoService {
 
     if (actorKey) this.#recoveringActors.add(actorKey);
     try {
-      const initialHits = this.getTrackedHits(actor).ammoHit;
-      if (initialHits <= 0) {
+      const hits = this.getTrackedHits(actor);
+      const attempts = Object.values(hits.ammoHits ?? {})
+        .filter((entry) => Number(entry.count) > 0)
+        .sort((left, right) => Number(right.lastUsedAt ?? 0) - Number(left.lastUsedAt ?? 0))
+        .flatMap((entry) => Array.from({ length: Number(entry.count) }, () => entry));
+      if (!attempts.length) {
+        if (hits.ammoHit > 0) await actor.unsetFlag(FLAG_SCOPE, "combat");
         ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
         return;
       }
 
-      const session = createRecoverySession(actor, initialHits);
+      // Uma rolagem Nd20, uma gravação por tipo de projétil e uma mensagem.
+      const recoverable = attempts.map((entry) => getRecoverableEntryData(actor, entry));
+      const rollCount = recoverable.filter(Boolean).length;
+      const roll = rollCount ? await evaluateRoll(`${rollCount}d20`) : null;
+      const results = roll?.dice?.[0]?.results?.map((result) => Number(result.result)) ?? [];
+      const session = createRecoverySession(actor, attempts.length);
+      const recovered = new Map();
+      let rollIndex = 0;
 
-      let result = await this.#recoverOne(actor);
-      if (result?.status === "empty") {
-        await finishRecoverySession(session, { deleteEmpty: true });
-        ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
-        return;
+      attempts.forEach((entry, index) => {
+        const recoveryEntry = recoverable[index];
+        if (!recoveryEntry) {
+          session.skipped += 1;
+          session.attempts.push({ index: index + 1, ammoName: entry.name, ammoUuid: entry.sourceUuid ?? "", outcome: "skipped" });
+          return;
+        }
+        const target = getRecoveryTarget(recoveryEntry);
+        const value = results[rollIndex++] || 20;
+        const success = value <= target.threshold;
+        session.attempts.push({
+          index: index + 1,
+          ammoName: recoveryEntry.name,
+          ammoUuid: recoveryEntry.sourceUuid ?? "",
+          outcome: success ? "success" : "failure",
+          roll: value,
+          threshold: target.threshold,
+          typeLabel: target.typeLabel
+        });
+        if (!success) {
+          session.failures += 1;
+          return;
+        }
+        session.successes += 1;
+        const key = recoveryEntry.itemId || recoveryEntry.name;
+        const total = recovered.get(key) ?? { entry: recoveryEntry, amount: 0 };
+        total.amount += 1;
+        recovered.set(key, total);
+      });
+
+      for (const { entry, amount } of recovered.values()) {
+        const item = actorItems(actor).find((candidate) => isAmmo(candidate) && !isQuiver(candidate)
+          && (candidate.id === entry.itemId || candidate.name === entry.name));
+        if (item) await changeItemQuantity(item, amount);
+        else await createRecoveredAmmo(actor, entry, amount);
       }
 
-      await appendRecoveryAttempt(session, result, actor);
-      while (result?.remaining > 0) {
-        result = await this.#recoverOne(actor);
-        if (!result || result.status === "empty") break;
-        await appendRecoveryAttempt(session, result, actor);
-      }
-
-      await finishRecoverySession(session);
+      // setFlag mescla objetos e manteria entradas antigas: remove a marcação inteira.
+      await actor.unsetFlag(FLAG_SCOPE, "combat");
+      if (roll) await showDice3dRoll(roll);
+      session.status = "complete";
+      session.message = await createRecoverySessionMessage(session, actor);
     } finally {
       if (actorKey) this.#recoveringActors.delete(actorKey);
     }
-  }
-
-  static async #recoverOne(actor) {
-    const hits = this.getTrackedHits(actor);
-    const totalHits = hits.ammoHit;
-    if (totalHits <= 0) {
-      return { status: "empty", remaining: 0 };
-    }
-
-    const entryPair = Object.entries(hits.ammoHits)
-      .filter(([, entry]) => Number(entry.count) > 0)
-      .sort(([, left], [, right]) => Number(right.lastUsedAt ?? 0) - Number(left.lastUsedAt ?? 0))[0];
-    if (!entryPair) {
-      await actor.setFlag(FLAG_SCOPE, "combat", {
-        arrowsHit: 0,
-        boltsHit: 0,
-        ammoHit: 0,
-        ammoHits: {}
-      });
-      return { status: "empty", remaining: 0 };
-    }
-
-    const [entryKey, entry] = entryPair;
-    const recoveryEntry = getRecoverableEntryData(actor, entry);
-    if (!recoveryEntry) {
-      const ammoHits = foundry.utils.deepClone(hits.ammoHits);
-      const remainingForEntry = Math.max(0, Number(ammoHits[entryKey]?.count ?? 0) - 1);
-      if (remainingForEntry > 0) {
-        ammoHits[entryKey].count = remainingForEntry;
-      } else {
-        delete ammoHits[entryKey];
-      }
-
-      await actor.setFlag(FLAG_SCOPE, "combat", {
-        arrowsHit: 0,
-        boltsHit: 0,
-        ammoHit: Math.max(0, totalHits - 1),
-        ammoHits
-      });
-      return {
-        status: "skipped",
-        remaining: Math.max(0, totalHits - 1),
-        attempt: {
-          ammoName: entry.name,
-          ammoUuid: entry.sourceUuid ?? "",
-          outcome: "skipped"
-        }
-      };
-    }
-
-    const recoveryTarget = getRecoveryTarget(recoveryEntry);
-    const threshold = recoveryTarget.threshold;
-    const roll = await evaluateRoll("1d20");
-    const rollValue = rollTotal(roll);
-    const success = rollValue <= threshold;
-
-    if (success) {
-      const item = actorItems(actor).find((candidate) => {
-        if (!isAmmo(candidate) || isQuiver(candidate)) return false;
-        return candidate.id === recoveryEntry.itemId || candidate.name === recoveryEntry.name;
-      });
-      if (item) {
-        await changeItemQuantity(item, 1);
-      } else {
-        await createRecoveredAmmo(actor, recoveryEntry, 1);
-      }
-    }
-
-    const ammoHits = foundry.utils.deepClone(hits.ammoHits);
-    const remainingForEntry = Math.max(0, Number(ammoHits[entryKey]?.count ?? 0) - 1);
-    if (remainingForEntry > 0) {
-      ammoHits[entryKey].count = remainingForEntry;
-    } else {
-      delete ammoHits[entryKey];
-    }
-
-    const remainingTotal = Math.max(0, totalHits - 1);
-    await actor.setFlag(FLAG_SCOPE, "combat", {
-      arrowsHit: 0,
-      boltsHit: 0,
-      ammoHit: remainingTotal,
-      ammoHits
-    });
-
-    return {
-      status: "rolled",
-      remaining: remainingTotal,
-      roll,
-      attempt: {
-        ammoName: recoveryEntry.name,
-        ammoUuid: recoveryEntry.sourceUuid ?? "",
-        outcome: success ? "success" : "failure",
-        roll: rollValue,
-        threshold,
-        typeLabel: recoveryTarget.typeLabel
-      }
-    };
   }
 }
 
@@ -570,56 +512,6 @@ async function createRecoverySessionMessage(session, actor) {
   } catch (error) {
     console.warn("symbaroum-ind-resources | Failed to create ammunition recovery session message.", error);
     return null;
-  }
-}
-
-async function appendRecoveryAttempt(session, result, actor = null) {
-  const attempt = result?.attempt;
-  if (!attempt) return;
-
-  if (result.roll) await showDice3dRoll(result.roll);
-
-  session.attempts.push({ ...attempt, index: session.attempts.length + 1 });
-  if (attempt.outcome === "success") session.successes += 1;
-  else if (attempt.outcome === "failure") session.failures += 1;
-  else session.skipped += 1;
-
-  if (session.message) {
-    await updateRecoverySessionMessage(session);
-  } else if (actor) {
-    session.message = await createRecoverySessionMessage(session, actor);
-  }
-}
-
-async function finishRecoverySession(session, { deleteEmpty = false } = {}) {
-  if (!session.message) return;
-  if (deleteEmpty && !session.attempts.length) {
-    try {
-      await session.message.delete();
-    } catch (error) {
-      console.warn("symbaroum-ind-resources | Failed to remove empty ammunition recovery session message.", error);
-    }
-    return;
-  }
-
-  session.status = "complete";
-  await updateRecoverySessionMessage(session);
-}
-
-async function updateRecoverySessionMessage(session) {
-  if (!session.message) return;
-  try {
-    const flags = foundry.utils.deepClone(session.message.flags ?? {});
-    flags[FLAG_SCOPE] = {
-      ...(flags[FLAG_SCOPE] ?? {}),
-      ...recoverySessionFlags(session)[FLAG_SCOPE]
-    };
-    await session.message.update({
-      content: recoverySessionContent(session),
-      flags
-    });
-  } catch (error) {
-    console.warn("symbaroum-ind-resources | Failed to update ammunition recovery session message.", error);
   }
 }
 

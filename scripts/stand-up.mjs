@@ -81,7 +81,8 @@ export class StandUpService {
     registered = true;
     Hooks.on("canvasReady", () => this.queueRefreshAllButtons());
     Hooks.on("drawToken", (token) => this.syncTokenButton(token));
-    Hooks.on("refreshToken", (token) => this.syncTokenButton(token));
+    // refreshToken dispara várias vezes por segundo durante o movimento: só reposiciona.
+    Hooks.on("refreshToken", (token) => this.repositionTokenButton(token));
     Hooks.on("destroyToken", (token) => this.removeTokenButton(token));
     Hooks.on("updateToken", (tokenDocument) => this.syncTokenButton(tokenDocument?.object));
     Hooks.on("createActiveEffect", (effect) => this.queueRefreshActorButtons(effect?.parent));
@@ -109,6 +110,14 @@ export class StandUpService {
         this.syncTokenButton(token);
       }
     }
+  }
+
+  static repositionTokenButton(token) {
+    const button = this.findTokenButton(token);
+    if (!button) return false;
+    const position = getStandUpButtonPosition(token);
+    button.position?.set?.(position.x, position.y);
+    return true;
   }
 
   static syncTokenButton(token) {

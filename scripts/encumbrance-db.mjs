@@ -120,7 +120,15 @@ export function calculateStackBundleSlots(quantity, rule) {
   return Math.floor(amount / bundleSize) * slots;
 }
 
+let weightConfigVersion = 0;
+
+/** Muda sempre que a tabela de pesos efetiva muda; invalida caches de carga. */
+export function getWeightConfigVersion() {
+  return weightConfigVersion;
+}
+
 function rebuildWeightConfig() {
+  weightConfigVersion += 1;
   weightConfig = {
     version: 2,
     items: { ...baseWeightConfig.items, ...dynamicWeightConfig.items },
