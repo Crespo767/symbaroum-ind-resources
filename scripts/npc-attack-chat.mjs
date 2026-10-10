@@ -1,7 +1,7 @@
 import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG } from "./constants.mjs";
 import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
-import { format, localize } from "./utils.mjs";
+import { format, getCanvasCreatureTokens, localize } from "./utils.mjs";
 
 const ATTACK_PATTERN = /^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)[.!]?$/i;
 
@@ -552,7 +552,7 @@ function resolveChatMessage(root, preferredMessage = null) {
 
 function actorByDisplayedName(name) {
   const expected = normalize(name);
-  const tokens = globalThis.canvas?.tokens?.placeables ?? [];
+  const tokens = getCanvasCreatureTokens();
   const token = tokens.find((candidate) => normalize(candidate.name) === expected);
   if (token?.actor) return token.actor;
   return [...(globalThis.game?.actors ?? [])].find((actor) => normalize(actor.name) === expected) ?? null;

@@ -1,3 +1,5 @@
+import { MODULE_ID } from "./constants.mjs";
+
 /** Escapa texto para HTML e atributos entre aspas. Única implementação do módulo. */
 export function escapeHtml(value) {
   return String(value ?? "")
@@ -43,6 +45,25 @@ export function isActorExecutor(actor) {
     .filter((user) => user.active && actor.testUserPermission?.(user, "OWNER"))
     .sort((left, right) => String(left.id).localeCompare(String(right.id)))[0];
   return owner?.id === globalThis.game.user.id;
+}
+
+/**
+ * Token de contêiner largado no chão (caminho sem Item Piles). É um token não vinculado do
+ * personagem dono do contêiner e nunca deve ser tratado como o personagem.
+ */
+export function isGroundContainerToken(token) {
+  const document = token?.document ?? token;
+  return Boolean(document?.flags?.[MODULE_ID]?.groundContainer);
+}
+
+/** `actor.getActiveTokens()` sem os tokens de contêiner no chão (inclui não vinculados por padrão no core). */
+export function getActorTokens(actor, linked = false, document = false) {
+  return (actor?.getActiveTokens?.(linked, document) ?? []).filter((token) => !isGroundContainerToken(token));
+}
+
+/** Tokens do mapa que representam criaturas, sem os contêineres no chão. */
+export function getCanvasCreatureTokens() {
+  return Array.from(globalThis.canvas?.tokens?.placeables ?? []).filter((token) => !isGroundContainerToken(token));
 }
 
 /** Re-renderiza as fichas abertas de um ator (V1 e ApplicationV2), ou de todos os atores se nenhum for dado. */

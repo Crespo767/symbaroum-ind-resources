@@ -2,7 +2,7 @@ import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { COMPAT_MODULES, CompatibilityService } from "./compatibility.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { isDrawn, isEligibleWeapon } from "./weapon-readiness.mjs";
-import { isActorExecutor } from "./utils.mjs";
+import { getCanvasCreatureTokens, isActorExecutor } from "./utils.mjs";
 
 export const WEAPON_READINESS_INDICATOR_FLAG = "weaponReadinessIndicator";
 export const WEAPON_READINESS_INDICATOR_WEAPON_FLAG = "weaponReadinessIndicatorWeaponId";
@@ -194,7 +194,7 @@ function queueIndicatorSync(actor) {
 function getRelevantActors() {
   const actors = new Map();
   for (const actor of game.actors ?? []) actors.set(actor.uuid ?? actor.id, actor);
-  for (const token of canvas?.tokens?.placeables ?? []) {
+  for (const token of getCanvasCreatureTokens()) {
     if (token.actor) actors.set(token.actor.uuid ?? token.actor.id, token.actor);
   }
   return actors.values();

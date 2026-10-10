@@ -1,7 +1,7 @@
 import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
-import { format, localize } from "./utils.mjs";
+import { format, getCanvasCreatureTokens, localize } from "./utils.mjs";
 
 const BERSERKER_REFERENCE = "berserker";
 const LAY_ON_HANDS_REFERENCE = "layonhands";
@@ -377,7 +377,7 @@ export function extractAbilityNameFromIntro(introText = "") {
 export function actorByDisplayedName(name) {
   const expected = normalize(name);
   if (!expected) return null;
-  const tokens = globalThis.canvas?.tokens?.placeables ?? [];
+  const tokens = getCanvasCreatureTokens();
   const token = tokens.find((candidate) => {
     const candName = normalize(candidate.name);
     const candActorName = normalize(candidate.actor?.name);
@@ -513,7 +513,7 @@ export function resolveSpeakerActor(message, source = null) {
   if (speaker.actor) {
     const directActor = globalThis.game?.actors?.get?.(speaker.actor);
     if (directActor) return directActor;
-    const canvasActor = globalThis.canvas?.tokens?.placeables?.find(
+    const canvasActor = getCanvasCreatureTokens().find(
       (t) => t.actor?.id === speaker.actor || t.id === speaker.actor
     )?.actor;
     if (canvasActor) return canvasActor;
@@ -534,7 +534,7 @@ export function resolveSpeakerActor(message, source = null) {
   if (introText) {
     const normalizedIntro = normalize(introText);
     const allActors = [
-      ...(globalThis.canvas?.tokens?.placeables ?? []).map((t) => t.actor).filter(Boolean),
+      ...getCanvasCreatureTokens().map((t) => t.actor).filter(Boolean),
       ...(globalThis.game?.actors ?? [])
     ];
     const matchingActor = allActors.find((candidate) => {

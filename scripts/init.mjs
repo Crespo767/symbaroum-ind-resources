@@ -43,7 +43,7 @@ import { ActorCreationService } from "./actor-creation.mjs";
 import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import { PartyActorService } from "./party-actor.mjs";
 import { getWeaponRollForDialog } from "./roll-context.mjs";
-import { isActiveGM, normalizeText } from "./utils.mjs";
+import { getActorTokens, getCanvasCreatureTokens, isActiveGM, normalizeText } from "./utils.mjs";
 
 Hooks.once("init", () => {
   try {
@@ -174,13 +174,13 @@ function applyNpcAttackContextToMessage(message, data, options, userId) {
   const item = actor.items.find(i => i.name.toLowerCase() === weaponName || i.name.toLowerCase().includes(weaponName));
   if (!item) return;
 
-  const token = canvas?.tokens?.get(speaker.token) ?? actor.getActiveTokens()[0] ?? null;
+  const token = canvas?.tokens?.get(speaker.token) ?? getActorTokens(actor)[0] ?? null;
 
   // Find target from the chat card or current selection
   let targetToken = Array.from(game.user.targets)[0] ?? null;
   const targetText = doc.querySelector(".targetText")?.textContent?.replace(/^(?:V[ií]tima|Victim)\s*:\s*/i, "")?.trim();
   if (targetText && !targetToken) {
-    targetToken = canvas?.tokens?.placeables.find(t => t.name === targetText) ?? null;
+    targetToken = getCanvasCreatureTokens().find(t => t.name === targetText) ?? null;
   }
 
   const context = {
@@ -615,9 +615,7 @@ function getActorTokenForContext(actor) {
   const controlled = canvas?.tokens?.controlled?.find((token) => token.actor?.id === actor.id);
   if (controlled) return controlled;
 
-  const activeTokens = actor?.getActiveTokens?.() ?? [];
-  if (Array.isArray(activeTokens)) return activeTokens[0] ?? null;
-  return activeTokens?.object ?? null;
+  return getActorTokens(actor)[0] ?? null;
 }
 
 function setActivePowerChatContext(context) {
@@ -721,7 +719,7 @@ Hooks.on("createChatMessage", (message, options, userId) => {
       if (!token && context.tokenUuid) token = fromUuidSync(context.tokenUuid)?.object ?? null;
       if (!token && context.actorUuid) {
           const actor = fromUuidSync(context.actorUuid);
-          token = actor?.getActiveTokens?.()?.[0] ?? null;
+          token = getActorTokens(actor)[0] ?? null;
       }
       let target = canvas.tokens.get(context.targetTokenUuid?.split('.').pop());
       if (!target && context.targetTokenUuid) target = fromUuidSync(context.targetTokenUuid)?.object ?? null;

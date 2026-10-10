@@ -5,7 +5,7 @@ import { TenebreSettings } from "./settings.mjs";
 import { isDeathIncapacitated } from "./death-automation.mjs";
 import { getWeaponRoll } from "./roll-context.mjs";
 import { changeItemQuantity, itemQuantity } from "./item-flags.mjs";
-import { escapeHtml, localize, normalizeText } from "./utils.mjs";
+import { escapeHtml, getCanvasCreatureTokens, localize, normalizeText } from "./utils.mjs";
 
 export { MANEUVER_EFFECTS };
 
@@ -1107,7 +1107,7 @@ function findActorById(actorId) {
   if (!actorId) return null;
   return game.actors?.get?.(actorId)
     ?? game.combat?.combatants?.find?.((combatant) => combatant.actor?.id === actorId)?.actor
-    ?? Array.from(globalThis.canvas?.tokens?.placeables ?? []).find((token) => token.actor?.id === actorId)?.actor
+    ?? getCanvasCreatureTokens().find((token) => token.actor?.id === actorId)?.actor
     ?? null;
 }
 
@@ -1184,7 +1184,7 @@ function getActorsWithManeuverEffects() {
   };
 
   for (const actor of game.actors ?? []) addActor(actor);
-  for (const token of globalThis.canvas?.tokens?.placeables ?? []) addActor(token.actor);
+  for (const token of getCanvasCreatureTokens()) addActor(token.actor);
   for (const combatant of game.combat?.combatants ?? []) addActor(combatant.actor);
 
   return actors.filter((actor) => ManeuverService.hasActiveEffects(actor));

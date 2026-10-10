@@ -2,7 +2,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { isRation } from "./item-flags.mjs";
 import { RationService } from "./rations.mjs";
-import { escapeHtml } from "./utils.mjs";
+import { escapeHtml, getActorTokens } from "./utils.mjs";
 import { ContainerService } from "./containers.mjs";
 
 const CHAT_ITEM_USE_PAUSED = true;
@@ -195,7 +195,7 @@ function getSpeakerToken(actor) {
   const controlled = canvas?.tokens?.controlled?.find((token) => token.actor?.id === actor.id);
   if (controlled) return controlled;
 
-  const activeTokens = actor.getActiveTokens?.() ?? [];
+  const activeTokens = getActorTokens(actor);
   return Array.isArray(activeTokens) ? activeTokens[0] ?? null : activeTokens?.object ?? null;
 }
 

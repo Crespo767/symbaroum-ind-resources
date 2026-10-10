@@ -3,7 +3,7 @@ import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs"
 import { isProneActor } from "./prone-advantage.mjs";
 import { SocketService } from "./sockets.mjs";
 import { isDeathIncapacitated } from "./death-automation.mjs";
-import { escapeHtml } from "./utils.mjs";
+import { escapeHtml, getCanvasCreatureTokens, isGroundContainerToken } from "./utils.mjs";
 
 export const STAND_UP_ACTION_FLAG = "standUpAction";
 
@@ -99,11 +99,11 @@ export class StandUpService {
   }
 
   static refreshAllButtons() {
-    for (const token of globalThis.canvas?.tokens?.placeables ?? []) this.syncTokenButton(token);
+    for (const token of getCanvasCreatureTokens()) this.syncTokenButton(token);
   }
 
   static refreshActorButtons(actor) {
-    for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+    for (const token of getCanvasCreatureTokens()) {
       const tokenActor = token?.actor ?? token?.document?.actor;
       if (tokenActor === actor || tokenActor?.uuid === actor.uuid || tokenActor?.id === actor.id) {
         this.syncTokenButton(token);
@@ -112,7 +112,7 @@ export class StandUpService {
   }
 
   static syncTokenButton(token) {
-    if (!token) return false;
+    if (!token || isGroundContainerToken(token)) return false;
     const actor = token.actor ?? token.document?.actor;
     let button = this.findTokenButton(token);
     if (!shouldShowStandUpButton(actor)) {

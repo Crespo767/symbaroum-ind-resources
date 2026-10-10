@@ -4,7 +4,7 @@ import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs"
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { SocketService } from "./sockets.mjs";
 import { TenebreSettings } from "./settings.mjs";
-import { escapeHtml, format, localize } from "./utils.mjs";
+import { escapeHtml, format, getCanvasCreatureTokens, localize } from "./utils.mjs";
 
 export const DYING_STATUS_ID = "tenebre-dying";
 export const DEATH_STATE_FLAG = "deathState";
@@ -648,7 +648,7 @@ function actorKey(actor) {
 
 function allPlayerActors() {
   const actors = [...(game.actors ?? [])];
-  for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+  for (const token of getCanvasCreatureTokens()) {
     if (token?.actor) actors.push(token.actor);
   }
   const unique = new Map();

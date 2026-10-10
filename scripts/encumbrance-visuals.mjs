@@ -1,7 +1,7 @@
 import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
-import { isActorExecutor } from "./utils.mjs";
+import { getCanvasCreatureTokens, isActorExecutor } from "./utils.mjs";
 
 export const ENCUMBRANCE_INDICATOR_FLAG = "encumbranceIndicator";
 export const ENCUMBRANCE_STATUS_ID = `${MODULE_ID}.encumbrance-overloaded`;
@@ -137,7 +137,7 @@ function queueIndicatorSync(actor) {
 function getRelevantActors() {
   const actors = new Map();
   for (const actor of game.actors ?? []) actors.set(actor.uuid ?? actor.id, actor);
-  for (const token of globalThis.canvas?.tokens?.placeables ?? []) {
+  for (const token of getCanvasCreatureTokens()) {
     if (token.actor) actors.set(token.actor.uuid ?? token.actor.id, token.actor);
   }
   return actors.values();

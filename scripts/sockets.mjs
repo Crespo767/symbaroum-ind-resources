@@ -9,7 +9,7 @@ import {
   isModuleManeuverEffect,
   sanitizeSocketOptions
 } from "./socket-policy.mjs";
-import { isActiveGM } from "./utils.mjs";
+import { getActorTokens, isActiveGM } from "./utils.mjs";
 
 let moduleSocket = null;
 
@@ -51,7 +51,7 @@ export class SocketService {
   }
 
   static async shoveToken(sourceActor, targetToken) {
-    const sourceToken = sourceActor?.getActiveTokens?.()[0]?.document;
+    const sourceToken = getActorTokens(sourceActor)[0]?.document;
     const targetDocument = targetToken?.document ?? targetToken;
     if (!sourceToken?.uuid || !targetDocument?.uuid) return { moved: false };
     return this.executeAsGM("shoveToken", sourceToken.uuid, targetDocument.uuid);
@@ -418,7 +418,7 @@ export function findActorTokenCombatants(actor, tokens, combatants) {
 }
 
 async function markActorCombatantsDefeated(actor) {
-  const tokens = actor?.getActiveTokens?.() ?? [];
+  const tokens = getActorTokens(actor);
   for (const combatant of findActorTokenCombatants(actor, tokens, globalThis.game?.combat?.combatants)) {
     if (combatant.defeated) continue;
     await SocketService.updateCombatant(combatant, { defeated: true });

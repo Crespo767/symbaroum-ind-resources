@@ -89,6 +89,12 @@ export class GroundContainerService {
       width: 1,
       height: 1,
       texture: { src: container.img || "icons/svg/item-bag.svg" },
+      // Aparência de objeto: o token é um marcador, não o personagem.
+      displayBars: globalThis.CONST?.TOKEN_DISPLAY_MODES?.NONE ?? 0,
+      displayName: globalThis.CONST?.TOKEN_DISPLAY_MODES?.HOVER ?? 30,
+      disposition: globalThis.CONST?.TOKEN_DISPOSITIONS?.NEUTRAL ?? 0,
+      sight: { enabled: false },
+      lockRotation: true,
       flags: {
         [MODULE_ID]: {
           [GROUND_CONTAINER_FLAG]: reference
