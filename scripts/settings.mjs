@@ -1,6 +1,7 @@
 import { DEFAULTS, MODULE_ID } from "./constants.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { StatusEffectPickerService } from "./status-effect-picker.mjs";
+import { escapeHtml, isActiveGM, normalizeText } from "./utils.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = globalThis.foundry?.applications?.api ?? {};
 const BaseSettingsForm = typeof HandlebarsApplicationMixin === "function"
@@ -353,7 +354,6 @@ export class TenebreSettings {
     register("enableGenerateShadow", Boolean, true, "TENEBRE.Settings.EnableGenerateShadow", "TENEBRE.Settings.EnableGenerateShadowHint");
     register("hideShadowGeneration", Boolean, false, "BITHIRMOD.SHADOW_hideGeneration", "BITHIRMOD.SHADOW_hideGeneration_hint");
     register("hideShadowLabel", Boolean, false, "BITHIRMOD.SHADOW_hideLabel", "BITHIRMOD.SHADOW_hideLabel_hint");
-    register("hideCompatibilityNotice", Boolean, false, "TENEBRE.Settings.HideCompatibilityNotice", "TENEBRE.Settings.HideCompatibilityNoticeHint", { scope: "client" });
     register("compatibilityNoticeAcknowledged", Object, { version: 1, signatures: [] }, "TENEBRE.Settings.CompatibilityNoticeAcknowledged", "TENEBRE.Settings.CompatibilityNoticeAcknowledgedHint", { scope: "client" });
     register("encumbranceDiscoveredWeights", Object, { version: 2, items: {}, bundles: {} }, "TENEBRE.Settings.EncumbranceDiscoveredWeights", "TENEBRE.Settings.EncumbranceDiscoveredWeightsHint");
   }
@@ -437,17 +437,15 @@ function onSettingChanged(key, value) {
   }
 
   if (key === "enableEncumbrance") {
-    refreshEncumbranceActors({ autoAssign: Boolean(value), clearPenalty: !value });
-    if (value) game.tenebreResources?.encumbrance?.startDynamicWeightFileWatcher?.();
-    else game.tenebreResources?.encumbrance?.stopDynamicWeightFileWatcher?.();
+    refreshEncumbranceActors({ clearPenalty: !value });
   }
 
   if (key === "encumbranceDiscoveredWeights") {
     game.tenebreResources?.encumbrance?.applyDynamicWeightConfig?.(value);
-    refreshEncumbranceActors({ autoAssign: false });
+    refreshEncumbranceActors();
   }
 
-  if (key === "enableContainers" && isPrimaryActiveGm()) {
+  if (key === "enableContainers" && isActiveGM()) {
     synchronizeContainerStates(Boolean(value));
   }
 
@@ -471,13 +469,10 @@ function onSettingChanged(key, value) {
   if (requiresForcedSheetRender) scheduleOpenSheetRerender({ force: true });
 }
 
-function refreshEncumbranceActors({ autoAssign = false, clearPenalty = false } = {}) {
+// Só recalcula dados derivados em memória; não grava nada.
+function refreshEncumbranceActors({ clearPenalty = false } = {}) {
   for (const actor of game.actors ?? []) {
     if (actor.type !== "player" || !(actor.isOwner || game.user?.isGM)) continue;
-    if (autoAssign) {
-      void Promise.resolve(game.tenebreResources?.encumbrance?.autoAssignAll?.(actor))
-        .catch((error) => console.warn(`${MODULE_ID} | Could not refresh encumbrance for ${actor.name}.`, error));
-    }
     actor.prepareData?.();
     if (clearPenalty) EncumbranceService.clearDefensePenalty(actor);
   }
@@ -490,12 +485,6 @@ function synchronizeContainerStates(enabled) {
       .then(() => game.tenebreResources?.containers?.synchronizeActorStates?.(actor, enabled))
       .catch((error) => console.warn(`${MODULE_ID} | Could not synchronize container states for ${actor.name}.`, error));
   }
-}
-
-function isPrimaryActiveGm() {
-  if (!game.user?.isGM) return false;
-  const activeGms = [...(game.users ?? [])].filter((user) => user.active && user.isGM);
-  return !activeGms.length || activeGms[0]?.id === game.user.id;
 }
 
 function syncAmmoSettingsVisibility(form) {
@@ -720,17 +709,17 @@ function addRationFoodRow(form, { key, name, uses, category = "Custom", custom =
   row.dataset.rationFoodKey = key;
   const safeUses = Math.max(1, Number(uses) || 1);
   row.innerHTML = `
-    <input type="hidden" name="extraRationFoods.foods.${escapeAttribute(key)}.enabled" value="true">
-    <input type="hidden" name="extraRationFoods.foods.${escapeAttribute(key)}.name" value="${escapeAttribute(name)}">
-    <input type="hidden" name="extraRationFoods.foods.${escapeAttribute(key)}.category" value="${escapeAttribute(category)}">
-    ${itemId ? `<input type="hidden" name="extraRationFoods.foods.${escapeAttribute(key)}.itemId" value="${escapeAttribute(itemId)}">` : ""}
-    ${custom ? `<input type="hidden" name="extraRationFoods.foods.${escapeAttribute(key)}.custom" value="true">` : ""}
+    <input type="hidden" name="extraRationFoods.foods.${escapeHtml(key)}.enabled" value="true">
+    <input type="hidden" name="extraRationFoods.foods.${escapeHtml(key)}.name" value="${escapeHtml(name)}">
+    <input type="hidden" name="extraRationFoods.foods.${escapeHtml(key)}.category" value="${escapeHtml(category)}">
+    ${itemId ? `<input type="hidden" name="extraRationFoods.foods.${escapeHtml(key)}.itemId" value="${escapeHtml(itemId)}">` : ""}
+    ${custom ? `<input type="hidden" name="extraRationFoods.foods.${escapeHtml(key)}.custom" value="true">` : ""}
     <span class="tenebre-ration-food-name">${escapeHtml(name)}</span>
     <label class="tenebre-ration-food-uses">
       <span>${escapeHtml(game.i18n.localize("TENEBRE.Settings.OtherRationUses"))}</span>
-      <input type="number" name="extraRationFoods.foods.${escapeAttribute(key)}.uses" value="${safeUses}" min="1">
+      <input type="number" name="extraRationFoods.foods.${escapeHtml(key)}.uses" value="${safeUses}" min="1">
     </label>
-    <button type="button" class="tenebre-ration-food-remove" data-remove-ration-food="${escapeAttribute(key)}">
+    <button type="button" class="tenebre-ration-food-remove" data-remove-ration-food="${escapeHtml(key)}">
       <i class="fas fa-times"></i>
     </button>
   `;
@@ -822,14 +811,6 @@ function customRationFoodExists(food) {
   return Boolean(game.items?.some?.((item) => normalizeText(item.name) === name));
 }
 
-function normalizeText(value) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
 async function confirmRationFoodBulkAction(titleKey, contentKey) {
   const DialogV2 = foundry.applications?.api?.DialogV2;
   if (!DialogV2) return window.confirm(game.i18n.localize(contentKey));
@@ -856,19 +837,6 @@ function toggleRationEmptyState(form) {
   const empty = form.querySelector(".tenebre-ration-empty");
   if (!empty) return;
   empty.hidden = Boolean(form.querySelector(".tenebre-ration-food[data-ration-food-key]"));
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function escapeAttribute(value) {
-  return escapeHtml(value).replaceAll("`", "&#96;");
 }
 
 function refreshTokenActionHud() {

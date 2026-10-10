@@ -1,6 +1,7 @@
 import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { ContainerService } from "./containers.mjs";
 import { ContainerTransferService } from "./container-transfer.mjs";
+import { isActiveGM } from "./utils.mjs";
 
 const GROUND_CONTAINER_FLAG = "groundContainer";
 const GROUND_CONTAINER_DRAG_TYPE = `${MODULE_ID}.ground-container`;
@@ -482,11 +483,7 @@ export class GroundContainerService {
   }
 
   static isPrimaryActiveGm() {
-    if (!game.user?.isGM) return false;
-    const activeGms = [...(game.users ?? [])]
-      .filter((user) => user.active && user.isGM)
-      .sort((left, right) => String(left.id).localeCompare(String(right.id)));
-    return !activeGms.length || activeGms[0]?.id === game.user.id;
+    return isActiveGM();
   }
 
   static canMutateScene(scene) {

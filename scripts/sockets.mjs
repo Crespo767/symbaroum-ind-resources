@@ -9,6 +9,7 @@ import {
   isModuleManeuverEffect,
   sanitizeSocketOptions
 } from "./socket-policy.mjs";
+import { isActiveGM } from "./utils.mjs";
 
 let moduleSocket = null;
 
@@ -72,10 +73,7 @@ export class SocketService {
   }
 
   static isPrimaryGM() {
-    const user = globalThis.game?.user;
-    if (!user?.isGM) return false;
-    const activeGM = game.users?.activeGM;
-    return !activeGM || activeGM.id === user.id;
+    return isActiveGM();
   }
 
   static canModify(document, action = "update") {
@@ -111,9 +109,10 @@ export class SocketService {
     return this.executeAsGM("deleteEmbeddedDocuments", parent.uuid, embeddedName, ids, options);
   }
 
+  /** Aplica "Morto" (com overlay) e marca os combatentes do ator como derrotados. */
   static async markActorDead(actor) {
     if (!actor) return false;
-    if (globalThis.game?.user?.isGM) return markActorDeadLocal(actor);
+    if (this.canModify(actor, "update")) return markActorDeadLocal(actor);
     return this.executeAsGM("markActorDead", actor.uuid);
   }
 
@@ -372,10 +371,9 @@ async function markActorDeadLocal(actor) {
 
   if (!hasDeadCondition(actor)) {
     let applied = false;
-
     if (typeof actor.toggleStatusEffect === "function") {
       try {
-        await actor.toggleStatusEffect("dead", { active: true });
+        await actor.toggleStatusEffect("dead", { active: true, overlay: true });
         applied = true;
       } catch (error) {
         console.warn(`${MODULE_ID} | Failed to apply dead status through toggleStatusEffect. Falling back to ActiveEffect.`, error);
@@ -393,7 +391,7 @@ async function markActorDeadLocal(actor) {
     }
   }
 
-  await markActiveTokensDead(actor);
+  await markActorCombatantsDefeated(actor);
   return true;
 }
 
@@ -406,26 +404,23 @@ function hasDeadCondition(actor) {
   });
 }
 
-async function markActiveTokensDead(actor) {
-  const deadEffect = globalThis.CONFIG?.statusEffects?.find?.((effect) => effect.id === "dead");
+export function findActorTokenCombatants(actor, tokens, combatants) {
+  const list = Array.from(combatants ?? []);
+  const found = new Set();
+  for (const token of tokens ?? []) {
+    const tokenId = token?.document?.id ?? token?.id;
+    // Tokens não vinculados compartilham o id do ator: só o token identifica o combatente certo.
+    const combatant = list.find((candidate) => candidate.tokenId === tokenId || candidate.token?.id === tokenId)
+      ?? (actor?.isToken ? null : list.find((candidate) => candidate.actorId === actor?.id || candidate.actor?.id === actor?.id));
+    if (combatant) found.add(combatant);
+  }
+  return [...found];
+}
+
+async function markActorCombatantsDefeated(actor) {
   const tokens = actor?.getActiveTokens?.() ?? [];
-
-  for (const token of tokens) {
-    if (deadEffect && typeof token.toggleEffect === "function") {
-      try {
-        await token.toggleEffect(foundry.utils.duplicate(deadEffect), { overlay: true, active: true });
-      } catch (error) {
-        console.warn(`${MODULE_ID} | Failed to mark token dead overlay.`, error);
-      }
-    }
-
-    const combatant = globalThis.game?.combat?.combatants?.find?.((candidate) => {
-      return candidate.tokenId === token.id
-        || candidate.token?.id === token.id
-        || candidate.actor?.id === actor.id;
-    });
-    if (combatant && !combatant.defeated && typeof combatant.update === "function") {
-      await combatant.update({ defeated: true });
-    }
+  for (const combatant of findActorTokenCombatants(actor, tokens, globalThis.game?.combat?.combatants)) {
+    if (combatant.defeated) continue;
+    await SocketService.updateCombatant(combatant, { defeated: true });
   }
 }

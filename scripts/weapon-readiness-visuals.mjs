@@ -2,6 +2,7 @@ import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { COMPAT_MODULES, CompatibilityService } from "./compatibility.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { isDrawn, isEligibleWeapon } from "./weapon-readiness.mjs";
+import { isActorExecutor } from "./utils.mjs";
 
 export const WEAPON_READINESS_INDICATOR_FLAG = "weaponReadinessIndicator";
 export const WEAPON_READINESS_INDICATOR_WEAPON_FLAG = "weaponReadinessIndicatorWeaponId";
@@ -43,7 +44,7 @@ export const WeaponReadinessVisualService = {
   },
 
   async syncActorIndicator(actor) {
-    if (!isIndicatorExecutor(actor)) return false;
+    if (!isActorExecutor(actor)) return false;
     const actorKey = actor.uuid ?? actor.id;
     const current = indicatorSyncs.get(actorKey);
     if (current) {
@@ -199,22 +200,6 @@ function getRelevantActors() {
   return actors.values();
 }
 
-function isIndicatorExecutor(actor) {
-  if (!actor || !game.user?.active) return false;
-  const users = Array.from(game.users ?? []).filter((user) => user.active);
-  const activeGms = users.filter((user) => user.isGM).sort(compareUserIds);
-  if (activeGms.length > 0) return activeGms[0].id === game.user.id;
-
-  const owners = users
-    .filter((user) => actor.testUserPermission?.(user, "OWNER"))
-    .sort(compareUserIds);
-  return owners[0]?.id === game.user.id;
-}
-
-function compareUserIds(left, right) {
-  return String(left.id).localeCompare(String(right.id));
-}
-
 async function playReadinessAnimation(actor, drawn, sheathed) {
   if (!game.settings.get(MODULE_ID, "enableWeaponReadinessAnimation")) return false;
   if (!canvas?.ready || !CompatibilityService.isModuleActive(COMPAT_MODULES.sequencer)) return false;
@@ -248,7 +233,7 @@ function getActorToken(actor) {
 async function syncActorCombatState(actor, currentWeapons = []) {
   if (!actor || !isPlayerActor(actor) || !TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
 
-  const isExecutor = isIndicatorExecutor(actor) || actor?.isOwner || game.user?.isGM;
+  const isExecutor = isActorExecutor(actor) || actor?.isOwner || game.user?.isGM;
   if (!isExecutor) return;
 
   const tokens = actor?.getActiveTokens?.(true, true) ?? [];

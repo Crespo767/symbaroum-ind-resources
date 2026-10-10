@@ -1,7 +1,8 @@
-﻿import { ChatController } from "./chat-controller.mjs";
+import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { GM_LOG_EVENT_CATEGORIES, gmLogEventPresentation } from "./gm-log-events.mjs";
 import { GmLogService, isGmLogEnabled } from "./gm-log-service.mjs";
+import { localize } from "./utils.mjs";
 
 const TEMPLATE_PATH = `modules/${MODULE_ID}/templates/gm-log.hbs`;
 const CHAT_ROOT_ID = "chat";
@@ -277,6 +278,3 @@ function formatTime(timestamp) {
   }
 }
 
-function localize(key) {
-  return game.i18n.localize(key);
-}

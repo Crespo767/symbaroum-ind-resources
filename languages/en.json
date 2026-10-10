@@ -52,8 +52,6 @@
   "TENEBRE.Settings.TabCombatButton": "Configure Combat",
   "TENEBRE.Settings.TabChatMessagesButton": "Configure Chat Messages",
   "TENEBRE.Settings.TabUtilitiesButton": "Configure Utilities",
-  "TENEBRE.Settings.HideCompatibilityNotice": "Hide legacy compatibility notice",
-  "TENEBRE.Settings.HideCompatibilityNoticeHint": "Old local preference kept to migrate compatibility notices that were already confirmed.",
   "TENEBRE.Settings.CompatibilityNoticeAcknowledged": "Acknowledged compatibility notices",
   "TENEBRE.Settings.CompatibilityNoticeAcknowledgedHint": "Locally records which conflicts were already confirmed. New conflicts show the notice again.",
   "TENEBRE.Compatibility.Title": "Tenebre Resources: Compatibility Notice",

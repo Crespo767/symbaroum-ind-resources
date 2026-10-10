@@ -77,7 +77,7 @@ function withGame(callback, { enabled = true, generation = 13 } = {}) {
   globalThis.game = {
     release: { generation },
     user: gm,
-    users: [gm],
+    users: Object.assign([gm], { activeGM: gm }),
     settings: { get: (_moduleId, key) => key === "enableEncumbrance" && enabled },
     i18n: { localize: () => "Sobrecarregado!" }
   };

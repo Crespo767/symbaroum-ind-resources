@@ -5,7 +5,6 @@ import {
   calculateStackBundleSlots,
   detectEncumbranceSlots,
   getDynamicEncumbranceWeights,
-  getMergedEncumbranceWeights,
   getStackBundleRule,
   hasConfiguredEncumbranceRule,
   hasExactEncumbranceItem,
@@ -18,21 +17,6 @@ import { ContainerService } from "./containers.mjs";
 import { normalize } from "./utils.mjs";
 
 const GEAR_ITEM_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
-
-export function canModifyEncumbranceItem(item, user = globalThis.game?.user) {
-  if (!item) return false;
-  if (user?.isGM) return true;
-
-  if (typeof item.canUserModify === "function") {
-    try {
-      return item.canUserModify(user, "update") === true;
-    } catch (_error) {
-      return false;
-    }
-  }
-
-  return item.isOwner === true || item.parent?.isOwner === true;
-}
 
 const HEAVY_WEAPON_TERMS = [
   "arma pesada",
@@ -138,81 +122,15 @@ const HEAVY_ARMOR_TERMS = [
   "armadura de placas"
 ];
 
-let dynamicWeightFileFingerprint = null;
-let dynamicWeightFileWatcher = null;
-let dynamicWeightFileWatcherBusy = false;
-let dynamicWeightFileMissing = false;
-let activeWeightConfigFingerprint = null;
-let weightConfigModuleId = null;
-const WEIGHT_FILE_WATCH_INTERVAL_MS = 10000;
-
 export class EncumbranceService {
+  /** Pesos base do módulo + pesos aprendidos, salvos na configuração do mundo. */
   static async loadWeightConfig(moduleId) {
-    weightConfigModuleId = moduleId;
     await loadEncumbranceWeights(moduleId);
-    this.applyDynamicWeightConfig(await readDynamicWeightConfig());
-    activeWeightConfigFingerprint = fingerprintWeightConfig(getMergedEncumbranceWeights());
+    this.applyDynamicWeightConfig(readDynamicWeightSetting());
   }
 
   static applyDynamicWeightConfig(config) {
     applyDynamicEncumbranceWeights(config);
-  }
-
-  static getDynamicWeightFilePath() {
-    return dynamicWeightFilePath()?.display ?? null;
-  }
-
-  static async reloadDynamicWeightFile() {
-    const config = await readDynamicWeightFile({ force: true });
-    if (!config) return false;
-    this.applyDynamicWeightConfig(config);
-    dynamicWeightFileFingerprint = fingerprintWeightConfig(getDynamicEncumbranceWeights());
-    activeWeightConfigFingerprint = fingerprintWeightConfig(getMergedEncumbranceWeights());
-    if (canPersistDynamicWeights()) {
-      await game.settings.set(MODULE_ID, "encumbranceDiscoveredWeights", getDynamicEncumbranceWeights());
-    }
-    return true;
-  }
-
-  static startDynamicWeightFileWatcher(intervalMs = WEIGHT_FILE_WATCH_INTERVAL_MS) {
-    if (!globalThis.game?.user?.isGM) return false;
-    if (dynamicWeightFileWatcher) return false;
-
-    dynamicWeightFileWatcher = globalThis.setInterval(async () => {
-      if (dynamicWeightFileWatcherBusy) return;
-      dynamicWeightFileWatcherBusy = true;
-      try {
-        let baseChanged = false;
-        if (weightConfigModuleId) {
-          baseChanged = await loadEncumbranceWeights(weightConfigModuleId);
-        }
-
-        const config = await readDynamicWeightConfig();
-        this.applyDynamicWeightConfig(config);
-        const fingerprint = fingerprintWeightConfig(getMergedEncumbranceWeights());
-        if (!baseChanged && fingerprint === activeWeightConfigFingerprint) return;
-
-        activeWeightConfigFingerprint = fingerprint;
-        dynamicWeightFileFingerprint = fingerprintWeightConfig(getDynamicEncumbranceWeights());
-        console.log("Tenebre Resources | Reloaded encumbrance weights.");
-        rerenderOpenActorSheets();
-        globalThis.Hooks?.callAll?.(`${MODULE_ID}.encumbranceWeightsChanged`);
-      } catch (err) {
-        console.warn("Tenebre Resources | Could not watch the encumbrance weight file.", err);
-      } finally {
-        dynamicWeightFileWatcherBusy = false;
-      }
-    }, intervalMs);
-
-    return true;
-  }
-
-  static stopDynamicWeightFileWatcher() {
-    if (!dynamicWeightFileWatcher) return false;
-    globalThis.clearInterval(dynamicWeightFileWatcher);
-    dynamicWeightFileWatcher = null;
-    dynamicWeightFileWatcherBusy = false;
-    return true;
   }
 
   /**
@@ -500,40 +418,6 @@ export class EncumbranceService {
     }
   }
 
-  /**
-   * Atribui automaticamente o flag de encumbranceSlots a um item
-   * se ele ainda não tiver valor definido.
-   */
-  static async autoAssignSlots(item) {
-    if (!item || !item.id) return;
-    if (!isTrackedGear(item)) return;
-
-    if (item.getFlag?.(FLAG_SCOPE, "encumbranceManual") === true) return;
-    const existing = item.getFlag?.(FLAG_SCOPE, "encumbranceSlots");
-    const slots = this.getItemSlots(item);
-    if (Number(existing) === slots) return;
-    if (!canModifyEncumbranceItem(item)) return false;
-
-    try {
-      await item.setFlag(FLAG_SCOPE, "encumbranceSlots", slots);
-      await item.setFlag(FLAG_SCOPE, "encumbranceAutoAssigned", true);
-      return true;
-    } catch (err) {
-      console.warn(`Tenebre Resources | Could not auto-assign encumbrance to "${item.name}":`, err.message);
-      return false;
-    }
-  }
-
-  /**
-   * Varre todos os itens de um ator e atribui slots faltantes.
-   */
-  static async autoAssignAll(actor) {
-    if (!actor) return;
-    const items = actorItems(actor).filter(isTrackedGear);
-    for (const item of items) {
-      await this.autoAssignSlots(item);
-    }
-  }
 }
 
 function getStrongValue(actor) {
@@ -658,25 +542,6 @@ function defaultLoadResult() {
   };
 }
 
-function rerenderOpenActorSheets() {
-  for (const app of Object.values(globalThis.ui?.windows ?? {})) {
-    const sheetActor = app.actor ?? app.document;
-    if (sheetActor?.documentName === "Actor" || sheetActor?.type === "player") {
-      app.render?.(false);
-    }
-  }
-
-  const instances = globalThis.foundry?.applications?.instances;
-  if (!instances || typeof instances.values !== "function") return;
-
-  for (const app of instances.values()) {
-    const document = app?.document ?? app?.actor;
-    if (document?.documentName === "Actor" || document?.type === "player") {
-      app.render?.({ force: false });
-    }
-  }
-}
-
 function applyPenaltyToArmorData(armorData, penalty) {
   const originalDefense = Number(armorData._tenebreBaseDefense ?? armorData.defense ?? 0);
   const nextDefense = Math.max(0, originalDefense - penalty);
@@ -701,12 +566,6 @@ function actorHasAbility(actor, aliases) {
   return false;
 }
 
-async function readDynamicWeightConfig() {
-  const settingConfig = readDynamicWeightSetting();
-  if (settingConfig) return settingConfig;
-  return dynamicWeightFileFingerprint ? await readDynamicWeightFile() : null;
-}
-
 function readDynamicWeightSetting() {
   if (!globalThis.game?.settings?.settings?.has(`${MODULE_ID}.encumbranceDiscoveredWeights`)) {
     return null;
@@ -723,78 +582,8 @@ function canPersistDynamicWeights() {
 
 async function persistDynamicWeightConfig() {
   if (!canPersistDynamicWeights()) return false;
-  const config = getDynamicEncumbranceWeights();
-  await game.settings.set(MODULE_ID, "encumbranceDiscoveredWeights", config);
-  await writeDynamicWeightFile(config);
+  await game.settings.set(MODULE_ID, "encumbranceDiscoveredWeights", getDynamicEncumbranceWeights());
   return true;
-}
-
-async function readDynamicWeightFile({ force = false } = {}) {
-  const url = dynamicWeightFileUrl();
-  if (!url) return null;
-  if (dynamicWeightFileMissing && !force) return null;
-
-  try {
-    const response = await fetch(url, { cache: "no-store" });
-    if (response.status === 404) {
-      dynamicWeightFileMissing = true;
-      return null;
-    }
-    if (!response.ok) return null;
-    const config = await response.json();
-    dynamicWeightFileMissing = false;
-    dynamicWeightFileFingerprint = dynamicWeightFileFingerprint ?? fingerprintWeightConfig(config);
-    return config;
-  } catch (err) {
-    console.warn(`Tenebre Resources | Could not read ${url}; using saved world setting instead.`, err);
-    return null;
-  }
-}
-
-async function writeDynamicWeightFile(config) {
-  const filePicker = globalThis.foundry?.applications?.apps?.FilePicker?.implementation;
-  if (!filePicker?.upload || !globalThis.File) return false;
-
-  const path = dynamicWeightFilePath();
-  if (!path) return false;
-
-  try {
-    const blob = new Blob([`${JSON.stringify(config, null, 2)}\n`], { type: "application/json" });
-    const file = new File([blob], dynamicWeightFileName(), { type: "application/json" });
-    await filePicker.upload("data", path.directory, file, { notify: false });
-    dynamicWeightFileMissing = false;
-    dynamicWeightFileFingerprint = fingerprintWeightConfig(config);
-    return true;
-  } catch (err) {
-    console.warn(`Tenebre Resources | Could not write ${path.display}. The learned weights were still saved in world settings.`, err);
-    return false;
-  }
-}
-
-function dynamicWeightFileUrl() {
-  const path = dynamicWeightFilePath();
-  return path?.display ?? null;
-}
-
-function dynamicWeightFilePath() {
-  const worldId = globalThis.game?.world?.id;
-  if (!worldId) return null;
-
-  const directory = `worlds/${worldId}`;
-  const filename = dynamicWeightFileName();
-  return {
-    directory,
-    filename,
-    display: `${directory}/${filename}`
-  };
-}
-
-function dynamicWeightFileName() {
-  return "tenebre-encumbrance-weights.json";
-}
-
-function fingerprintWeightConfig(config) {
-  return config ? JSON.stringify(config) : null;
 }
 
 async function loadCompendiumItems() {

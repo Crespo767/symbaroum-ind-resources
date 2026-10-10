@@ -259,14 +259,6 @@ export function getAmmoShots(item) {
   return qty;
 }
 
-export function sumAmmoShots(items) {
-  return items.reduce((total, item) => total + getAmmoShots(item), 0);
-}
-
-export function sumLoadedQuiverShots(items) {
-  return items.reduce((total, item) => total + (isQuiver(item) ? getQuiverLoadedTotal(item) : 0), 0);
-}
-
 export function localizeAmmoType(ammoType) {
   return game.i18n.localize("TENEBRE.Ammo.Ammo");
 }

@@ -1,6 +1,7 @@
-﻿import { ChatController } from "./chat-controller.mjs";
+import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG } from "./constants.mjs";
 import { SocketService } from "./sockets.mjs";
+import { escapeHtml, format, localize } from "./utils.mjs";
 
 const SYSTEM_ID = "symbaroum";
 const SYSTEM_ACTIONS_FLAG = "applyEffects";
@@ -441,22 +442,3 @@ function settleAnimationWait(waitForAnimation, maximumWaitMs) {
   });
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function localize(key, fallback) {
-  const translated = globalThis.game?.i18n?.localize?.(key);
-  return translated && translated !== key ? translated : fallback;
-}
-
-function format(key, fallback, data) {
-  const translated = globalThis.game?.i18n?.format?.(key, data);
-  if (translated && translated !== key) return translated;
-  return fallback.replace(/\{(\w+)\}/g, (_match, name) => data[name] ?? "");
-}

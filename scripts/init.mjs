@@ -42,6 +42,7 @@ import { DeathAutomationService, isDeathIncapacitated } from "./death-automation
 import { ActorCreationService } from "./actor-creation.mjs";
 import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import { PartyActorService } from "./party-actor.mjs";
+import { isActiveGM, normalizeText } from "./utils.mjs";
 
 Hooks.once("init", () => {
   try {
@@ -108,10 +109,6 @@ Hooks.on("createItem", (item, _options, userId) => {
   // createItem dispara em todos os clientes; só quem criou o item grava.
   if (userId !== game.user?.id) return;
   if (item.parent && item.parent.type === "player") {
-    if (TenebreSettings.get("enableEncumbrance")) {
-      EncumbranceService.autoAssignSlots(item);
-    }
-
     if (TenebreSettings.get("enableRations") && isRation(item)) {
       window.setTimeout(() => {
         RationService.consolidate(item.parent).catch((error) => {
@@ -129,9 +126,6 @@ Hooks.once("ready", async () => {
   }
 
   await EncumbranceService.loadWeightConfig(MODULE_ID);
-  if (TenebreSettings.get("enableEncumbrance")) {
-    EncumbranceService.startDynamicWeightFileWatcher();
-  }
 
   patchWeaponRolls();
   registerSheetHooks();
@@ -245,19 +239,7 @@ function applyNpcAttackContextToMessage(message, data, options, userId) {
 
   exposePublicApi();
 
-  // Auto-atribuir slots de sobrecarga na inicialização
-  if (TenebreSettings.get("enableEncumbrance")) {
-    for (const actor of game.actors) {
-      if (actor.type === "player" && actor.isOwner) {
-        await EncumbranceService.autoAssignAll(actor);
-        EncumbranceService.applyDefensePenalty(actor);
-      }
-    }
-  }
-
-  const activeGms = [...(game.users ?? [])].filter((user) => user.active && user.isGM);
-  const isPrimaryActiveGm = game.user.isGM && (!activeGms.length || activeGms[0]?.id === game.user.id);
-  if (isPrimaryActiveGm) {
+  if (isActiveGM()) {
     const containersEnabled = TenebreSettings.get("enableContainers");
     for (const actor of game.actors) {
       if (actor.type === "player") {
@@ -729,14 +711,6 @@ function getHungerFavourValue(actorId) {
   if (actor?.type === "monster" && hungryTarget) return "1";
 
   return null;
-}
-
-function normalizeText(value) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
 }
 
 Hooks.on("createChatMessage", (message, options, userId) => {

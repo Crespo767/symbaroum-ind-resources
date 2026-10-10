@@ -312,7 +312,7 @@ test("each drawn armament receives an independent token indicator", async () => 
   globalThis.game = {
     release: { generation: 13 },
     user: gm,
-    users: [gm],
+    users: Object.assign([gm], { activeGM: gm }),
     settings: { get: () => true },
     i18n: { format: (_key, { weapons }) => `Drawn weapon: ${weapons}` }
   };
@@ -367,7 +367,7 @@ test("legacy aggregated token indicators migrate to one effect per drawn armamen
   globalThis.game = {
     release: { generation: 14 },
     user: gm,
-    users: [gm],
+    users: Object.assign([gm], { activeGM: gm }),
     settings: { get: () => true },
     i18n: { format: (_key, { weapons }) => `Drawn weapon: ${weapons}` }
   };
@@ -421,7 +421,7 @@ test("indicator synchronization reruns after concurrent weapon state updates", a
   globalThis.game = {
     release: { generation: 13 },
     user: gm,
-    users: [gm],
+    users: Object.assign([gm], { activeGM: gm }),
     settings: { get: () => true },
     i18n: { format: (_key, { weapons }) => `Drawn weapon: ${weapons}` }
   };

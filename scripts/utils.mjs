@@ -1,11 +1,63 @@
+/** Escapa texto para HTML e atributos entre aspas. Única implementação do módulo. */
 export function escapeHtml(value) {
-  if (game.symbaroum?.htmlEscape) return game.symbaroum.htmlEscape(String(value ?? ""));
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/'/g, "&#39;")
+    .replace(/`/g, "&#96;");
+}
+
+/** Tradução com valor alternativo quando a chave não existe. */
+export function localize(key, fallback = key) {
+  const value = globalThis.game?.i18n?.localize?.(key);
+  return value && value !== key ? value : fallback;
+}
+
+/** Tradução com placeholders; usa `fallback` (com {campos}) quando a chave não existe. */
+export function format(key, fallback, data = {}) {
+  const value = globalThis.game?.i18n?.format?.(key, data);
+  if (value && value !== key) return value;
+  return String(fallback ?? key).replace(/\{(\w+)\}/g, (_match, field) => String(data[field] ?? ""));
+}
+
+/**
+ * Verdadeiro só no cliente do GM ativo designado pelo core (game.users.activeGM).
+ * Use para tarefas automáticas que devem rodar uma única vez no mundo.
+ */
+export function isActiveGM() {
+  const user = globalThis.game?.user;
+  if (!user?.isGM) return false;
+  const activeGM = globalThis.game?.users?.activeGM;
+  return !activeGM || activeGM.id === user.id;
+}
+
+/**
+ * Executor único de automações de um ator: o GM ativo; sem GM online, o dono ativo de menor id.
+ */
+export function isActorExecutor(actor) {
+  if (!actor || !globalThis.game?.user?.active) return false;
+  if (globalThis.game.users?.activeGM) return isActiveGM();
+  const owner = Array.from(globalThis.game.users ?? [])
+    .filter((user) => user.active && actor.testUserPermission?.(user, "OWNER"))
+    .sort((left, right) => String(left.id).localeCompare(String(right.id)))[0];
+  return owner?.id === globalThis.game.user.id;
+}
+
+/** Re-renderiza as fichas abertas de um ator (V1 e ApplicationV2), ou de todos os atores se nenhum for dado. */
+export function rerenderActorSheets(actor = null) {
+  const apps = new Set(Object.values(globalThis.ui?.windows ?? {}));
+  const instances = globalThis.foundry?.applications?.instances;
+  if (typeof instances?.values === "function") {
+    for (const app of instances.values()) apps.add(app);
+  }
+  for (const app of apps) {
+    const sheetActor = app?.actor ?? app?.document;
+    if (sheetActor?.documentName !== "Actor" || typeof app.render !== "function") continue;
+    if (actor && sheetActor.uuid !== actor.uuid && sheetActor.id !== actor.id) continue;
+    app.render(false);
+  }
 }
 
 export function sanitizeHtml(value) {
@@ -19,6 +71,10 @@ export function normalize(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+export function normalizeText(value) {
+  return normalize(value).trim();
 }
 
 function toWordText(value) {

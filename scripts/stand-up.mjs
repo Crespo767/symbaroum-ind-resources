@@ -3,6 +3,7 @@ import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs"
 import { isProneActor } from "./prone-advantage.mjs";
 import { SocketService } from "./sockets.mjs";
 import { isDeathIncapacitated } from "./death-automation.mjs";
+import { escapeHtml } from "./utils.mjs";
 
 export const STAND_UP_ACTION_FLAG = "standUpAction";
 
@@ -362,11 +363,3 @@ function setStandUpButtonHover(button, background, active) {
   if (background?.tenebreGlow) background.tenebreGlow.alpha = active ? 0.72 : 0.28;
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}

@@ -17,7 +17,6 @@ const registeredTypes = new Map(Array.from(settingsSource.matchAll(/\bregister\(
 const formFields = new Set(Array.from(templateSource.matchAll(/\bname="([^"]+)"/g), (match) => match[1].split(".")[0])
   .filter((name) => !name.includes("{{")));
 const internalSettings = new Set([
-  "hideCompatibilityNotice",
   "compatibilityNoticeAcknowledged",
   "encumbranceDiscoveredWeights",
   "weaponReadinessButtonPosition",

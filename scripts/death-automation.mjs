@@ -1,9 +1,10 @@
-﻿import { ChatController } from "./chat-controller.mjs";
+import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { SocketService } from "./sockets.mjs";
 import { TenebreSettings } from "./settings.mjs";
+import { escapeHtml, format, localize } from "./utils.mjs";
 
 export const DYING_STATUS_ID = "tenebre-dying";
 export const DEATH_STATE_FLAG = "deathState";
@@ -686,26 +687,6 @@ function statusEffectId(effect) {
 function portraitHtml(actor) {
   const src = actor?.img || "icons/svg/mystery-man.svg";
   return `<figure class="tenebre-death-actor"><img src="${escapeHtml(src)}" alt="${escapeHtml(actor?.name)}" loading="lazy"><figcaption>${escapeHtml(actor?.name)}</figcaption></figure>`;
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function localize(key, fallback) {
-  const value = game.i18n?.localize?.(key);
-  return value && value !== key ? value : fallback;
-}
-
-function format(key, fallback, data) {
-  const value = game.i18n?.format?.(key, data);
-  if (value && value !== key) return value;
-  return fallback.replace(/\{(\w+)\}/g, (_match, name) => String(data[name] ?? ""));
 }
 
 function logError(error) {

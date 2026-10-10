@@ -2,7 +2,7 @@
 // Adapted for modern ES Modules (V11/V12/V13 compatible)
 
 import { TenebreSettings } from "./settings.mjs";
-import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
+import { escapeHtml, normalize, promptDialog, rerenderActorSheets } from "./utils.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 
 const moduleId = 'symbaroum-ind-resources';
@@ -1004,25 +1004,7 @@ export function setupBithirMod() {
         return;
     }
 
-    // Register settings
-    registerBithirSetting('hideShadowGeneration', {
-        name: 'BITHIRMOD.SHADOW_hideGeneration',
-        hint: 'BITHIRMOD.SHADOW_hideGeneration_hint',
-        scope: "world",
-        config: false,
-        default: false,
-        type: Boolean
-    });
-
-    registerBithirSetting('hideShadowLabel', {
-        name: 'BITHIRMOD.SHADOW_hideLabel',
-        hint: 'BITHIRMOD.SHADOW_hideLabel_hint',
-        scope: "world",
-        config: false,
-        default: false,
-        type: Boolean
-    });
-
+    // hideShadowGeneration e hideShadowLabel são registradas em settings.mjs.
     registerBithirSetting('utilityTranslationMigrationVersion', {
         scope: "world",
         config: false,
@@ -1115,17 +1097,13 @@ export function setupBithirMod() {
         config: BithirConfig,
         macros: new BithirMacros(),
         api: api,
-        refreshOpenActorSheets: rerenderOpenActorSheets
+        refreshOpenActorSheets: () => rerenderActorSheets()
     };
 
     if (game.tenebreResources) {
         game.tenebreResources.bithir = bithirObj;
     }
     game.bithirmod = bithirObj; // keep same namespace for backwards compatibility inside table roll commands
-}
-
-export function isExternalBithirModuleActive() {
-    return CompatibilityService.shouldSkipBundledBithir();
 }
 
 function registerBithirSetting(key, data) {
@@ -1155,15 +1133,3 @@ function warnBithirDisabled() {
     return null;
 }
 
-function rerenderOpenActorSheets() {
-    for (const app of Object.values(ui.windows ?? {})) {
-        if (app?.actor || app?.document?.documentName === "Actor") app.render?.(false);
-    }
-
-    const instances = foundry.applications?.instances;
-    if (instances && typeof instances.values === "function") {
-        for (const app of instances.values()) {
-            if (app?.document?.documentName === "Actor") app.render?.({ force: false });
-        }
-    }
-}

@@ -279,7 +279,8 @@ Ajustes:
 
 ## 11. Plano de melhoria recomendado
 
-**Andamento (branch `auditoria/fase-0`):** Fases 0 e 1 aplicadas, aguardando teste manual no Foundry.
+**Andamento (branch `auditoria/fase-0`):** Fases 0 e 1 commitadas (`2e6c170`); Fase 2 aplicada (−832 linhas líquidas). Todas aguardam teste manual no Foundry.
+Fase 2 manteve os métodos da API pública (`AmmoService.selectAmmo/promptAmmo`, `GmLogService.recordItemQuantityChange`, `VerseService`), porque macros externas podem usá-los.
 Regras decididas: Defesa Total (e Ataque Total, pelo mesmo motivo) dura até o próximo turno do personagem; a Fome sempre vence o favor de manobras.
 Munição especial: os modificadores entram como pacotes opcionais nativos do sistema (`scripts/ammo-roll.mjs`), marcados pelo seletor de munição.
 

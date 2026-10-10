@@ -1,4 +1,4 @@
-﻿import { ChatController } from "./chat-controller.mjs";
+import { ChatController } from "./chat-controller.mjs";
 const SYMBAROUM_SYSTEM_ID = "symbaroum";
 const RESISTANCE_ROLL_FLAG = "resistRoll";
 const pendingResistanceMessages = new Set();

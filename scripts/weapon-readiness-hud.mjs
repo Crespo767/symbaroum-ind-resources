@@ -1,4 +1,4 @@
-﻿import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { WEAPON_READINESS_ICON, WeaponReadinessService } from "./weapon-readiness.mjs";
 

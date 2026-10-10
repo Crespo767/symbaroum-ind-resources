@@ -1,5 +1,6 @@
 import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { ContainerService } from "./containers.mjs";
+import { rerenderActorSheets } from "./utils.mjs";
 
 const GROUND_CONTAINER_FLAG = "groundContainer";
 const GROUND_CONTAINER_STATE = "other";
@@ -120,8 +121,8 @@ export class ContainerTransferService {
       throw error;
     }
 
-    rerenderActor(targetActor);
-    rerenderActor(sourceActor);
+    rerenderActorSheets(targetActor);
+    rerenderActorSheets(sourceActor);
     return true;
   }
 
@@ -459,7 +460,7 @@ async function transferContainerWithItemPiles(api, sourceActor, target, rootCont
       await ContainerService.revokeTransferredDeletes(sourceActor, tree, transferId);
       return false;
     }
-    rerenderActor(sourceActor);
+    rerenderActorSheets(sourceActor);
     return true;
   } catch (error) {
     await ContainerService.revokeTransferredDeletes(sourceActor, tree, transferId).catch(() => {});
@@ -589,13 +590,6 @@ async function deleteCreatedItems(actor, items) {
   }).catch(() => {});
 }
 
-function rerenderActor(actor) {
-  for (const app of Object.values(globalThis.ui?.windows ?? {})) {
-    const document = app.actor ?? app.document;
-    if (document?.uuid === actor?.uuid && typeof app.render === "function") app.render(false);
-  }
-}
-
 function resolveActor(reference) {
   const actors = Array.from(globalThis.game?.actors ?? []);
   return actors.find((actor) => actor.uuid === reference?.actorUuid)
@@ -607,12 +601,3 @@ function hasCanvasCoordinate(value) {
   return typeof value === "number" ? Number.isFinite(value)
     : typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value));
 }
-
-export const containerTransferConstants = Object.freeze({
-  groundFlag: GROUND_CONTAINER_FLAG,
-  groundState: GROUND_CONTAINER_STATE,
-  groundVersion: GROUND_CONTAINER_VERSION,
-  preTransferHook: ITEM_PILES_PRE_TRANSFER_HOOK,
-  itemPilesSymbaroumId: ITEM_PILES_SYMBAROUM_ID,
-  genericItemPilesId: ITEM_PILES_GENERIC_ID
-});

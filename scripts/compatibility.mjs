@@ -1,4 +1,5 @@
-﻿import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID } from "./constants.mjs";
+import { escapeHtml, localize } from "./utils.mjs";
 
 export const COMPAT_MODULES = {
   activeTokenEffects: "ATL",
@@ -35,8 +36,6 @@ const NOTICE_CHECKBOX_NAME = "tenebre-hide-compatibility-notice";
 
 let compatibilityLogged = false;
 let compatibilityNoticeShown = false;
-let noticeLanguage = null;
-let noticeTranslations = {};
 
 export class CompatibilityService {
   static decisions = [];
@@ -155,7 +154,6 @@ export class CompatibilityService {
     if (!game.user?.isGM) return false;
     if (compatibilityNoticeShown) return false;
 
-    await this.loadNoticeTranslations();
     this.refresh();
     const decisions = this.getNoticeDecisions();
     if (!decisions.length) return false;
@@ -208,25 +206,6 @@ export class CompatibilityService {
       render: (html) => activateNoticeControls(html?.[0] ?? html, noticeKeys)
     }).render(true);
     return true;
-  }
-
-  static async loadNoticeTranslations() {
-    const lang = String(game.i18n?.lang ?? "en");
-    if (noticeLanguage === lang) return;
-
-    noticeLanguage = lang;
-    noticeTranslations = {};
-
-    const path = getNoticeLanguagePath(lang);
-    if (!path) return;
-
-    try {
-      const response = await fetch(path);
-      if (!response.ok) return;
-      noticeTranslations = await response.json();
-    } catch (error) {
-      console.warn(`${MODULE_ID} | Failed to load compatibility notice translations for ${lang}.`, error);
-    }
   }
 
   static getReport() {
@@ -550,23 +529,3 @@ function resolveRoot(root) {
   return root.element instanceof HTMLElement ? root.element : null;
 }
 
-function localize(key, fallback) {
-  const activeTranslation = noticeTranslations?.[key];
-  if (activeTranslation) return activeTranslation;
-
-  const value = game.i18n?.localize?.(key);
-  return value && value !== key ? value : fallback;
-}
-
-function getNoticeLanguagePath(lang) {
-  const normalized = String(lang ?? "").toLowerCase();
-  if (normalized.startsWith("pt")) return `modules/${MODULE_ID}/languages/pt-BR.json`;
-  if (normalized.startsWith("en")) return `modules/${MODULE_ID}/languages/en.json`;
-  return null;
-}
-
-function escapeHtml(value) {
-  const div = document.createElement("div");
-  div.textContent = String(value ?? "");
-  return div.innerHTML;
-}

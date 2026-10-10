@@ -1,5 +1,6 @@
 import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
-import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
+import { actorItems, itemQuantity } from "./item-flags.mjs";
+import { escapeHtml, normalize, promptDialog, rerenderActorSheets } from "./utils.mjs";
 
 const STORABLE_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
 const ACCESSIBLE_STATES = new Set(["equipped", "active"]);
@@ -14,14 +15,6 @@ const sessionExpansionState = new Map();
 const transferDeleteAllowlist = new Set();
 const campingSeedOperations = new Map();
 const scheduledCampingSeeds = new Set();
-
-function actorItems(actor) {
-  return Array.from(actor?.items?.values?.() ?? []);
-}
-
-function itemQuantity(item) {
-  return Number(item?.system?.number ?? 0) || 0;
-}
 
 const LIGHT_CONTAINER_ALIASES = [
   "mochila",
@@ -1233,12 +1226,3 @@ function mergeItemUpdates(updates) {
   return [...merged.values()];
 }
 
-function rerenderActorSheets(actor) {
-  if (!actor || !globalThis.ui?.windows) return;
-  for (const app of Object.values(ui.windows)) {
-    const sheetActor = app.actor ?? app.document;
-    if (sheetActor?.id === actor.id && typeof app.render === "function") {
-      app.render(false);
-    }
-  }
-}

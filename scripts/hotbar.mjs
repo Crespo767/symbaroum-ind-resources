@@ -1,4 +1,4 @@
-﻿import { AmmoService } from "./ammo.mjs";
+import { AmmoService } from "./ammo.mjs";
 import { actorItems, getQuiverCapacity, getQuiverLoadedTotal, getWeaponAmmoType, isActiveOrEquipped, isQuiver, itemQuantity } from "./item-flags.mjs";
 import { TenebreSettings } from "./settings.mjs";
 

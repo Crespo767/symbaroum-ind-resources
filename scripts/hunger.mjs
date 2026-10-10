@@ -1,6 +1,6 @@
 import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
-import { escapeHtml } from "./utils.mjs";
+import { escapeHtml, isActiveGM } from "./utils.mjs";
 import { evaluateRoll, rollTotal } from "./dice.mjs";
 import { SocketService } from "./sockets.mjs";
 
@@ -69,7 +69,7 @@ export class HungerService {
     Hooks.on("createActiveEffect", async (effect) => {
       if (!TenebreSettings.get("enableHunger")) return;
       if (!HungerService.isHungerEffect(effect)) return;
-      if (!HungerService.#isChatAuthor()) return;
+      if (!isActiveGM()) return;
 
       const actor = effect.parent;
       if (!actor || actor.documentName !== "Actor") return;
@@ -238,43 +238,7 @@ export class HungerService {
 
   static async markDead(actor) {
     if (!actor) return;
-    if (!game.user?.isGM && SocketService.active && SocketService.hasActiveGM()) {
-      try {
-        await SocketService.markActorDead(actor);
-        return;
-      } catch (error) {
-        console.warn(`${MODULE_ID} | Failed to mark actor dead through socketlib; falling back to local handling.`, error);
-      }
-    }
-
-    if (HungerService.#hasDeadCondition(actor)) {
-      await HungerService.#markActiveTokensDead(actor);
-      return;
-    }
-
-    let applied = false;
-
-    if (typeof actor.toggleStatusEffect === "function") {
-      try {
-        await actor.toggleStatusEffect("dead", { active: true });
-        applied = true;
-      } catch (error) {
-        console.warn(`${MODULE_ID} | Failed to apply dead status through toggleStatusEffect. Falling back to addCondition.`, error);
-      }
-    }
-
-    if (!applied && typeof actor.addCondition === "function") {
-      await actor.addCondition("dead");
-      applied = true;
-    }
-
-    const deadEffect = CONFIG.statusEffects.find((effect) => effect.id === "dead");
-    if (!applied && deadEffect && typeof actor.createEmbeddedDocuments === "function") {
-      const effectData = foundry.utils.duplicate(deadEffect);
-      await actor.createEmbeddedDocuments("ActiveEffect", [effectData]);
-    }
-
-    await HungerService.#markActiveTokensDead(actor);
+    await SocketService.markActorDead(actor);
   }
 
   static async rollStarvationDay(strongTotal) {
@@ -296,44 +260,5 @@ export class HungerService {
       nextStrong,
       dead: nextStrong <= 0
     };
-  }
-
-  static #isChatAuthor() {
-    if (!game.user?.isGM) return false;
-    const activeGm = game.users?.activeGM;
-    return !activeGm || activeGm.id === game.user.id;
-  }
-
-  static #hasDeadCondition(actor) {
-    return Array.from(actor?.effects ?? []).some((effect) => {
-      if (effect.statuses?.has?.("dead")) return true;
-      if (effect.statuses?.includes?.("dead")) return true;
-      if (effect.flags?.core?.statusId === "dead") return true;
-      return String(effect.id ?? "").toLowerCase() === "dead";
-    });
-  }
-
-  static async #markActiveTokensDead(actor) {
-    const deadEffect = CONFIG.statusEffects.find((effect) => effect.id === "dead");
-    const tokens = actor?.getActiveTokens?.() ?? [];
-
-    for (const token of tokens) {
-      if (deadEffect && typeof token.toggleEffect === "function") {
-        try {
-          await token.toggleEffect(foundry.utils.duplicate(deadEffect), { overlay: true, active: true });
-        } catch (error) {
-          console.warn(`${MODULE_ID} | Failed to mark token dead overlay.`, error);
-        }
-      }
-
-      const combatant = game.combat?.combatants?.find?.((candidate) => {
-        return candidate.tokenId === token.id
-          || candidate.token?.id === token.id
-          || candidate.actor?.id === actor.id;
-      });
-      if (combatant && !combatant.defeated && typeof combatant.update === "function") {
-        await SocketService.updateCombatant(combatant, { defeated: true });
-      }
-    }
   }
 }

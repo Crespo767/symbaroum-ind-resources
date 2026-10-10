@@ -8,6 +8,7 @@ import {
 import {
   gmLogEventFromMessage
 } from "./gm-log-message-adapter.mjs";
+import { escapeHtml } from "./utils.mjs";
 
 const DEFAULT_LIMIT = 500;
 const RAW_VARIANT_FACTOR = 2;
@@ -276,11 +277,3 @@ function localizeAbilityLevel(level) {
   return game.i18n?.localize?.(key) ?? level;
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}

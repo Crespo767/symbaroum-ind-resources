@@ -1,6 +1,7 @@
-﻿import { ChatController } from "./chat-controller.mjs";
+import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
+import { format, localize } from "./utils.mjs";
 
 const BERSERKER_REFERENCE = "berserker";
 const LAY_ON_HANDS_REFERENCE = "layonhands";
@@ -583,17 +584,6 @@ function cleanText(value) {
 
 function signed(value) {
   return Number(value) > 0 ? `+${Number(value)}` : String(Number(value) || 0);
-}
-
-function localize(key, fallback) {
-  const value = globalThis.game?.i18n?.localize?.(key);
-  return value && value !== key ? value : fallback;
-}
-
-function format(key, fallback, data) {
-  const value = globalThis.game?.i18n?.format?.(key, data);
-  if (value && value !== key) return value;
-  return fallback.replace(/\{(\w+)\}/g, (_match, field) => String(data[field] ?? ""));
 }
 
 let _enabledCache = null;

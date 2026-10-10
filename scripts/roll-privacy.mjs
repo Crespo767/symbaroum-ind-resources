@@ -1,4 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
+import { escapeHtml } from "./utils.mjs";
 
 export class RollPrivacyService {
   static #privateRollDepth = 0;
@@ -66,8 +67,8 @@ export class RollPrivacyService {
     const label = game.i18n.localize("TENEBRE.RollPrivacy.Label");
     const hint = game.i18n.localize("TENEBRE.RollPrivacy.Hint");
     return `
-      <div class="advantage tenebre-private-roll-option" title="${this.#escapeAttribute(hint)}">
-        <label for="tenebre-private-roll">${this.#escapeHtml(label)}</label>
+      <div class="advantage tenebre-private-roll-option" title="${escapeHtml(hint)}">
+        <label for="tenebre-private-roll">${escapeHtml(label)}</label>
         <span class="lblfavour"><input type="checkbox" id="tenebre-private-roll" name="tenebrePrivateRoll"></span>
       </div>
     `;
@@ -165,16 +166,4 @@ export class RollPrivacyService {
       .map((user) => user.id);
   }
 
-  static #escapeHtml(value) {
-    return String(value ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  static #escapeAttribute(value) {
-    return this.#escapeHtml(value).replace(/`/g, "&#96;");
-  }
 }

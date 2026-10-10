@@ -1,6 +1,7 @@
 import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
+import { isActorExecutor } from "./utils.mjs";
 
 export const ENCUMBRANCE_INDICATOR_FLAG = "encumbranceIndicator";
 export const ENCUMBRANCE_STATUS_ID = `${MODULE_ID}.encumbrance-overloaded`;
@@ -24,7 +25,6 @@ export const EncumbranceVisualService = {
         this.refreshAllIndicators();
       }
     });
-    Hooks.on(`${MODULE_ID}.encumbranceWeightsChanged`, () => this.refreshAllIndicators());
     Hooks.on("canvasReady", () => this.refreshAllIndicators());
   },
 
@@ -33,7 +33,7 @@ export const EncumbranceVisualService = {
   },
 
   async syncActorIndicator(actor) {
-    if (!isIndicatorExecutor(actor)) return false;
+    if (!isActorExecutor(actor)) return false;
     const actorKey = actor.uuid ?? actor.id;
     const current = indicatorSyncs.get(actorKey);
     if (current) {
@@ -143,18 +143,3 @@ function getRelevantActors() {
   return actors.values();
 }
 
-function isIndicatorExecutor(actor) {
-  if (!actor || !game.user?.active) return false;
-  const users = Array.from(game.users ?? []).filter((user) => user.active);
-  const activeGms = users.filter((user) => user.isGM).sort(compareUserIds);
-  if (activeGms.length > 0) return activeGms[0].id === game.user.id;
-
-  const owners = users
-    .filter((user) => actor.testUserPermission?.(user, "OWNER"))
-    .sort(compareUserIds);
-  return owners[0]?.id === game.user.id;
-}
-
-function compareUserIds(left, right) {
-  return String(left.id).localeCompare(String(right.id));
-}

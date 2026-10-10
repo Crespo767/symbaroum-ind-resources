@@ -1,4 +1,5 @@
 import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
+import { escapeHtml } from "./utils.mjs";
 
 const TEXT_FORMAT_HTML = 1;
 const OWNERSHIP = {
@@ -439,15 +440,6 @@ function stripDangerousHtml(html) {
     .replace(/<script\b[\s\S]*?<\/script>/gi, "")
     .replace(/\son[a-z]+\s*=\s*(['"]).*?\1/gi, "")
     .replace(/\s(?:href|src)\s*=\s*(['"])\s*javascript:[\s\S]*?\1/gi, "");
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
 
 function summarizePlan(entries) {

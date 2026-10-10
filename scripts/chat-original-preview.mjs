@@ -1,3 +1,4 @@
+import { localize } from "./utils.mjs";
 export function appendOriginalChatPreview(card, source, { hasUnadaptedContent = false, unadaptedElements = [] } = {}) {
   const elements = [...new Set(unadaptedElements.filter(Boolean))];
   if (!card || !source || (!hasUnadaptedContent && !elements.length) || !globalThis.game?.user?.isGM) return false;
@@ -81,7 +82,3 @@ export function findMatchingClone(source, preview, element) {
   return clone;
 }
 
-function localize(key, fallback) {
-  const value = globalThis.game?.i18n?.localize?.(key);
-  return value && value !== key ? value : fallback;
-}

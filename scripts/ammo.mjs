@@ -2,7 +2,7 @@ import { AMMO_TYPES, FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverCapacity, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
 import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryClass, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
-import { documentSourceUuid, escapeHtml, promptDialog, sanitizeHtml } from "./utils.mjs";
+import { documentSourceUuid, escapeHtml, promptDialog } from "./utils.mjs";
 import { evaluateRoll, rollTotal, showDice3dRoll } from "./dice.mjs";
 
 export class AmmoService {
@@ -841,25 +841,6 @@ function snapshotAmmoMetadata(ammo) {
 function isQuiverName(name) {
   const value = String(name ?? "").toLowerCase();
   return value.includes("aljava") || value.includes("quiver");
-}
-
-async function postAmmoCard(actor, ammo) {
-  const description = sanitizeHtml(getAmmoDescription(ammo));
-  await ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor }),
-    content: `
-      <div class="tenebre-chat-card">
-        <h3>${game.i18n.format("TENEBRE.Ammo.UsesAmmo", {
-          actor: foundry.utils.escapeHTML(actor.name),
-          ammo: escapeHtml(ammo.name)
-        })}</h3>
-        <div class="tenebre-chat-item">
-          <img src="${escapeHtml(ammo.img)}" alt="">
-          <div>${description}</div>
-        </div>
-      </div>
-    `
-  });
 }
 
 async function createRecoveredAmmo(actor, entry, recovered) {

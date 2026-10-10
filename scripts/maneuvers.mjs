@@ -4,6 +4,7 @@ import { SocketService } from "./sockets.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { isDeathIncapacitated } from "./death-automation.mjs";
 import { changeItemQuantity, itemQuantity } from "./item-flags.mjs";
+import { escapeHtml, localize, normalizeText } from "./utils.mjs";
 
 export { MANEUVER_EFFECTS };
 
@@ -479,7 +480,7 @@ async function rollOpposedManeuver(actor, maneuver, modifier, { targetActor = nu
       ...effectRows(effectMessages)
     ],
     success,
-    notes: maneuver.noteKeys.map(localize)
+    notes: maneuver.noteKeys.map((key) => localize(key))
   });
 
   await createManeuverMessageAfterDice({
@@ -518,7 +519,7 @@ async function rollAttackManeuver(actor, maneuver, modifier) {
       ...effectRows(effectMessages)
     ],
     success,
-    notes: maneuver.noteKeys.map(localize)
+    notes: maneuver.noteKeys.map((key) => localize(key))
   });
 
   await createManeuverMessageAfterDice({
@@ -582,7 +583,7 @@ async function rollKnockdownManeuver(actor, maneuver, modifier) {
       ...effectRows(effectMessages)
     ],
     success,
-    notes: maneuver.noteKeys.map(localize)
+    notes: maneuver.noteKeys.map((key) => localize(key))
   });
 
   await createManeuverMessageAfterDice({
@@ -616,7 +617,7 @@ async function rollAttributeManeuver(actor, maneuver, modifier, context = {}) {
       ...effectRows(effectMessages)
     ],
     success,
-    notes: maneuver.noteKeys.map(localize)
+    notes: maneuver.noteKeys.map((key) => localize(key))
   });
 
   await createManeuverMessageAfterDice({
@@ -655,7 +656,7 @@ async function rollDamageCheck(actor, maneuver, damageValue) {
       ...effectRows(effectMessages)
     ],
     success,
-    notes: maneuver.noteKeys.map(localize)
+    notes: maneuver.noteKeys.map((key) => localize(key))
   });
 
   await createManeuverMessageAfterDice({
@@ -762,7 +763,7 @@ async function postStatement(actor, maneuver) {
       [game.i18n.localize("TENEBRE.Maneuvers.Action"), game.i18n.localize("TENEBRE.Maneuvers.Declared")],
       ...effectRows(effectMessages)
     ],
-    notes: maneuver.noteKeys.map(localize)
+    notes: maneuver.noteKeys.map((key) => localize(key))
   });
 
   await createChatMessageAfterDice({
@@ -1164,7 +1165,7 @@ async function delayInitiative(actor, maneuver) {
   await SocketService.setFlag(actor, MODULE_ID, "maneuverDelayedInitiative", { combatId: combat.id, combatantId: combatant.id, previous, next });
   await applyManeuverEffect(actor, MANEUVER_EFFECTS.DELAYED_INITIATIVE, { rounds: 1, expiration: "rounds" });
   await SocketService.updateCombatant(combatant, { initiative: next });
-  const content = buildChatCard({ actor, maneuver, rows: [[localize("TENEBRE.Maneuvers.Action"), game.i18n.format("TENEBRE.Maneuvers.InitiativeDelayedAfter", { target: chosen.name ?? chosen.actor?.name ?? "" })]], notes: maneuver.noteKeys.map(localize) });
+  const content = buildChatCard({ actor, maneuver, rows: [[localize("TENEBRE.Maneuvers.Action"), game.i18n.format("TENEBRE.Maneuvers.InitiativeDelayedAfter", { target: chosen.name ?? chosen.actor?.name ?? "" })]], notes: maneuver.noteKeys.map((key) => localize(key)) });
   await createChatMessageAfterDice({ speaker: ChatMessage.getSpeaker({ actor }), content, flags: maneuverLogFlags({ actor, maneuver }) });
   return { success: true, previous, next };
 }
@@ -1420,14 +1421,6 @@ function isSuccessfulWeaponResult(result) {
   return false;
 }
 
-function normalizeText(value) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
 function clampDiceTarget(value) {
   if (getSymbaroumSetting("alwaysSucceedOnOne") || getSymbaroumSetting("optionalCrit") || getSymbaroumSetting("optionalRareCrit")) {
     return Math.min(Math.max(1, value), 19);
@@ -1472,20 +1465,8 @@ function attributeLabel(attributeName) {
   return ATTRIBUTE_LABELS[attributeName] ?? attributeName;
 }
 
-function localize(key) {
-  return game.i18n.localize(key);
-}
-
 function signedNumber(value) {
   if (!value) return "0";
   return value > 0 ? `+${value}` : String(value);
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}

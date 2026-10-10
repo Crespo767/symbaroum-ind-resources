@@ -8,122 +8,6 @@ import { normalize } from "./utils.mjs";
  */
 export const ENC_SLOTS = { ZERO: 0, ONE: 1, TWO: 2 };
 
-const CLOTHING_ALIASES = [
-  "calca", "calças", "trousers", "pants",
-  "camisa", "shirt", "blouse", "blusa",
-  "casaco", "coat", "jacket", "jaqueta",
-  "cachecol", "scarf",
-  "sapatos", "shoes",
-  "botas", "boots", "bota",
-  "sandalia", "sandalias", "sandals",
-  "sapatos de neve", "snowshoes",
-  "cinto", "belt", "cinturao",
-  "luvas", "gloves", "luva",
-  "chapeu", "hat", "chapéu",
-  "capuz", "hood",
-  "capa", "cloak", "manto", "mantle",
-  "vestido", "dress", "gown",
-  "tunica", "tunic", "túnica",
-  "toga", "robe", "robes",
-  "tabardo", "tabard",
-  "avental", "apron",
-  "meias", "socks", "stockings",
-  "veu", "veil", "véu",
-  "bandana", "headband", "faixa",
-  "poncho",
-  "clothes", "clothing", "roupa", "roupas", "vestimenta", "vestimentas",
-  "traje", "outfit", "attire"
-];
-
-const LIGHT_CONTAINER_ALIASES = [
-  "mochila", "backpack", "rucksack",
-  "bolsa", "bag", "pouch", "purse",
-  "sacola", "satchel", "sack",
-  "alforje", "saddlebag", "alforjes",
-  "aljava", "quiver", "estojo",
-  "bolsa de moedas", "coin purse", "money pouch",
-  "bolsa de componentes", "component pouch",
-  "porta-pergaminhos", "scroll case",
-  "cartucheira", "bandolier",
-  "pochete", "belt pouch",
-  "odre", "waterskin", "wineskin",
-  "cantil", "flask", "canteen"
-];
-
-const HEAVY_CONTAINER_ALIASES = [
-  "barril", "barrel", "keg",
-  "bau", "baú", "chest", "trunk",
-  "caixa", "box", "crate",
-  "arca", "coffer"
-];
-
-const MASSIVE_WEAPON_ALIASES = [
-  "montante", "greatsword", "great sword",
-  "martelo de guerra", "warhammer", "war hammer", "maul",
-  "machado de batalha", "greataxe", "great axe", "battleaxe",
-  "alabarda", "halberd", "glaive",
-  "espada bastarda", "bastard sword",
-  "lanca longa", "pike", "long spear",
-  "mangual pesado", "heavy flail"
-];
-
-const SMALL_ITEM_ALIASES = [
-  "moeda", "moedas", "coin", "coins", "shilling", "shillings", "thaler", "thalers", "orteg", "ortegs",
-  "ampulheta", "hourglass",
-  "pingente", "pendant", "amulet", "amuleto",
-  "anel", "ring",
-  "broche", "brooch",
-  "joia", "joias", "jewel", "jewelry", "gem", "gems", "gemstone",
-  "brinco", "earring",
-  "pulseira", "bracelet",
-  "colar", "necklace",
-  "chave", "key", "keys", "chaves",
-  "agulha", "needle",
-  "botao", "button",
-  "dado", "dice", "dados",
-  "ficha", "token",
-  "sinete", "signet",
-  "apito", "whistle"
-];
-
-const RATION_ALIASES = [
-  "pao de viagem", "pão de viagem", "travel bread", "waybread",
-  "racao de viagem", "ração de viagem", "racao", "ração", "ration", "rations"
-];
-
-const PROJECTILE_ALIASES = [
-  "flecha", "flechas", "arrow", "arrows",
-  "virote", "virotes", "bolt", "bolts",
-  "quarrel", "quarrels",
-  "precision arrow", "flaming arrow", "grappling arrow",
-  "ensnaring arrow", "whistling arrow",
-  "stun bolt", "stunning bolt"
-];
-
-const ARMOR_ALIASES = [
-  "armadura", "armor", "armour",
-  "cota de malha", "chain mail", "chainmail",
-  "couro", "leather", "leather armor",
-  "placas", "plate", "plate armor", "full plate",
-  "brigandina", "brigandine",
-  "couraça", "cuirass", "breastplate",
-  "gambeson", "gambesão",
-  "escudo", "shield", "buckler",
-  "elmo", "helmet", "helm",
-  "lamelar", "lamellar",
-  "cota de escamas", "scale mail", "scale armor",
-  "order cloak", "capa da ordem",
-  "concealed armor", "armadura oculta",
-  "blessed robe", "túnica abençoada",
-  "witch gown", "vestido de bruxa",
-  "wolf skin", "pele de lobo",
-  "crow armor", "armadura de corvo",
-  "lacquered silk armor", "armadura de seda laqueada",
-  "steel armor", "armadura de aço",
-  "woven silk", "seda tecida",
-  "bark armor", "armadura de casca"
-];
-
 const DEFAULT_WEIGHT_CONFIG = { version: 2, items: {}, bundles: {} };
 
 let baseWeightConfig = DEFAULT_WEIGHT_CONFIG;
@@ -166,14 +50,6 @@ export function getDynamicEncumbranceWeights() {
   };
 }
 
-export function getMergedEncumbranceWeights() {
-  return {
-    version: 2,
-    items: { ...weightConfig.items },
-    bundles: cloneBundles(weightConfig.bundles)
-  };
-}
-
 export function hasConfiguredEncumbranceRule(itemName) {
   return Boolean(findExactItemEntry(itemName, weightConfig.items) || findExactItemEntry(itemName, weightConfig.bundles));
 }
@@ -202,13 +78,6 @@ export function hasExactEncumbranceItem(itemName) {
 }
 
 /**
- * Verifica se um item é uma armadura pelo nome.
- */
-export function isArmorByName(itemName) {
-  return matchesAliases(normalize(itemName || ""), ARMOR_ALIASES);
-}
-
-/**
  * Verifica se um item tem a qualidade Maciça (Massive) na descrição.
  */
 export function hasMassiveQuality(item) {
@@ -234,42 +103,10 @@ export function hasMassiveQuality(item) {
 }
 
 /**
- * Verifica se o item é roupa (não conta para sobrecarga).
- */
-export function isClothing(itemName) {
-  return matchesAliases(normalize(itemName || ""), CLOTHING_ALIASES);
-}
-
-/**
- * Verifica se o item é um container leve (não conta, apenas conteúdo).
- */
-export function isLightContainer(itemName) {
-  return matchesAliases(normalize(itemName || ""), LIGHT_CONTAINER_ALIASES);
-}
-
-/**
- * Verifica se o item é considerado pequeno (moedas, jóias, etc).
- */
-export function isSmallItem(itemName) {
-  return matchesAliases(normalize(itemName || ""), SMALL_ITEM_ALIASES);
-}
-
-/**
  * Regra de pacote para itens empilhados.
  */
 export function getStackBundleRule(itemName) {
   return findExactItemEntry(itemName, weightConfig.bundles)?.value ?? null;
-}
-
-/**
- * Compatibilidade com codigo antigo: retorna apenas o tamanho do pacote.
- */
-export function getStackBundleSize(itemName) {
-  return getStackBundleRule(itemName)?.bundleSize ?? 1;
-}
-
-export function getStackBundleSlots(itemName) {
-  return getStackBundleRule(itemName)?.slots ?? 1;
 }
 
 /**
@@ -281,18 +118,6 @@ export function calculateStackBundleSlots(quantity, rule) {
   const slots = Number(rule?.slots);
   if (!Number.isFinite(bundleSize) || bundleSize <= 1 || !Number.isFinite(slots) || slots < 0) return 0;
   return Math.floor(amount / bundleSize) * slots;
-}
-
-function matchesAliases(normalizedName, aliases) {
-  const searchableName = toSearchableText(normalizedName);
-  return aliases.some((alias) => {
-    const searchableAlias = toSearchableText(alias).trim();
-    return Boolean(searchableAlias) && searchableName.includes(` ${searchableAlias} `);
-  });
-}
-
-function toSearchableText(value) {
-  return ` ${normalize(value).replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ")} `;
 }
 
 function rebuildWeightConfig() {

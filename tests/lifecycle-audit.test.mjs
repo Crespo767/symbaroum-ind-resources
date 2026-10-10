@@ -71,10 +71,10 @@ test("ration display renders in read-only player sheets without consolidation wr
   assert.doesNotMatch(rationDisplay, /RationService\.(?:consolidate|needsConsolidation)/);
 });
 
-test("encumbrance weight watcher is stoppable and overlap guarded", () => {
-  assert.match(encumbranceSource, /dynamicWeightFileWatcherBusy/);
-  assert.match(encumbranceSource, /stopDynamicWeightFileWatcher/);
-  assert.match(encumbranceSource, /clearInterval\(dynamicWeightFileWatcher\)/);
+test("encumbrance weights come only from module data and the world setting, without polling or file writes", () => {
+  assert.doesNotMatch(encumbranceSource, /setInterval|FilePicker|fetch\(/);
+  assert.doesNotMatch(encumbranceSource, /autoAssignSlots|encumbranceAutoAssigned/);
+  assert.doesNotMatch(initSource, /autoAssign|DynamicWeightFileWatcher/);
 });
 
 

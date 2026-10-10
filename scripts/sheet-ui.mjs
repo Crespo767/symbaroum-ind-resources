@@ -7,7 +7,7 @@ import { getAmmoRollOptions, syncAmmoPackageSelection } from "./ammo-roll.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
-import { documentSourceUuid, normalize, promptDialog } from "./utils.mjs";
+import { documentSourceUuid, escapeHtml, normalize, promptDialog, rerenderActorSheets } from "./utils.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
 import { SocketService } from "./sockets.mjs";
 import { ChatItemUseService } from "./chat-item-use.mjs";
@@ -1439,16 +1439,6 @@ function bindStoredItemContextMenu(root, actor) {
   storedItemContextMenuRoots.add(root);
 }
 
-function rerenderActorSheets(actor) {
-  if (!actor) return;
-  for (const app of Object.values(ui.windows ?? {})) {
-    const sheetActor = app.actor ?? app.document;
-    if (sheetActor?.id === actor.id && typeof app.render === "function") {
-      app.render(false);
-    }
-  }
-}
-
 // Injeta quantidade e usos de aljavas na ficha
 function updateQuiverQuantityDisplay(app, html, actor) {
   if (!isPlayerActor(actor)) return;
@@ -1931,14 +1921,6 @@ function updateManeuverInformation(panel, maneuverId) {
   `;
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 // Funções auxiliares
 
 function getRoot(html) {

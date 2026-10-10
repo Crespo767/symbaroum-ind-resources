@@ -1,6 +1,7 @@
-﻿import { ChatController } from "./chat-controller.mjs";
+import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG } from "./constants.mjs";
 import { appendOriginalChatPreview } from "./chat-original-preview.mjs";
+import { format, localize } from "./utils.mjs";
 
 const ATTACK_PATTERN = /^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)[.!]?$/i;
 
@@ -672,13 +673,3 @@ function signed(value) {
   return value > 0 ? `+${value}` : String(value);
 }
 
-function localize(key, fallback) {
-  const value = globalThis.game?.i18n?.localize?.(key);
-  return value && value !== key ? value : fallback;
-}
-
-function format(key, fallback, data) {
-  const value = globalThis.game?.i18n?.format?.(key, data);
-  if (value && value !== key) return value;
-  return fallback.replace(/\{(\w+)\}/g, (_match, field) => String(data[field] ?? ""));
-}
