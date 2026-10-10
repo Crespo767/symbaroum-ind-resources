@@ -3,7 +3,7 @@ import { AmmoService } from "./ammo.mjs";
 import { RestService } from "./rest.mjs";
 import { RationService } from "./rations.mjs";
 import { TenebreSettings } from "./settings.mjs";
-import { getAmmoModifiers, getSpecialAmmo } from "./special-ammo.mjs";
+import { getAmmoRollOptions, syncAmmoPackageSelection } from "./ammo-roll.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
@@ -24,8 +24,6 @@ import { injectWeaponQualityTooltips } from "./weapon-quality-tooltips.mjs";
 import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import {
   actorItems,
-  findLoadedQuiverItems,
-  getAmmoType,
   getWeaponAmmoType,
   isAmmo,
   isRation,
@@ -58,7 +56,6 @@ export function registerSheetHooks() {
   patchSymbaroumItemChatSender();
   Hooks.on("renderApplicationV2", onRenderApplicationV2);
   Hooks.on("renderDialog", onRenderDialog);
-  Hooks.on("renderTemplate", onRenderTemplate);
   Hooks.on("closeDialog", onCloseDialog);
   Hooks.on(`${MODULE_ID}.settingsChanged`, onTenebreSettingChanged);
   Hooks.on("createActiveEffect", onActiveEffectChanged);
@@ -492,7 +489,7 @@ function onRenderActorSheet(app, html) {
   if (!isPlayerActor(actor)) return;
 
   if (!canControlSheetResources) {
-    updateRationQuantityDisplay(app, html, actor, { readOnly: true });
+    updateRationQuantityDisplay(app, html, actor);
     injectEncumbrancePanel(app, html, actor);
     return;
   }
@@ -1130,8 +1127,8 @@ function syncOpenActorSheetHeaders() {
   }
 
   const instances = foundry.applications?.instances;
-  if (instances && typeof instances[Symbol.iterator] === "function") {
-    for (const app of instances) syncActorSheetHeaderButtons(app);
+  if (instances && typeof instances.values === "function") {
+    for (const app of instances.values()) syncActorSheetHeaderButtons(app);
   }
 }
 
@@ -1144,8 +1141,8 @@ function syncActorSheetHeaders(actor) {
   }
 
   const instances = foundry.applications?.instances;
-  if (instances && typeof instances[Symbol.iterator] === "function") {
-    for (const app of instances) {
+  if (instances && typeof instances.values === "function") {
+    for (const app of instances.values()) {
       const sheetActor = app.actor ?? app.document;
       if (sheetActor?.id === actor.id) syncActorSheetHeaderButtons(app);
     }
@@ -1478,19 +1475,12 @@ function updateQuiverQuantityDisplay(app, html, actor) {
 }
 
 // Injeta quantidade e usos de rações na ficha
-function updateRationQuantityDisplay(app, html, actor, { readOnly = false } = {}) {
+// Somente exibição: a consolidação de rações acontece na criação do item e no ready, nunca no render.
+function updateRationQuantityDisplay(app, html, actor) {
   if (!TenebreSettings.get("enableRations")) return;
 
   const el = getRoot(html);
   if (!el) return;
-
-  if (!readOnly && RationService.needsConsolidation(actor)) {
-    RationService.consolidate(actor).then((changed) => {
-      if (changed) rerenderActorSheets(actor);
-    }).catch((error) => {
-      console.warn("Tenebre Resources | Failed to consolidate rations while rendering actor sheet.", error);
-    });
-  }
 
   for (const rationState of RationService.getStates(actor)) {
     if (rationState.quantity <= 0) continue;
@@ -1596,7 +1586,7 @@ function skipDuplicateSheetRender(html, app, type) {
 }
 
 // Campo "Peso" na aba Descrição/Estatísticas (estilo Custo / Número)
-async function injectItemWeightField(app, html, item) {
+function injectItemWeightField(app, html, item) {
   if (!["equipment", "weapon", "armor"].includes(item.type)) return;
 
   const root = getRoot(html);
@@ -1616,21 +1606,8 @@ async function injectItemWeightField(app, html, item) {
     return;
   }
 
-  if (root.dataset?.tenebreWeightInjecting === "true") return;
-  if (root.dataset) root.dataset.tenebreWeightInjecting = "true";
-
-  try {
-    await EncumbranceService.autoAssignSlots(item);
-  } catch (err) {
-    if (root.dataset) delete root.dataset.tenebreWeightInjecting;
-    throw err;
-  }
-
   const numberRow = findItemWeightAnchor(root, item);
-  if (!numberRow) {
-    if (root.dataset) delete root.dataset.tenebreWeightInjecting;
-    return;
-  }
+  if (!numberRow) return;
 
   root.querySelectorAll(".tenebre-weight-row").forEach((row) => row.remove());
 
@@ -1639,7 +1616,6 @@ async function injectItemWeightField(app, html, item) {
   const row = createWeightRow(slots, editable, numberRow.style);
 
   numberRow.element.insertAdjacentElement(numberRow.insert, row);
-  if (root.dataset) root.dataset.tenebreWeightInjected = "true";
 
   const input = row.querySelector(".tenebre-weight-input");
   input?.addEventListener("change", async (event) => {
@@ -1985,14 +1961,6 @@ function isManagedActor(actor) {
 
 // Hooks do diálogo de rolagem
 
-function onRenderTemplate(path, data, html) {
-  if (path && path.includes("systems/symbaroum/template/chat/dialog.hbs")) {
-    if (isPlayerActor(game.tenebreResources?.activeWeaponRoll?.actor)) {
-      game.tenebreResources.activeWeaponModifiers = data.weaponModifiers;
-    }
-  }
-}
-
 function onRenderDialog(dialog, html, data) {
   const el = getRoot(html);
   if (!el) return;
@@ -2076,7 +2044,6 @@ function onRenderDialog(dialog, html, data) {
   if (el.querySelector("#tenebre-ammo-select")) return;
 
   const { actor, ammoType } = activeRoll;
-  const useQuiverContainers = TenebreSettings.get("enableQuiverAmmoContainers");
 
   const selectDiv = document.createElement("div");
   selectDiv.className = "bonus";
@@ -2088,9 +2055,7 @@ function onRenderDialog(dialog, html, data) {
   const select = document.createElement("select");
   select.id = "tenebre-ammo-select";
 
-  const options = useQuiverContainers
-    ? getLoadedQuiverAmmoOptions(actor, ammoType)
-    : getLooseAmmoOptions(actor, ammoType);
+  const options = activeRoll.ammoOptions ?? getAmmoRollOptions(actor, ammoType);
 
   if (!options.length) {
     const option = document.createElement("option");
@@ -2112,8 +2077,12 @@ function onRenderDialog(dialog, html, data) {
   selectDiv.appendChild(select);
 
   damModDiv.after(selectDiv);
-  updateSelectedAmmoForRoll(el, activeRoll);
-  select.addEventListener("change", () => updateSelectedAmmoForRoll(el, activeRoll));
+  const syncSelection = () => {
+    updateSelectedAmmoForRoll(el, activeRoll);
+    syncAmmoPackageSelection(el, options, select.value);
+  };
+  syncSelection();
+  select.addEventListener("change", syncSelection);
 
   el.style.overflow = "visible";
   el.style.height = "auto";
@@ -2171,33 +2140,6 @@ function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
   }
 }
 
-function getLoadedQuiverAmmoOptions(actor, ammoType) {
-  const options = [];
-  for (const q of findLoadedQuiverItems(actor, ammoType)) {
-    const loaded = getQuiverLoadedAmmo(q);
-    for (const entry of loaded) {
-      if (entry.quantity <= 0) continue;
-      options.push({
-        value: `quiver|${q.id}|${entry.name}`,
-        label: `${q.name}: ${entry.name} (${entry.quantity}/${getQuiverCapacity()})`
-      });
-    }
-  }
-  return options;
-}
-
-function getLooseAmmoOptions(actor, ammoType) {
-  return actorItems(actor)
-    .filter((item) => isAmmo(item)
-      && !isQuiver(item)
-      && getAmmoType(item) === ammoType
-      && itemQuantity(item) > 0)
-    .map((item) => ({
-      value: item.id,
-      label: `${item.name} (${itemQuantity(item)})`
-    }));
-}
-
 function getAmmoUnavailableMessage(activeRoll) {
   if (TenebreSettings.get("enableQuiverAmmoContainers")) {
     return game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver");
@@ -2215,7 +2157,6 @@ function prepareSelectedAmmoForRoll(el, activeRoll) {
   if (!chosenAmmo) return null;
 
   activeRoll.chosenAmmo = chosenAmmo;
-  applyAmmoModifiers(chosenAmmo);
   return chosenAmmo;
 }
 
@@ -2269,38 +2210,6 @@ function getSelectedAmmoFromDialog(el, activeRoll) {
   return activeRoll.actor.items.get(selectedValue) ?? null;
 }
 
-function applyAmmoModifiers(chosenAmmo) {
-  const ammoMods = getAmmoModifiers(chosenAmmo);
-  const weaponModifiers = game.tenebreResources.activeWeaponModifiers;
-  if (!weaponModifiers || ammoMods.length <= 0) return;
-
-  if (!weaponModifiers.package) {
-    weaponModifiers.package = [{
-      label: "Default",
-      type: "default",
-      member: []
-    }];
-  }
-
-  let defaultPackage = weaponModifiers.package.find(
-    p => p.type === "default" || p.type === game.symbaroum.config.PACK_DEFAULT
-  );
-  if (!defaultPackage) {
-    defaultPackage = {
-      label: "Default",
-      type: "default",
-      member: []
-    };
-    weaponModifiers.package.push(defaultPackage);
-  }
-
-  for (const mod of ammoMods) {
-    if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
-      defaultPackage.member.push(mod);
-    }
-  }
-}
-
 function onCloseDialog(dialog, html) {
   if (game.tenebreResources?.activeWeaponRoll) {
     setTimeout(() => {
@@ -2313,6 +2222,5 @@ function clearActiveWeaponRoll(activeRoll) {
   if (!game.tenebreResources) return;
   if (!activeRoll || game.tenebreResources.activeWeaponRoll === activeRoll) {
     game.tenebreResources.activeWeaponRoll = null;
-    game.tenebreResources.activeWeaponModifiers = null;
   }
 }

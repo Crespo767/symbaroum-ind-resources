@@ -76,7 +76,9 @@ export class HungerService {
       await HungerService.postAppliedMessage(actor);
     });
 
-    Hooks.on("deleteActiveEffect", async (effect) => {
+    Hooks.on("deleteActiveEffect", async (effect, _options, userId) => {
+      // deleteActiveEffect dispara em todos os clientes; só quem removeu publica no chat.
+      if (userId !== game.user?.id) return;
       if (!TenebreSettings.get("enableHunger")) return;
       if (!HungerService.isHungerEffect(effect)) return;
       const actor = effect.parent;

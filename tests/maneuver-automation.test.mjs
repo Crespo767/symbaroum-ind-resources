@@ -54,5 +54,7 @@ test("poison weapon selects and consumes one inventory dose", () => {
   assert.match(maneuvers, /choosePoisonDose\(actor\)/);
   assert.match(maneuvers, /identity\.includes\("veneno"\).*identity\.includes\("poison"\)/s);
   assert.match(maneuvers, /consumePoisonDose\(context\.poisonItem\)/);
-  assert.match(maneuvers, /"system\.quantity": Math\.max\(0, quantity - 1\)/);
+  // A quantidade de equipamentos no Symbaroum fica em system.number.
+  assert.match(maneuvers, /await changeItemQuantity\(item, -1\)/);
+  assert.doesNotMatch(maneuvers, /system\.quantity/);
 });

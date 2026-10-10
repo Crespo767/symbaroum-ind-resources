@@ -1,4 +1,5 @@
 import { AmmoService } from "./ammo.mjs";
+import { attachAmmoModifierPackages, getAmmoRollOptions } from "./ammo-roll.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { getWeaponAmmoType } from "./item-flags.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
@@ -29,7 +30,6 @@ export function patchWeaponRolls() {
     if (game.tenebreResources?.activeWeaponRoll) {
       console.warn("Tenebre Resources | Clearing active roll state left over from a previous hung/incomplete roll.");
       game.tenebreResources.activeWeaponRoll = null;
-      game.tenebreResources.activeWeaponModifiers = null;
     }
 
     if (this?.type !== "player") {
@@ -96,9 +96,12 @@ export function patchWeaponRolls() {
     const rollState = {
       actor: this,
       weapon: weapon,
-      ammoType: ammoType
+      ammoType: ammoType,
+      ammoOptions: getAmmoRollOptions(this, ammoType)
     };
     game.tenebreResources.activeWeaponRoll = rollState;
+    // O sistema copia os modificadores da arma ao montar o diálogo; os pacotes de munição precisam estar lá antes.
+    const detachAmmoPackages = attachAmmoModifierPackages(this, weapon, rollState.ammoOptions);
 
     try {
       const result = await wrapped.call(this, weapon, ...args);
@@ -124,13 +127,13 @@ export function patchWeaponRolls() {
       }
       throw err;
     } finally {
+      detachAmmoPackages();
       if (maneuverRollState && game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
         game.tenebreResources.activeManeuverWeaponRoll = null;
       }
       setTimeout(() => {
         if (game.tenebreResources?.activeWeaponRoll?.actor === this) {
           game.tenebreResources.activeWeaponRoll = null;
-          game.tenebreResources.activeWeaponModifiers = null;
         }
       }, 60000);
     }

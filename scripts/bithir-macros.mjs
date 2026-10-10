@@ -844,9 +844,7 @@ export class BithirMacros {
         let chatData = {
             user: game.user.id,
             speaker: ChatMessage.getSpeaker({ alias: api.localize('inspiration_results') }),
-            roll: JSON.stringify(rolls),
             rolls: [rolls],
-            rollMode: game.settings.get('core', 'rollMode'),
             content: template,
         };
         
@@ -865,7 +863,7 @@ export class BithirMacros {
                 }
             }
         }
-        ChatMessage.create(chatData);
+        ChatMessage.create(chatData, { rollMode: game.settings.get('core', 'rollMode') });
     }
 
     async rollForestEvents() {
@@ -912,14 +910,13 @@ export class BithirMacros {
             user: game.user.id,
             speaker: ChatMessage.getSpeaker({ alias: api.localizeFallback('FOREST_EVENTS_TITLE', 'Forest Events') }),
             rolls,
-            rollMode: CONST.DICE_ROLL_MODES.PRIVATE,
             content: renderForestEventCard({
                 eventText,
                 category,
                 mainRoll: mainRollData?.roll,
                 eventRoll: eventRollData?.roll
             })
-        });
+        }, { rollMode: CONST.DICE_ROLL_MODES.PRIVATE });
 
         return { mainTable, eventTable, mainRollData, eventRollData, eventText };
     }
@@ -1164,8 +1161,8 @@ function rerenderOpenActorSheets() {
     }
 
     const instances = foundry.applications?.instances;
-    if (instances && typeof instances[Symbol.iterator] === "function") {
-        for (const app of instances) {
+    if (instances && typeof instances.values === "function") {
+        for (const app of instances.values()) {
             if (app?.document?.documentName === "Actor") app.render?.({ force: false });
         }
     }

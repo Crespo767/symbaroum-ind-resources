@@ -67,9 +67,8 @@ test("ration display renders in read-only player sheets without consolidation wr
   const nonOwnerBranch = actorRenderHandler.match(/if \(!canControlSheetResources\) \{[\s\S]*?[\r\n]  \}/)?.[0] ?? "";
   const rationDisplay = sheetSource.match(/function updateRationQuantityDisplay[\s\S]*?[\r\n]}[\r\n]+[\r\n]function hasActorEffects/)?.[0] ?? "";
 
-  assert.match(nonOwnerBranch, /updateRationQuantityDisplay\(app, html, actor, \{ readOnly: true \}\);/);
-  assert.match(rationDisplay, /\{ readOnly = false \} = \{\}/);
-  assert.match(rationDisplay, /if \(!readOnly && RationService\.needsConsolidation\(actor\)\) \{/);
+  assert.match(nonOwnerBranch, /updateRationQuantityDisplay\(app, html, actor\);/);
+  assert.doesNotMatch(rationDisplay, /RationService\.(?:consolidate|needsConsolidation)/);
 });
 
 test("encumbrance weight watcher is stoppable and overlap guarded", () => {

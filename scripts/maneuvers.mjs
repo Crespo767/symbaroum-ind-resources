@@ -3,6 +3,7 @@ import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs"
 import { SocketService } from "./sockets.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { isDeathIncapacitated } from "./death-automation.mjs";
+import { changeItemQuantity, itemQuantity } from "./item-flags.mjs";
 
 export { MANEUVER_EFFECTS };
 
@@ -17,6 +18,11 @@ const TURN_END_EFFECTS = new Set([
   MANEUVER_EFFECTS.TOTAL_DEFENSE,
   MANEUVER_EFFECTS.TOTAL_OFFENSE,
   MANEUVER_EFFECTS.FREE_ATTACK_OPENING
+]);
+// Valem durante os turnos dos outros combatentes e terminam quando chega o próximo turno do próprio personagem.
+const UNTIL_OWN_NEXT_TURN_EFFECTS = new Set([
+  MANEUVER_EFFECTS.TOTAL_DEFENSE,
+  MANEUVER_EFFECTS.TOTAL_OFFENSE
 ]);
 
 const MANEUVER_STATUS_EFFECTS = [
@@ -669,8 +675,7 @@ async function promptDamageValue(maneuver) {
 
 async function choosePoisonDose(actor) {
   const poisons = Array.from(actor?.items ?? []).filter((item) => {
-    const quantity = Number(item.system?.quantity ?? 1);
-    if (!Number.isFinite(quantity) || quantity <= 0) return false;
+    if (itemQuantity(item) <= 0) return false;
     const identity = normalizeText(`${item.name} ${item.system?.reference ?? ""}`);
     return identity.includes("veneno") || identity.includes("poison");
   });
@@ -679,7 +684,7 @@ async function choosePoisonDose(actor) {
     return null;
   }
   if (poisons.length === 1) return poisons[0];
-  const options = poisons.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${Number(item.system?.quantity ?? 1)})</option>`).join("");
+  const options = poisons.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${itemQuantity(item)})</option>`).join("");
   const itemId = await foundry.applications.api.DialogV2.prompt({
     window: { title: localize("TENEBRE.Maneuvers.PoisonWeapon") },
     content: `<div class="symbaroum dialog tenebre-maneuver-dialog"><label>${escapeHtml(localize("TENEBRE.Maneuvers.ChoosePoisonDose"))}</label><select id="tenebre-poison-dose">${options}</select></div>`,
@@ -690,10 +695,8 @@ async function choosePoisonDose(actor) {
 }
 
 async function consumePoisonDose(item) {
-  if (!item) return false;
-  const quantity = Number(item.system?.quantity ?? 1);
-  if (!Number.isFinite(quantity) || quantity <= 0) return false;
-  await item.update({ "system.quantity": Math.max(0, quantity - 1) });
+  if (!item || itemQuantity(item) <= 0) return false;
+  await changeItemQuantity(item, -1);
   return true;
 }
 
@@ -1302,7 +1305,7 @@ function getMovementAutomationFlags(effectId) {
   return {};
 }
 
-function shouldExpireEffect(effect, combat, { forceTurnEffects = false } = {}) {
+export function shouldExpireEffect(effect, combat, { forceTurnEffects = false } = {}) {
   const effectId = getManeuverEffectId(effect);
   if (!effectId) return false;
 
@@ -1321,6 +1324,11 @@ function shouldExpireEffect(effect, combat, { forceTurnEffects = false } = {}) {
   if (!Number.isFinite(startRound) || !Number.isFinite(startTurn)) return false;
 
   if (expiration === "turnEnd") {
+    if (UNTIL_OWN_NEXT_TURN_EFFECTS.has(effectId)) {
+      if (combat.round > startRound + 1) return true;
+      const declarationTurn = combat.round === startRound && combat.turn === startTurn;
+      return !declarationTurn && isActorTurn(effect.parent, combat);
+    }
     return combat.round > startRound || combat.turn !== startTurn;
   }
 
@@ -1330,6 +1338,11 @@ function shouldExpireEffect(effect, combat, { forceTurnEffects = false } = {}) {
   }
 
   return false;
+}
+
+function isActorTurn(actor, combat) {
+  const current = combat?.combatant?.actor;
+  return Boolean(actor && current && (current === actor || current.uuid === actor.uuid));
 }
 
 function getStatusEffectData(effectId) {

@@ -80,6 +80,8 @@ export class InventoryCleanupService {
 
     let deleted = 0;
     for (const actor of game.actors ?? []) {
+      // Só personagens: PNJs e monstros podem ter equipamentos com quantidade 0 de propósito.
+      if (actor.type !== "player") continue;
       const depletedItems = Array.from(actor.items ?? []).filter(isDepletedInventoryItem);
       for (const item of depletedItems) {
         try {

@@ -2,7 +2,7 @@ import { AMMO_TYPES, DEFAULTS, FLAG_SCOPE, WEAPON_AMMO_TYPES } from "./constants
 import { TenebreSettings } from "./settings.mjs";
 import { getSpecialAmmoType } from "./special-ammo.mjs";
 import { deleteDepletedInventoryItem, isDepletableInventoryItem } from "./inventory-cleanup.mjs";
-import { normalize } from "./utils.mjs";
+import { matchesAnyAlias, normalize } from "./utils.mjs";
 
 const RATION_ALIASES = ["pao de viagem", "waybread", "travel bread", "racao de viagem", "racao", "ration", "rations"];
 const ARROW_ALIASES = [
@@ -51,6 +51,8 @@ const BOLT_ALIASES = [
 ];
 const CROSSBOW_ALIASES = ["crossbow", "besta", "arbalest", "arbalesta", "repeating crossbow", "besta de repeticao"];
 const BOW_ALIASES = ["longbow", "shortbow", "bow", "arco longo", "arco curto", "arco"];
+const QUIVER_ALIASES = ["aljava", "aljavas", "quiver", "quivers"];
+const GENERIC_AMMO_ALIASES = ["municao", "municoes", "ammunition", "projectile", "projectiles", "projetil", "projeteis"];
 
 export function getFlag(doc, key, fallback = undefined) {
   return doc?.getFlag?.(FLAG_SCOPE, key) ?? fallback;
@@ -103,14 +105,10 @@ export function getAmmoType(item) {
   
   const name = normalize(item?.name);
 
-  // Quiver / Aljava detection
-  if (name.includes("aljava") || name.includes("quiver")) {
-    return "ammo";
-  }
-
-  const isBoltName = hasAlias(name, BOLT_ALIASES);
-  const isArrowName = hasAlias(name, ARROW_ALIASES);
-  if (isBoltName || isArrowName || name.includes("municao") || name.includes("ammunition") || name.includes("projectile") || name.includes("projetil")) {
+  if (hasAlias(name, QUIVER_ALIASES)
+    || hasAlias(name, BOLT_ALIASES)
+    || hasAlias(name, ARROW_ALIASES)
+    || hasAlias(name, GENERIC_AMMO_ALIASES)) {
     return "ammo";
   }
   return "";
@@ -216,8 +214,7 @@ export function sumItemQuantities(items) {
 
 export function isQuiver(item) {
   if (!item || item.type !== "equipment") return false;
-  const name = item.name?.toLowerCase() || "";
-  return name.includes("aljava") || name.includes("quiver");
+  return hasAlias(item.name, QUIVER_ALIASES);
 }
 
 export function isActiveOrEquipped(item) {
@@ -274,9 +271,9 @@ export function localizeAmmoType(ammoType) {
   return game.i18n.localize("TENEBRE.Ammo.Ammo");
 }
 
+// Comparação por palavra inteira: substring confundia "Coração" com "ração" e "Elbow" com "bow".
 function hasAlias(value, aliases) {
-  const normalized = normalize(value);
-  return aliases.some((alias) => normalized.includes(normalize(alias)));
+  return matchesAnyAlias(value, aliases);
 }
 
 function safeSetting(key, fallback) {

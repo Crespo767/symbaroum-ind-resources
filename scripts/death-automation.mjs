@@ -12,6 +12,7 @@ const SOCKET_HANDLER = "resolveDeathTest";
 const PROMPT_FLAG = "deathTestPrompt";
 const OWNER_LEVEL = 3;
 const processingActors = new Set();
+const internalStatusRemovals = new Map();
 const knownToughness = new Map();
 let registered = false;
 
@@ -60,6 +61,40 @@ export function isDeathIncapacitated(actor) {
   return isAutomationEnabled() && (isDyingActor(actor) || isDeadActor(actor));
 }
 
+/**
+ * Remover manualmente "Morrendo" ou "Morto" estabiliza o personagem.
+ * Remoções feitas pela própria automação (ex.: killActor tirando "Morrendo") não contam.
+ */
+export function shouldRecoverAfterStatusRemoval(effect) {
+  const actor = effect?.parent;
+  if (actor?.documentName !== "Actor" || actor.type !== "player") return false;
+  if (internalStatusRemovals.has(actorKey(actor))) return false;
+  const isDeathEffect = effect.statuses?.has?.(DYING_STATUS_ID)
+    || effect.statuses?.has?.("dead")
+    || effect.flags?.[MODULE_ID]?.deathAutomation === true;
+  return Boolean(isDeathEffect && ["dying", "dead"].includes(getDeathState(actor)?.status));
+}
+
+export async function removeStatus(actor, statusId) {
+  if (!hasStatus(actor, statusId)) return true;
+  // O hook deleteActiveEffect roda neste cliente antes do await terminar; marcar a remoção como interna.
+  const key = actorKey(actor);
+  internalStatusRemovals.set(key, (internalStatusRemovals.get(key) ?? 0) + 1);
+  try {
+    if (typeof actor.toggleStatusEffect === "function") {
+      await actor.toggleStatusEffect(statusId, { active: false, overlay: false });
+      return true;
+    }
+    const effects = Array.from(actor.effects ?? []).filter((effect) => statusEffectId(effect) === statusId);
+    if (effects.length) await actor.deleteEmbeddedDocuments("ActiveEffect", effects.map((effect) => effect.id));
+    return true;
+  } finally {
+    const remaining = (internalStatusRemovals.get(key) ?? 1) - 1;
+    if (remaining > 0) internalStatusRemovals.set(key, remaining);
+    else internalStatusRemovals.delete(key);
+  }
+}
+
 export function shouldEnterDyingState(actor, state = getDeathState(actor)) {
   return Boolean(
     actor?.type === "player"
@@ -97,14 +132,9 @@ export class DeathAutomationService {
     registered = true;
     SocketService.registerHandler(SOCKET_HANDLER, resolveDeathTestAsAuthority);
 
-            Hooks.on("deleteActiveEffect", (effect, options, userId) => {
-      if (effect.parent instanceof Actor && effect.parent.type === "player") {
-          const actor = effect.parent;
-          if (effect.statuses.has(DYING_STATUS_ID) || effect.statuses.has("dead") || effect.flags?.[MODULE_ID]?.deathAutomation) {
-              if (["dying", "dead"].includes(getDeathState(actor)?.status) && this.isManager(actor, userId)) {
-                  void this.recoverActor(actor, { announce: false }).catch(logError);
-              }
-          }
+    Hooks.on("deleteActiveEffect", (effect, options, userId) => {
+      if (shouldRecoverAfterStatusRemoval(effect) && this.isManager(effect.parent, userId)) {
+        void this.recoverActor(effect.parent, { announce: false }).catch(logError);
       }
     });
 
@@ -545,17 +575,6 @@ async function applyStatus(actor, statusId, options = {}) {
     return true;
   }
   return false;
-}
-
-async function removeStatus(actor, statusId) {
-  if (!hasStatus(actor, statusId)) return true;
-  if (typeof actor.toggleStatusEffect === "function") {
-    await actor.toggleStatusEffect(statusId, { active: false, overlay: false });
-    return true;
-  }
-  const effects = Array.from(actor.effects ?? []).filter((effect) => statusEffectId(effect) === statusId);
-  if (effects.length) await actor.deleteEmbeddedDocuments("ActiveEffect", effects.map((effect) => effect.id));
-  return true;
 }
 
 async function setDeadPresentation(actor, dead) {

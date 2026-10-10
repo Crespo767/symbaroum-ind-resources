@@ -21,6 +21,27 @@ export function normalize(value) {
     .toLowerCase();
 }
 
+function toWordText(value) {
+  return normalize(value).replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+const normalizedAliasCache = new WeakMap();
+
+/**
+ * Verdadeiro se algum alias aparece no texto como palavra(s) inteira(s).
+ * "Arco Longo" casa com "arco"; "Coração" não casa com "racao"; "Elbow" não casa com "bow".
+ */
+export function matchesAnyAlias(value, aliases) {
+  const text = ` ${toWordText(value)} `;
+  if (text.length <= 2) return false;
+  let words = normalizedAliasCache.get(aliases);
+  if (!words) {
+    words = aliases.map(toWordText).filter(Boolean).map((alias) => ` ${alias} `);
+    normalizedAliasCache.set(aliases, words);
+  }
+  return words.some((alias) => text.includes(alias));
+}
+
 export function documentSourceUuid(document, fallback = "") {
   return String(
     document?._stats?.compendiumSource

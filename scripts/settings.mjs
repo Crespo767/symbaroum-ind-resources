@@ -349,7 +349,7 @@ export class TenebreSettings {
     register("enableRitualCatalog", Boolean, true, "TENEBRE.Settings.EnableRitualCatalog", "TENEBRE.Settings.EnableRitualCatalogHint");
     register("enableRitualistGrouping", Boolean, true, "TENEBRE.Settings.EnableRitualistGrouping", "TENEBRE.Settings.EnableRitualistGroupingHint");
     register("enableGmLog", Boolean, true, "TENEBRE.Settings.EnableGmLog", "TENEBRE.Settings.EnableGmLogHint");
-    register("enableInventoryCleanup", Boolean, true, "TENEBRE.Settings.EnableInventoryCleanup", "TENEBRE.Settings.EnableInventoryCleanupHint");
+    register("enableInventoryCleanup", Boolean, false, "TENEBRE.Settings.EnableInventoryCleanup", "TENEBRE.Settings.EnableInventoryCleanupHint");
     register("enableGenerateShadow", Boolean, true, "TENEBRE.Settings.EnableGenerateShadow", "TENEBRE.Settings.EnableGenerateShadowHint");
     register("hideShadowGeneration", Boolean, false, "BITHIRMOD.SHADOW_hideGeneration", "BITHIRMOD.SHADOW_hideGeneration_hint");
     register("hideShadowLabel", Boolean, false, "BITHIRMOD.SHADOW_hideLabel", "BITHIRMOD.SHADOW_hideLabel_hint");
@@ -885,8 +885,8 @@ function refreshTokenActionHud() {
 function rerenderOpenSheets({ force = false } = {}) {
   const openSheets = new Set(Object.values(ui.windows ?? {}));
   const instances = foundry.applications?.instances;
-  if (instances && typeof instances[Symbol.iterator] === "function") {
-    for (const app of instances) openSheets.add(app);
+  if (instances && typeof instances.values === "function") {
+    for (const app of instances.values()) openSheets.add(app);
   }
 
   const ApplicationV2 = foundry.applications?.api?.ApplicationV2;

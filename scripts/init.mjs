@@ -104,7 +104,9 @@ Hooks.once("setup", () => {
   exposePublicApi();
 });
 
-Hooks.on("createItem", (item) => {
+Hooks.on("createItem", (item, _options, userId) => {
+  // createItem dispara em todos os clientes; só quem criou o item grava.
+  if (userId !== game.user?.id) return;
   if (item.parent && item.parent.type === "player") {
     if (TenebreSettings.get("enableEncumbrance")) {
       EncumbranceService.autoAssignSlots(item);
@@ -137,7 +139,6 @@ Hooks.once("ready", async () => {
   ContainerTransferService.registerHooks();
   GroundContainerService.registerHooks();
   InventoryCleanupService.registerHooks();
-  await InventoryCleanupService.cleanupExisting();
   HotbarService.register();
   HungerService.registerHooks();
   ManeuverService.registerHooks();

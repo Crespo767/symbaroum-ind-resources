@@ -667,9 +667,9 @@ function rerenderOpenActorSheets() {
   }
 
   const instances = globalThis.foundry?.applications?.instances;
-  if (!instances || typeof instances[Symbol.iterator] !== "function") return;
+  if (!instances || typeof instances.values !== "function") return;
 
-  for (const app of instances) {
+  for (const app of instances.values()) {
     const document = app?.document ?? app?.actor;
     if (document?.documentName === "Actor" || document?.type === "player") {
       app.render?.({ force: false });

@@ -1,5 +1,5 @@
 import { AMMO_TYPES, FLAG_SCOPE } from "./constants.mjs";
-import { normalize } from "./utils.mjs";
+import { matchesAnyAlias, normalize } from "./utils.mjs";
 
 const SPECIAL_AMMO = [
   {
@@ -71,9 +71,9 @@ const SPECIAL_AMMO = [
 ];
 
 export function getSpecialAmmo(item) {
-  const name = normalize(typeof item === "string" ? item : item?.name);
+  const name = typeof item === "string" ? item : item?.name;
   if (!name) return null;
-  return SPECIAL_AMMO.find((entry) => entry.names.some((alias) => name.includes(normalize(alias)))) ?? null;
+  return SPECIAL_AMMO.find((entry) => matchesAnyAlias(name, entry.names)) ?? null;
 }
 
 export function getAmmoDescription(item) {
