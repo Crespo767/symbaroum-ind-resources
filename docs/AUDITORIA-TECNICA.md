@@ -279,6 +279,10 @@ Ajustes:
 
 ## 11. Plano de melhoria recomendado
 
+**Estado final (2026-10-10, branch `auditoria/fase-0`):** fases 0, 1, 2 e 3 concluídas, mais as correções de riscos e de desempenho. Validado ao vivo no Foundry 13.350 + Symbaroum 6.1.6 + Item Piles Symbaroum 1.1.0: carregamento sem erros, munição especial, Defesa Total, Fome, morte (morrer/curar), ficha de Grupo, contêiner no chão (com e sem Item Piles), recuperação de munição e dois GMs conectados sem duplicação. 356 testes automatizados.
+Decisões do usuário: os indicadores "Arma sacada"/"Sobrecarregado" continuam como ActiveEffects (usados pelo Token Variant Art); o roteador central de hooks não será feito; a Fase 4 (leitura do chat por texto, preparação para v14, textos fixos em português), as licenças dos assets e o teste como jogador ficam fora do escopo.
+O teste ao vivo encontrou e corrigiu bugs anteriores à auditoria: "Morrendo" nunca era removido, largar contêiner no mapa nunca funcionava (permissão "TOKEN" inválida) e a transferência para o Item Piles quebrava no v13.
+
 **Andamento (branch `auditoria/fase-0`):** Fases 0 e 1 commitadas (`2e6c170`); Fase 2 aplicada (−832 linhas líquidas). Todas aguardam teste manual no Foundry.
 Fase 3 parcial (não commitada): ficha de Grupo pelo sub-tipo nativo (item 9) e contexto de ataque por ator em `scripts/roll-context.mjs` (item 10). Itens 11–13 aguardam um teste no Foundry. Item 12: contêineres de inventário ficam (o Item Piles não os oferece); a decisão é só sobre o token próprio "no chão".
 Fase 2 manteve os métodos da API pública (`AmmoService.selectAmmo/promptAmmo`, `GmLogService.recordItemQuantityChange`, `VerseService`), porque macros externas podem usá-los.
