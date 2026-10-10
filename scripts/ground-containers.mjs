@@ -163,7 +163,7 @@ export class GroundContainerService {
 
     const actor = resolveActor(reference);
     const scene = tokenDocument?.parent ?? hud?.object?.parent;
-    if (actor?.type !== "player" || !this.canMutateGroundContainer(actor, scene)) return;
+    if (actor?.type !== "player" || !this.canMutateGroundContainer(actor, scene, "TOKEN_DELETE")) return;
 
     const column = getHtmlRoot(html)?.querySelector?.(".col.right, div.right");
     if (!column || column.querySelector("[data-tenebre-ground-pickup]")) return;
@@ -493,17 +493,13 @@ export class GroundContainerService {
   }
 
   static canMutateScene(scene) {
-    if (!game.user?.isGM) return false;
-    if (typeof scene?.canUserModify === "function") {
-      return scene.canUserModify(game.user, "TOKEN");
-    }
-    return true;
+    return Boolean(scene && game.user?.isGM);
   }
 
   static async removeTokenForDeletedItem(reference) {
     const scene = game.scenes?.get?.(reference.sceneId);
     const actor = resolveActor(reference);
-    if (!scene || !actor || !this.canMutateGroundContainer(actor, scene)) return false;
+    if (!scene || !actor || !this.canMutateGroundContainer(actor, scene, "TOKEN_DELETE")) return false;
 
     const token = scene.tokens?.get?.(reference.tokenId)
       ?? Array.from(scene.tokens ?? []).find((candidate) => {
@@ -516,12 +512,11 @@ export class GroundContainerService {
     return true;
   }
 
-  static canMutateGroundContainer(actor, scene) {
-    if (!actor || (!game.user?.isGM && !actor.isOwner)) return false;
-    if (typeof scene?.canUserModify === "function") {
-      return scene.canUserModify(game.user, "TOKEN");
-    }
-    return Boolean(game.user?.isGM);
+  // canUserModify só aceita "create"/"update"/"delete"; com "TOKEN" devolvia false até para o GM.
+  static canMutateGroundContainer(actor, scene, permission = "TOKEN_CREATE") {
+    if (!actor || !scene || (!game.user?.isGM && !actor.isOwner)) return false;
+    if (game.user?.isGM) return true;
+    return Boolean(game.user?.can?.(permission));
   }
 
   static canDragGroundContainer(actor, tokenDocument) {

@@ -42,6 +42,7 @@ import { DeathAutomationService, isDeathIncapacitated } from "./death-automation
 import { ActorCreationService } from "./actor-creation.mjs";
 import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import { PartyActorService } from "./party-actor.mjs";
+import { ActorPreparation } from "./actor-preparation.mjs";
 import { getWeaponRollForDialog } from "./roll-context.mjs";
 import { getActorTokens, getCanvasCreatureTokens, isActiveGM, normalizeText } from "./utils.mjs";
 
@@ -50,6 +51,16 @@ Hooks.once("init", () => {
     TenebreSettings.register();
   } catch (err) {
     console.error("Symbaroum Ind Resources | Falha ao registrar TenebreSettings:", err);
+  }
+
+  try {
+    ActorPreparation.afterDerivedData((actor) => {
+      if (actor.type === "player" && TenebreSettings.get("enableEncumbrance")) {
+        EncumbranceService.applyDefensePenalty(actor);
+      }
+    });
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao registrar a penalidade de carga:", err);
   }
 
   try {
@@ -122,6 +133,12 @@ Hooks.once("ready", async () => {
   }
 
   await EncumbranceService.loadWeightConfig(MODULE_ID);
+  // Atores foram preparados antes dos pesos do módulo carregarem; recalcula a penalidade (idempotente).
+  if (TenebreSettings.get("enableEncumbrance")) {
+    for (const actor of game.actors) {
+      if (actor.type === "player") EncumbranceService.applyDefensePenalty(actor);
+    }
+  }
 
   patchWeaponRolls();
   registerSheetHooks();
@@ -140,7 +157,6 @@ Hooks.once("ready", async () => {
   WeaponReadinessHudService.register();
   patchSymbaroumRollDialogs();
   patchSymbaroumActorUsePower();
-  patchSymbaroumDerivedPenalties();
   Hooks.on("preCreateChatMessage", applyPowerChatContextToMessage);
 Hooks.on("preCreateChatMessage", applyNpcAttackContextToMessage);
 
@@ -476,28 +492,6 @@ function patchSymbaroumActorUsePower() {
       return wrappedUsePower.call(this, originalUsePower, ...args);
     };
     ActorClass.prototype.usePower._tenebreWrapped = true;
-  }
-}
-
-function patchSymbaroumDerivedPenalties() {
-  const ActorClass = CONFIG.Actor.documentClass;
-  if (!ActorClass?.prototype?.prepareDerivedData || ActorClass.prototype.prepareDerivedData._tenebreWrapped) return;
-
-  const originalPrepareDerivedData = ActorClass.prototype.prepareDerivedData;
-  const wrappedPrepareDerivedData = function(wrapped, ...args) {
-    const result = wrapped.apply(this, args);
-    if (TenebreSettings.get("enableEncumbrance") && this.type === "player") {
-      EncumbranceService.applyDefensePenalty(this);
-    }
-    return result;
-  };
-  if (CompatibilityService.canUseLibWrapper()) {
-    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.prepareDerivedData", wrappedPrepareDerivedData, "WRAPPER");
-  } else {
-    ActorClass.prototype.prepareDerivedData = function tenebrePrepareDerivedData(...args) {
-      return wrappedPrepareDerivedData.call(this, originalPrepareDerivedData, ...args);
-    };
-    ActorClass.prototype.prepareDerivedData._tenebreWrapped = true;
   }
 }
 

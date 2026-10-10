@@ -1,5 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
-import { CompatibilityService } from "./compatibility.mjs";
+import { ActorPreparation } from "./actor-preparation.mjs";
 
 /** Tipo de ator declarado em module.json (documentTypes.Actor.party); o core o registra sozinho. */
 export const PARTY_ACTOR_TYPE = `${MODULE_ID}.party`;
@@ -305,31 +305,6 @@ export class PartyActorService {
 
   /** O ator do sistema calcula armaduras, armas e atributos; nada disso existe num Grupo. */
   static _protectActorCalculations() {
-    const prototype = globalThis.CONFIG?.Actor?.documentClass?.prototype;
-    if (!prototype) return;
-
-    for (const method of ["prepareBaseData", "prepareDerivedData"]) {
-      const skipForParty = function(wrapped, ...args) {
-        if (isPartyActor(this)) return undefined;
-        return wrapped.apply(this, args);
-      };
-
-      // Os atores são preparados antes do hook "setup": a proteção precisa existir já no "init".
-      if (CompatibilityService.canUseLibWrapper()) {
-        try {
-          globalThis.libWrapper.register(MODULE_ID, `CONFIG.Actor.documentClass.prototype.${method}`, skipForParty, "MIXED");
-          continue;
-        } catch (error) {
-          console.warn(`${MODULE_ID} | libWrapper unavailable during init; protecting ${method} directly.`, error);
-        }
-      }
-
-      const original = prototype[method];
-      if (!original || original._tenebrePartyProtected) continue;
-      prototype[method] = function tenebrePartyGuard(...args) {
-        return skipForParty.call(this, original, ...args);
-      };
-      prototype[method]._tenebrePartyProtected = true;
-    }
+    ActorPreparation.skipSystemPreparation(isPartyActor);
   }
 }

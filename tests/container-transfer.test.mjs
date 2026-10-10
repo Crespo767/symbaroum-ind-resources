@@ -177,7 +177,10 @@ test("dropping an Item Piles ground container uses the provider transaction", as
     itempiles: {
       CONSTANTS: { MODULE_NAME: "item-piles-symbaroum", HOOKS: { ITEM: { PRE_TRANSFER: "item-piles-symbaroum-preTransferItems" } } },
       API: {
-        async transferItems(source, target, ids, options) {
+        async transferItems(source, target, entries, options) {
+          // O Item Piles recebe objetos { _id } (ids em texto quebram no Foundry v13).
+          assert.ok(entries.every((entry) => typeof entry === "object" && typeof entry._id === "string"));
+          const ids = entries.map((entry) => entry._id);
           transferredIds.push(...ids);
           const itemsToCreate = ids.map((id) => {
             const data = source.items.get(id).toObject();
@@ -411,7 +414,7 @@ test("Item Piles Symbaroum creates a native container pile before transferring t
     assert.equal(calls.create.itemPileFlags.emptyImage, root.img);
     assert.equal(calls.create.itemPileFlags.lockedImage, root.img);
     assert.equal(calls.create.tokenOverrides.texture.src, root.img);
-    assert.deepEqual(calls.transfer.ids, [root.id, child.id]);
+    assert.deepEqual(calls.transfer.ids, [{ _id: root.id }, { _id: child.id }]);
     assert.equal(calls.transfer.source, sourceActor);
     assert.equal(calls.transfer.target, pileActor);
     assert.equal(typeof calls.transfer.options.interactionId, "string");
@@ -564,4 +567,51 @@ test("Item Piles transfer hook rejects moving a stored child by itself", () => {
     createActor([]),
     { itemsToCreate: [] }
   ), false);
+});
+
+test("a failed Item Piles transfer removes the pile it just created", async () => {
+  const root = createItem({ id: "root-2", name: "Mochila" });
+  const sourceActor = createActor([root]);
+  const pileActor = createActor([]);
+  pileActor.id = "pile-actor-2";
+  pileActor.uuid = "Actor.pile-actor-2";
+  const pileToken = { id: "pile-token-2", uuid: "Scene.scene-1.Token.pile-token-2", documentName: "Token", actor: pileActor };
+  const deleted = [];
+  const previousGame = globalThis.game;
+  const previousHooks = globalThis.Hooks;
+  const previousFromUuid = globalThis.fromUuid;
+  globalThis.Hooks = { on() {} };
+  globalThis.fromUuid = async (uuid) => uuid === pileToken.uuid ? pileToken : null;
+  globalThis.game = {
+    user: { isGM: true },
+    modules: new Map([["item-piles-symbaroum", { active: true }]]),
+    actors: createCollection([sourceActor]),
+    itempiles: {
+      CONSTANTS: {
+        MODULE_NAME: "item-piles-symbaroum",
+        PILE_TYPES: { CONTAINER: "container" },
+        HOOKS: { ITEM: { PRE_TRANSFER: "item-piles-symbaroum-preTransferItems" } }
+      },
+      API: {
+        async createItemPile() { return { tokenUuid: pileToken.uuid }; },
+        async transferItems() { throw new Error("provider failure"); },
+        async deleteItemPile(target) { deleted.push(target); },
+        isValidItemPile() { return false; }
+      }
+    }
+  };
+
+  try {
+    await assert.rejects(ContainerTransferService.dropToItemPile({
+      scene: { id: "scene-1", tokens: [] },
+      tokens: { placeables: [] },
+      grid: { size: 100 }
+    }, { actorId: sourceActor.id, actorUuid: sourceActor.uuid, itemId: root.id, x: 200, y: 300 }), /provider failure/);
+    assert.deepEqual(deleted, [pileToken]);
+    assert.equal(sourceActor.items.has(root.id), true, "the container stays with the character");
+  } finally {
+    globalThis.game = previousGame;
+    globalThis.Hooks = previousHooks;
+    globalThis.fromUuid = previousFromUuid;
+  }
 });

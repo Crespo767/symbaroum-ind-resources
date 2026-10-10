@@ -334,6 +334,10 @@ export class ContainerTransferService {
         return { handled: true, success: false };
       }
       return { handled: true, success: true };
+    } catch (error) {
+      // Não deixar uma pilha vazia no mapa quando a transferência falha.
+      await deleteCreatedPile(api, created, pile.token);
+      throw error;
     } finally {
       pendingGroundTargets.delete(pile.actor.uuid);
     }
@@ -438,7 +442,8 @@ async function transferContainerWithItemPiles(api, sourceActor, target, rootCont
   await ContainerService.authorizeTransferredDeletes(sourceActor, tree, transferId);
 
   try {
-    const result = await api.transferItems(sourceActor, target, tree.map((item) => item.id), { interactionId: transferId });
+    // Objetos { _id }: com ids em texto o Item Piles chama getProperty() numa string, que quebra no Foundry v13.
+    const result = await api.transferItems(sourceActor, target, tree.map((item) => ({ _id: item.id })), { interactionId: transferId });
     if (result === false) {
       await ContainerService.revokeTransferredDeletes(sourceActor, tree, transferId);
       return false;

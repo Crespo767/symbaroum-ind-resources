@@ -54,3 +54,14 @@ test("character automations do not read raw getActiveTokens() or canvas placeabl
     assert.doesNotMatch(source, /tokens\?*\.placeables/, `${file} must use getCanvasCreatureTokens()`);
   }
 });
+
+test("the GM and token-creating owners may drop containers on a scene", () => {
+  const scene = { canUserModify: () => false };
+  const owned = { isOwner: true };
+  globalThis.game = { user: { isGM: true } };
+  assert.equal(GroundContainerService.canMutateGroundContainer(owned, scene), true, "GM, even though canUserModify('TOKEN') was false");
+  globalThis.game = { user: { isGM: false, can: (permission) => permission === "TOKEN_CREATE" } };
+  assert.equal(GroundContainerService.canMutateGroundContainer(owned, scene), true);
+  assert.equal(GroundContainerService.canMutateGroundContainer(owned, scene, "TOKEN_DELETE"), false);
+  assert.equal(GroundContainerService.canMutateGroundContainer({ isOwner: false }, scene), false);
+});

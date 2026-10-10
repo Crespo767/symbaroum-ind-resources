@@ -82,7 +82,8 @@ export async function removeStatus(actor, statusId) {
   const key = actorKey(actor);
   internalStatusRemovals.set(key, (internalStatusRemovals.get(key) ?? 0) + 1);
   try {
-    if (typeof actor.toggleStatusEffect === "function") {
+    // "Morrendo" é um efeito do módulo, fora de CONFIG.statusEffects: toggleStatusEffect o rejeita.
+    if (isRegisteredStatus(statusId) && typeof actor.toggleStatusEffect === "function") {
       await actor.toggleStatusEffect(statusId, { active: false, overlay: false });
       return true;
     }
@@ -94,6 +95,10 @@ export async function removeStatus(actor, statusId) {
     if (remaining > 0) internalStatusRemovals.set(key, remaining);
     else internalStatusRemovals.delete(key);
   }
+}
+
+function isRegisteredStatus(statusId) {
+  return Array.from(globalThis.CONFIG?.statusEffects ?? []).some((effect) => effect?.id === statusId);
 }
 
 export function shouldEnterDyingState(actor, state = getDeathState(actor)) {

@@ -117,23 +117,30 @@ test("removing Dying or Dead by hand stabilizes the character", () => {
 
 test("the automation removing Dying while killing a character does not revive it", async () => {
   globalThis.game = { settings: { get: () => true } };
+  globalThis.CONFIG = { statusEffects: [{ id: "dead" }, { id: "prone" }] };
+  const dyingEffect = { id: "eff1", statuses: new Set(["tenebre-dying"]) };
   const actor = {
     documentName: "Actor",
     type: "player",
     uuid: "Actor.hero",
     flags: { [MODULE_ID]: { deathState: { status: "dead" } } },
+    effects: [dyingEffect],
     statuses: new Set(["tenebre-dying"]),
-    effects: [],
     recoveredDuringRemoval: null,
     async toggleStatusEffect(statusId) {
+      throw new Error(`Invalid status ID "${statusId}" provided to Actor#toggleStatusEffect`);
+    },
+    async deleteEmbeddedDocuments(_name, ids) {
       // No Foundry, o hook deleteActiveEffect deste cliente roda antes do await terminar.
-      this.recoveredDuringRemoval = shouldRecoverAfterStatusRemoval({ parent: this, statuses: new Set([statusId]) });
-      this.statuses.delete(statusId);
+      this.recoveredDuringRemoval = shouldRecoverAfterStatusRemoval({ parent: this, statuses: dyingEffect.statuses });
+      this.effects = this.effects.filter((effect) => !ids.includes(effect.id));
+      this.statuses.delete("tenebre-dying");
     }
   };
 
   await removeStatus(actor, "tenebre-dying");
-  assert.equal(actor.recoveredDuringRemoval, false);
+  assert.equal(actor.recoveredDuringRemoval, false, "internal removal does not stabilize");
+  assert.equal(actor.effects.length, 0, "Dying (not a core status) is deleted directly");
   assert.equal(
     shouldRecoverAfterStatusRemoval({ parent: actor, statuses: new Set(["dead"]) }),
     true,
