@@ -412,9 +412,8 @@ function registerKeybindings() {
 let rollDialogsPatched = false;
 let pendingDialogActorId = null;
 let pendingPowerUseContext = null;
-let activePowerChatContext = null;
-let activePowerChatContextTimer = null;
-let activePowerChatContextToken = 0;
+// Contexto do último poder usado, por ator: a mensagem do sistema é associada pelo autor (speaker.actor).
+const activePowerChatContexts = new Map();
 
 function patchSymbaroumRollDialogs() {
   if (rollDialogsPatched || !globalThis.Dialog?.prototype?.render) return;
@@ -520,10 +519,10 @@ function applyPowerChatContextToMessage(message, data) {
   const content = String(message?.content ?? data?.content ?? "");
   if (!isSymbaroumAbilityChat(content)) return;
 
-  let context = activePowerChatContext ? foundry.utils.deepClone(activePowerChatContext) : null;
+  const speaker = message?.speaker ?? data?.speaker ?? {};
+  let context = takeActivePowerChatContext(speaker.actor);
 
   if (!context) {
-    const speaker = message?.speaker ?? data?.speaker ?? {};
     const actor = speaker.actor ? game.actors.get(speaker.actor) : null;
     if (actor) {
       const doc = new DOMParser().parseFromString(content, "text/html");
@@ -574,7 +573,6 @@ function applyPowerChatContextToMessage(message, data) {
   };
 
   message.updateSource({ flags });
-  setActivePowerChatContext(null);
 }
 
 function isSymbaroumAbilityChat(content) {
@@ -612,23 +610,28 @@ function getActorTokenForContext(actor) {
   return getActorTokens(actor)[0] ?? null;
 }
 
+function powerContextActorId(context) {
+  return String(context?.actorUuid ?? "").split(".").pop() || null;
+}
+
 function setActivePowerChatContext(context) {
-  if (activePowerChatContextTimer) {
-    clearTimeout(activePowerChatContextTimer);
-    activePowerChatContextTimer = null;
-  }
-
-  activePowerChatContext = context ? foundry.utils.deepClone(context) : null;
-  activePowerChatContextToken += 1;
-  if (!activePowerChatContext) return;
-
-  const token = activePowerChatContextToken;
-  activePowerChatContextTimer = setTimeout(() => {
-    if (activePowerChatContextToken === token) {
-      activePowerChatContext = null;
-      activePowerChatContextTimer = null;
-    }
+  const actorId = powerContextActorId(context);
+  if (!actorId) return;
+  const previous = activePowerChatContexts.get(actorId);
+  if (previous) clearTimeout(previous.timer);
+  const entry = { context: foundry.utils.deepClone(context), timer: null };
+  entry.timer = setTimeout(() => {
+    if (activePowerChatContexts.get(actorId) === entry) activePowerChatContexts.delete(actorId);
   }, 15000);
+  activePowerChatContexts.set(actorId, entry);
+}
+
+function takeActivePowerChatContext(actorId) {
+  const entry = actorId ? activePowerChatContexts.get(actorId) : null;
+  if (!entry) return null;
+  clearTimeout(entry.timer);
+  activePowerChatContexts.delete(actorId);
+  return entry.context;
 }
 
 function extractActorIdFromDialogContent(content) {

@@ -59,3 +59,10 @@ test("roll flow no longer relies on global roll state", async () => {
   const wrapper = await readFile(new URL("../scripts/weapon-wrapper.mjs", import.meta.url), "utf8");
   assert.match(wrapper, /finally \{\s*detachAmmoPackages\(\);\s*endWeaponRoll\(\);/);
 });
+
+test("power chat context is kept per actor and consumed by that actor's message", async () => {
+  const init = await readFile(new URL("../scripts/init.mjs", import.meta.url), "utf8");
+  assert.match(init, /const activePowerChatContexts = new Map\(\);/);
+  assert.match(init, /let context = takeActivePowerChatContext\(speaker\.actor\);/);
+  assert.doesNotMatch(init, /let activePowerChatContext\b/);
+});
