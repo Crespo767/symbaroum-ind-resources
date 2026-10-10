@@ -741,7 +741,17 @@ async function resolveShoveDamage(targetActor, maneuver) {
   const currentToughness = Number(targetActor.system?.health?.toughness?.value ?? 0) || 0;
   const nextToughness = Math.max(0, currentToughness - appliedDamage);
 
-  await SocketService.updateDocument(targetActor, { "system.health.toughness.value": nextToughness });
+  try {
+    await SocketService.updateDocument(targetActor, { "system.health.toughness.value": nextToughness });
+  } catch (error) {
+    // O GM recusa dano sem um Empurrão válido e ainda não usado; o card continua e o dano fica manual.
+    console.warn(`${MODULE_ID} | Shove damage was not applied automatically.`, error);
+    return {
+      normalDamage,
+      appliedDamage,
+      message: game.i18n.format("TENEBRE.Maneuvers.ShoveDamageManual", { actor: targetActor.name, damage: appliedDamage })
+    };
+  }
 
   return {
     normalDamage,

@@ -238,9 +238,12 @@ function rationStacks(actor) {
     const rule = getRationRule(item);
     if (!rule) continue;
 
+    // Só junta pilhas realmente iguais: descrição ou imagem diferentes ficam separadas.
     const key = [
       rule.key,
       normalize(item.name),
+      item.img ?? "",
+      String(item.system?.description ?? "").trim(),
       item.getFlag(FLAG_SCOPE, "storedIn") || "inventory"
     ].join("|");
 

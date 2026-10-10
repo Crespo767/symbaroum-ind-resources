@@ -154,13 +154,16 @@ function renderForestEventCard({ eventText, category, mainRoll, eventRoll }) {
         </div>`;
 }
 
+/** Só documentos vindos do módulo (pelo id conhecido ou pela origem no compêndio) são migrados. */
+export function isModuleUtilityDocument(document) {
+    if (Object.values(forestEventTableIds).includes(document?.id)) return true;
+    const source = String(document?._stats?.compendiumSource ?? document?.flags?.core?.sourceId ?? "");
+    return source.startsWith(`Compendium.${moduleId}.`);
+}
+
 function isForestEventsMacro(macro) {
-    const name = normalize(macro?.name);
     const command = String(macro?.command ?? "");
-    return ["eventos de floresta", "eventos na floresta", "forest events"].includes(name) ||
-        command.includes("imQ9P3r4J2Shdmsp") ||
-        command.includes("Forest Events") ||
-        command.includes("Eventos na Floresta");
+    return isModuleUtilityDocument(macro) || command.includes("imQ9P3r4J2Shdmsp");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -954,6 +957,7 @@ async function migrateImportedUtilityTranslations() {
         }
 
         for (const table of game.tables ?? []) {
+            if (!isModuleUtilityDocument(table)) continue;
             const forestEventKey = forestEventTableKeyForName(table.name, forestEventTranslations);
             const migratedTableName = forestEventKey
                 ? forestEventTranslations?.[forestEventKey]?.name
@@ -1036,7 +1040,8 @@ export function setupBithirMod() {
     Hooks.on('renderActorSheet', (app, html, data) => {
         html.closest('.app').find('.bithirmod-generate-shadow').remove();
 
-        if (!isBithirUtilitiesEnabled() ||
+        if (!["player", "monster"].includes(app.object?.type) ||
+            !isBithirUtilitiesEnabled() ||
             !isGenerateShadowEnabled() ||
             game.settings.get(moduleId, 'hideShadowGeneration') ||
             !app.object.testUserPermission(game.user, foundry.CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER)) {

@@ -1,7 +1,7 @@
 import { AMMO_TYPES, DEFAULTS, FLAG_SCOPE, WEAPON_AMMO_TYPES } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { getSpecialAmmoType } from "./special-ammo.mjs";
-import { deleteDepletedInventoryItem, isDepletableInventoryItem } from "./inventory-cleanup.mjs";
+import { deleteDepletedInventoryItem, isDepletableInventoryItem, isInventoryCleanupEnabled } from "./inventory-cleanup.mjs";
 import { matchesAnyAlias, normalize } from "./utils.mjs";
 
 const RATION_ALIASES = ["pao de viagem", "waybread", "travel bread", "racao de viagem", "racao", "ration", "rations"];
@@ -129,7 +129,8 @@ export function itemQuantity(item) {
 export async function changeItemQuantity(item, delta) {
   const current = itemQuantity(item);
   const next = Math.max(0, current + delta);
-  if (next <= 0 && isDepletableInventoryItem(item)) {
+  // A opção "Excluir equipamentos esgotados" vale também para o consumo feito pelo módulo.
+  if (next <= 0 && isDepletableInventoryItem(item) && isInventoryCleanupEnabled()) {
     return deleteDepletedInventoryItem(item, next);
   }
   return item.update({ "system.number": next });

@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.mjs";
+import { MANEUVER_EFFECTS, MODULE_ID } from "./constants.mjs";
 import {
   assertSafeBatch,
   assertSafePayload,
@@ -210,7 +210,9 @@ async function shoveTokenAsGM(sourceTokenUuid, targetTokenUuid) {
   const length = Math.hypot(dx, dy);
   if (!Number.isFinite(length) || length < 1) return { moved: false };
   const destination = { x: targetCenter.x + (dx / length) * pixels, y: targetCenter.y + (dy / length) * pixels };
-  const collision = targetToken.object?.checkCollision?.(destination, { type: "move", mode: "any" });
+  // Sem o token renderizado no canvas do GM não há como checar paredes: o movimento fica manual.
+  if (!targetToken.object?.checkCollision) return { moved: false };
+  const collision = targetToken.object.checkCollision(destination, { type: "move", mode: "any" });
   if (collision) return { moved: false, blocked: true };
   await targetToken.update({ x: destination.x - Number(targetToken.width ?? 1) * gridSize / 2, y: destination.y - Number(targetToken.height ?? 1) * gridSize / 2 });
   return { moved: true, distance: 5 };
@@ -275,13 +277,18 @@ async function updateDocumentAsGM(documentUuid, updates, options = {}) {
   const document = await getDocument(documentUuid);
   const user = getRequestUser(this);
   assertSafePayload(updates, "Document update");
+  let shoveEffect = null;
   if (!user.isGM && !hasOwnerPermission(document, user)) {
+    shoveEffect = findPendingShoveEffect(document, user);
     if (!isTargetedActor(document, user)
+      || !shoveEffect
       || !isAllowedToughnessUpdate(updates, document.system?.health?.toughness?.value)) {
       throw new Error("Unauthorized document update.");
     }
   }
   await document.update(updates, sanitizeSocketOptions(options));
+  // Um Empurrão autoriza um único dano.
+  if (shoveEffect) await shoveEffect.setFlag(MODULE_ID, "shoveDamageApplied", true);
   return true;
 }
 
@@ -402,6 +409,19 @@ function hasDeadCondition(actor) {
     if (effect.flags?.core?.statusId === "dead") return true;
     return String(effect.id ?? "").toLowerCase() === "dead";
   });
+}
+
+/**
+ * Jogadores só podem reduzir a Vitalidade de um ator que não possuem como dano de um Empurrão:
+ * o alvo precisa ter "Empurrado" criado por um personagem desse jogador e ainda não usado.
+ */
+export function findPendingShoveEffect(actor, user) {
+  return Array.from(actor?.effects ?? []).find((effect) => {
+    const flags = effect?.flags?.[MODULE_ID] ?? {};
+    if (flags.effectId !== MANEUVER_EFFECTS.SHOVED || flags.shoveDamageApplied === true) return false;
+    const source = globalThis.game?.actors?.get?.(flags.sourceActorId);
+    return Boolean(source && hasOwnerPermission(source, user));
+  }) ?? null;
 }
 
 export function findActorTokenCombatants(actor, tokens, combatants) {
