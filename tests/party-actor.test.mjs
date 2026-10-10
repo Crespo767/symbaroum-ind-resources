@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
-  PartyActor,
+  PARTY_ACTOR_TYPE,
   PartyDataModel,
   PartyActorSheet,
   PartyActorService
@@ -39,98 +39,48 @@ test("PartyDataModel defines expected party schema", () => {
   assert.ok(schema.experience, "experience field exists");
 });
 
-test("PartyActor prepares derived data safely with isParty flag and experience calculation", () => {
-  const actor = new PartyActor();
-  actor.system = {
-    experience: { total: 100, artifactrr: 10, spent: 25, available: 0 }
-  };
-  actor.prepareBaseData();
-  actor.prepareDerivedData();
-  assert.equal(actor.system.isParty, true);
-  assert.equal(actor.system.experience.available, 65);
+test("PartyDataModel derives isParty and available experience", () => {
+  const model = new PartyDataModel();
+  model.experience = { total: 100, artifactrr: 10, spent: 25, available: 0 };
+  model.prepareDerivedData();
+  assert.equal(model.isParty, true);
+  assert.equal(model.experience.available, 65);
 });
 
-test("PartyActorService registers party type in game and CONFIG without mutating frozen arrays", () => {
+test("PartyActorService uses the module sub-type declared in module.json and never rewrites core type lists", () => {
   const registeredSheets = [];
-  globalThis.game = {
-    system: {
-      documentTypes: {
-        Actor: Object.freeze(["player", "monster"])
-      }
-    },
-    documentTypes: {
-      Actor: Object.freeze(["player", "monster"])
-    },
-    model: {
-      Actor: Object.freeze({ player: {}, monster: {} })
-    }
-  };
+  const coreTypes = Object.freeze(["player", "monster", PARTY_ACTOR_TYPE]);
+  globalThis.game = { documentTypes: { Actor: coreTypes }, modules: new Map() };
 
-  let playerDerivedDataCalled = false;
+  let systemDerivedCalls = 0;
   class MockSymbaroumActor {
-    static get TYPES() {
-      return Object.keys(globalThis.game.model.Actor);
-    }
     prepareBaseData() {}
-    prepareDerivedData() {
-      if (this.type === "player") playerDerivedDataCalled = true;
-    }
+    prepareDerivedData() { systemDerivedCalls += 1; }
   }
-
-  globalThis.CONFIG = {
-    Actor: {
-      dataModels: {},
-      documentClasses: {},
-      typeLabels: {},
-      documentClass: MockSymbaroumActor
-    }
-  };
-
+  globalThis.CONFIG = { Actor: { dataModels: {}, typeLabels: {}, documentClass: MockSymbaroumActor } };
   globalThis.foundry = {
-    abstract: {
-      TypeDataModel: class {}
-    },
-    documents: {
-      collections: {
-        Actors: {
-          registerSheet: (moduleId, sheetClass, options) => {
-            registeredSheets.push({ moduleId, sheetClass, options });
-          }
-        }
-      }
-    },
-    utils: {
-      mergeObject: (a, b) => ({ ...a, ...b })
-    }
+    abstract: { TypeDataModel: class {} },
+    documents: { collections: { Actors: { registerSheet: (moduleId, sheetClass, options) => registeredSheets.push({ moduleId, sheetClass, options }) } } }
   };
 
   PartyActorService.register();
 
-  const types = globalThis.CONFIG.Actor.documentClass.TYPES;
-  const partyTypes = types.filter(t => t === "party" || t.endsWith(".party"));
-  assert.equal(partyTypes.length, 1, "exactly one party type exists in TYPES without duplicate");
-  assert.ok(globalThis.game.system.documentTypes.Actor.includes("party"), "party added to game.system.documentTypes.Actor");
-  assert.equal(globalThis.CONFIG.Actor.documentClasses.party, PartyActor, "documentClass party registered");
-  assert.equal(globalThis.CONFIG.Actor.typeLabels.party, "TENEBRE.Party.TypeLabel", "typeLabel registered");
-  assert.equal(registeredSheets.length, 1, "sheet was registered");
-  assert.ok(registeredSheets[0].options.types.includes("party"), "sheet registered for party type");
+  assert.equal(PARTY_ACTOR_TYPE, "symbaroum-ind-resources.party");
+  assert.equal(CONFIG.Actor.dataModels[PARTY_ACTOR_TYPE], PartyDataModel);
+  assert.equal(CONFIG.Actor.typeLabels[PARTY_ACTOR_TYPE], "TENEBRE.Party.TypeLabel");
+  assert.deepEqual(registeredSheets[0].options.types, [PARTY_ACTOR_TYPE]);
+  assert.equal(game.documentTypes.Actor, coreTypes, "core type list untouched");
 
-  // Verify prepareDerivedData protection
-  const partyActor = new MockSymbaroumActor();
-  partyActor.type = "party";
-  partyActor.system = {};
-  partyActor.prepareDerivedData();
-  assert.equal(partyActor.system.isParty, true, "party actor marked as isParty without error");
-  assert.equal(playerDerivedDataCalled, false, "player logic not called for party");
+  const party = Object.assign(new MockSymbaroumActor(), { type: PARTY_ACTOR_TYPE });
+  party.prepareDerivedData();
+  assert.equal(systemDerivedCalls, 0, "system combat calculations skipped for the party");
+  Object.assign(new MockSymbaroumActor(), { type: "player" }).prepareDerivedData();
+  assert.equal(systemDerivedCalls, 1, "player calculations preserved");
 
-  const playerActor = new MockSymbaroumActor();
-  playerActor.type = "player";
-  playerActor.system = {};
-  playerActor.prepareDerivedData();
-  assert.equal(playerDerivedDataCalled, true, "player logic preserved for player");
-
-  PartyActorService.registerSetup();
-  assert.ok(globalThis.game.documentTypes.Actor.includes("party"), "party added to game.documentTypes.Actor in setup");
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, "module.json"), "utf8"));
+  assert.deepEqual(manifest.documentTypes.Actor, { party: {} });
+  const source = fs.readFileSync(path.join(root, "scripts/party-actor.mjs"), "utf8");
+  assert.doesNotMatch(source, /defineProperty|documentClasses|_injectCreateOption/);
 });
 
 test("PartyActorSheet has symbaroum classes and valid template path", () => {
@@ -157,41 +107,10 @@ test("PartyActorSheet has symbaroum classes and valid template path", () => {
   assert.equal(options.tabs[0].initial, "characters", "initial tab is characters");
 });
 
-test("PartyActorService is hooked into init and setup in scripts/init.mjs", () => {
+test("PartyActorService is registered during init and exposed in the API", () => {
   assert.match(initSource, /PartyActorService\.register\(\)/, "called in init");
-  assert.match(initSource, /PartyActorService\.registerSetup\(\)/, "called in setup");
+  assert.doesNotMatch(initSource, /registerSetup/);
   assert.match(initSource, /party:\s*PartyActorService/, "exposed in api");
-});
-
-test("PartyActorService._injectCreateOption injects party option when missing in actor create dialog and does not duplicate", () => {
-  const options = [
-    { value: "player", textContent: "Jogador" },
-    { value: "monster", textContent: "Monstro" }
-  ];
-  const select = {
-    name: "type",
-    querySelector: (sel) => {
-      if (sel.includes("player")) return options.find(o => o.value === "player");
-      if (sel.includes("party")) return options.find(o => o.value === "party" || o.value.endsWith(".party"));
-      return null;
-    },
-    appendChild: (opt) => options.push(opt)
-  };
-  const mockHtml = {
-    querySelector: (sel) => (sel === 'select[name="type"]' ? select : null)
-  };
-
-  globalThis.document = {
-    createElement: () => ({ value: "", textContent: "" })
-  };
-
-  PartyActorService._injectCreateOption(mockHtml);
-
-  assert.equal(options.filter(o => o.value === "party" || o.value.endsWith(".party")).length, 1, "exactly one party option injected into select");
-
-  // Running again should not inject a second option
-  PartyActorService._injectCreateOption(mockHtml);
-  assert.equal(options.filter(o => o.value === "party" || o.value.endsWith(".party")).length, 1, "party option remains deduplicated");
 });
 
 test("PartyActorSheet manages members via _onDropActor, _onRemoveMember, and getData", async () => {
@@ -199,7 +118,7 @@ test("PartyActorSheet manages members via _onDropActor, _onRemoveMember, and get
   const mockPartyActor = {
     id: "party123",
     uuid: "Actor.party123",
-    type: "party",
+    type: PARTY_ACTOR_TYPE,
     system: {
       members: ["hero1"]
     },
@@ -224,7 +143,7 @@ test("PartyActorSheet manages members via _onDropActor, _onRemoveMember, and get
     }
   };
   const hero2 = { id: "hero2", uuid: "Actor.hero2", name: "Hero 2", img: "hero2.png", type: "player", system: { bio: { race: "Bárbaro" } } };
-  const anotherParty = { id: "party999", uuid: "Actor.party999", type: "party" };
+  const anotherParty = { id: "party999", uuid: "Actor.party999", type: PARTY_ACTOR_TYPE };
 
   const actorsMap = new Map([
     ["hero1", hero1],

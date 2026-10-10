@@ -3,6 +3,7 @@ import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs"
 import { SocketService } from "./sockets.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { isDeathIncapacitated } from "./death-automation.mjs";
+import { getWeaponRoll } from "./roll-context.mjs";
 import { changeItemQuantity, itemQuantity } from "./item-flags.mjs";
 import { escapeHtml, localize, normalizeText } from "./utils.mjs";
 
@@ -1402,14 +1403,13 @@ function getRobustGrappleBonus(actor) {
 }
 
 function isCurrentMeleeWeaponRoll(actor) {
-  const state = game.tenebreResources?.activeManeuverWeaponRoll;
-  if (!state || state.actor !== actor) return true;
+  const state = getWeaponRoll(actor);
+  if (!state) return true;
   return !state.isRanged;
 }
 
 function isCurrentRangedWeaponRoll(actor) {
-  const state = game.tenebreResources?.activeManeuverWeaponRoll;
-  return Boolean(state && state.actor === actor && state.isRanged);
+  return Boolean(getWeaponRoll(actor)?.isRanged);
 }
 
 function isSuccessfulWeaponResult(result) {

@@ -280,6 +280,7 @@ Ajustes:
 ## 11. Plano de melhoria recomendado
 
 **Andamento (branch `auditoria/fase-0`):** Fases 0 e 1 commitadas (`2e6c170`); Fase 2 aplicada (−832 linhas líquidas). Todas aguardam teste manual no Foundry.
+Fase 3 parcial (não commitada): ficha de Grupo pelo sub-tipo nativo (item 9) e contexto de ataque por ator em `scripts/roll-context.mjs` (item 10). Itens 11–13 aguardam um teste no Foundry. Item 12: contêineres de inventário ficam (o Item Piles não os oferece); a decisão é só sobre o token próprio "no chão".
 Fase 2 manteve os métodos da API pública (`AmmoService.selectAmmo/promptAmmo`, `GmLogService.recordItemQuantityChange`, `VerseService`), porque macros externas podem usá-los.
 Regras decididas: Defesa Total (e Ataque Total, pelo mesmo motivo) dura até o próximo turno do personagem; a Fome sempre vence o favor de manobras.
 Munição especial: os modificadores entram como pacotes opcionais nativos do sistema (`scripts/ammo-roll.mjs`), marcados pelo seletor de munição.

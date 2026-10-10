@@ -1,5 +1,6 @@
 import { AmmoService } from "./ammo.mjs";
 import { attachAmmoModifierPackages, getAmmoRollOptions } from "./ammo-roll.mjs";
+import { beginWeaponRoll } from "./roll-context.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { getWeaponAmmoType } from "./item-flags.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
@@ -25,12 +26,6 @@ export function patchWeaponRolls() {
     }
 
     ProneAdvantageService.captureWeaponAttack(this, weapon);
-
-    // Reset status anterior de rolagem se houver
-    if (game.tenebreResources?.activeWeaponRoll) {
-      console.warn("Tenebre Resources | Clearing active roll state left over from a previous hung/incomplete roll.");
-      game.tenebreResources.activeWeaponRoll = null;
-    }
 
     if (this?.type !== "player") {
       return wrapped.call(this, weapon, ...args);
@@ -58,56 +53,37 @@ export function patchWeaponRolls() {
       return undefined;
     }
 
-    const maneuverRollState = maneuversEnabled
-      ? {
-          actor: this,
-          weapon,
-          isRanged: Boolean(ammoType)
-        }
-      : null;
-    if (maneuverRollState) {
-      game.tenebreResources.activeManeuverWeaponRoll = maneuverRollState;
-    }
-
-    if (!ammoType || !TenebreSettings.get("enableAmmoConsumption")) {
-      try {
-        const result = await wrapped.call(this, weapon, ...args);
-        if (maneuversEnabled) await ManeuverService.afterWeaponRoll(this, result);
-        return result;
-      } finally {
-        if (maneuverRollState && game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
-          game.tenebreResources.activeManeuverWeaponRoll = null;
-        }
-      }
-    }
+    const tracksAmmo = Boolean(ammoType) && TenebreSettings.get("enableAmmoConsumption");
 
     // Exige seleção de exatamente 1 alvo se a automação de combate estiver ativa
-    if (game.settings.get("symbaroum", "combatAutomation")) {
+    if (tracksAmmo && game.settings.get("symbaroum", "combatAutomation")) {
       const targets = Array.from(game.user.targets);
       if (targets.length !== 1) {
         ui.notifications.warn(game.i18n.localize("ABILITY_ERROR.TARGET"));
-        if (maneuverRollState && game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
-          game.tenebreResources.activeManeuverWeaponRoll = null;
-        }
         return undefined;
       }
     }
 
+    // O diálogo do sistema localiza este contexto pelo id do ator (roll-context.mjs).
     const rollState = {
       actor: this,
-      weapon: weapon,
-      ammoType: ammoType,
-      ammoOptions: getAmmoRollOptions(this, ammoType)
+      weapon,
+      ammoType,
+      isRanged: Boolean(ammoType),
+      tracksAmmo,
+      ammoOptions: tracksAmmo ? getAmmoRollOptions(this, ammoType) : []
     };
-    game.tenebreResources.activeWeaponRoll = rollState;
+    const endWeaponRoll = beginWeaponRoll(rollState);
     // O sistema copia os modificadores da arma ao montar o diálogo; os pacotes de munição precisam estar lá antes.
-    const detachAmmoPackages = attachAmmoModifierPackages(this, weapon, rollState.ammoOptions);
+    const detachAmmoPackages = tracksAmmo
+      ? attachAmmoModifierPackages(this, weapon, rollState.ammoOptions)
+      : () => {};
 
     try {
       const result = await wrapped.call(this, weapon, ...args);
       const chosenAmmo = rollState.chosenAmmo;
 
-      if (chosenAmmo) {
+      if (tracksAmmo && chosenAmmo) {
         if (!rollState.consumed) {
           rollState.consumed = true;
           rollState.shot = await AmmoService.consumeAmmo(this, chosenAmmo, weapon, ammoType);
@@ -128,14 +104,7 @@ export function patchWeaponRolls() {
       throw err;
     } finally {
       detachAmmoPackages();
-      if (maneuverRollState && game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
-        game.tenebreResources.activeManeuverWeaponRoll = null;
-      }
-      setTimeout(() => {
-        if (game.tenebreResources?.activeWeaponRoll?.actor === this) {
-          game.tenebreResources.activeWeaponRoll = null;
-        }
-      }, 60000);
+      endWeaponRoll();
     }
   };
 

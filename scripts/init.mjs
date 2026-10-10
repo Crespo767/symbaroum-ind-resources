@@ -42,6 +42,7 @@ import { DeathAutomationService, isDeathIncapacitated } from "./death-automation
 import { ActorCreationService } from "./actor-creation.mjs";
 import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import { PartyActorService } from "./party-actor.mjs";
+import { getWeaponRollForDialog } from "./roll-context.mjs";
 import { isActiveGM, normalizeText } from "./utils.mjs";
 
 Hooks.once("init", () => {
@@ -97,11 +98,6 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("setup", () => {
-  try {
-    PartyActorService.registerSetup();
-  } catch (err) {
-    console.error("Symbaroum Ind Resources | Falha em PartyActorService.registerSetup:", err);
-  }
   exposePublicApi();
 });
 
@@ -660,9 +656,9 @@ function applyStatusFavourToDialog(html, dialog) {
   if (!favours.length) return;
 
   const actorId = dialog?._tenebreHungerActorId;
-  const activeWeaponRoll = game.tenebreResources?.activeManeuverWeaponRoll;
-  const actor = game.actors?.get?.(actorId) ?? activeWeaponRoll?.actor;
-  const weapon = activeWeaponRoll?.actor === actor ? activeWeaponRoll.weapon : null;
+  const weaponRoll = getWeaponRollForDialog(root);
+  const actor = weaponRoll?.actor ?? game.actors?.get?.(actorId);
+  const weapon = weaponRoll?.weapon ?? null;
   const attribute = getDialogActingAttribute(root, dialog);
   const currentFavour = Number(favours.find((input) => input.checked)?.value ?? 0) || 0;
 

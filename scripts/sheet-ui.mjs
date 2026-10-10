@@ -4,6 +4,7 @@ import { RestService } from "./rest.mjs";
 import { RationService } from "./rations.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { getAmmoRollOptions, syncAmmoPackageSelection } from "./ammo-roll.mjs";
+import { endWeaponRoll, getWeaponRollForDialog } from "./roll-context.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
@@ -1956,6 +1957,9 @@ function onRenderDialog(dialog, html, data) {
   }
 
   const isWeaponRoll = Boolean(el.querySelector("input[id^='weapondamage-']"));
+  if (isWeaponRoll && !dialog._tenebreWeaponRoll) {
+    dialog._tenebreWeaponRoll = getWeaponRollForDialog(el);
+  }
   if (isWeaponRoll) {
     // Altera atributo alvo para defesa por padrão
     const targetAttrSelect = el.querySelector("select[id^='targetAttribute-']");
@@ -1972,7 +1976,8 @@ function onRenderDialog(dialog, html, data) {
       if (originalCallback && !originalCallback._tenebreWrapped) {
         dialog.data.buttons.roll.callback = async function(htmlElement, event) {
           const htmlParam = (htmlElement && !(0 in htmlElement)) ? [htmlElement] : htmlElement;
-          const activeRoll = dialog._tenebreWeaponRoll ?? game.tenebreResources?.activeWeaponRoll;
+          dialog._tenebreRollSubmitted = true;
+          const activeRoll = dialog._tenebreWeaponRoll?.tracksAmmo ? dialog._tenebreWeaponRoll : null;
           let chosenAmmo = null;
 
           if (activeRoll && isPlayerActor(activeRoll.actor)) {
@@ -2012,10 +2017,8 @@ function onRenderDialog(dialog, html, data) {
   }
 
   // Injeta seletor de munição para ataques à distância
-  const activeRoll = game.tenebreResources?.activeWeaponRoll;
-  if (!activeRoll) return;
-  if (!isPlayerActor(activeRoll.actor)) return;
-  dialog._tenebreWeaponRoll = activeRoll;
+  const activeRoll = dialog._tenebreWeaponRoll;
+  if (!activeRoll?.tracksAmmo || !isPlayerActor(activeRoll.actor)) return;
 
   const damModInput = el.querySelector("input[id^='dammodifier-']");
   if (!damModInput) return;
@@ -2192,17 +2195,9 @@ function getSelectedAmmoFromDialog(el, activeRoll) {
   return activeRoll.actor.items.get(selectedValue) ?? null;
 }
 
-function onCloseDialog(dialog, html) {
-  if (game.tenebreResources?.activeWeaponRoll) {
-    setTimeout(() => {
-      clearActiveWeaponRoll(dialog._tenebreWeaponRoll);
-    }, 100);
-  }
-}
-
-function clearActiveWeaponRoll(activeRoll) {
-  if (!game.tenebreResources) return;
-  if (!activeRoll || game.tenebreResources.activeWeaponRoll === activeRoll) {
-    game.tenebreResources.activeWeaponRoll = null;
+// Fechar pelo X deixa a Promise do sistema pendente: encerra o contexto se não houve rolagem.
+function onCloseDialog(dialog) {
+  if (dialog?._tenebreWeaponRoll && !dialog._tenebreRollSubmitted) {
+    endWeaponRoll(dialog._tenebreWeaponRoll);
   }
 }
