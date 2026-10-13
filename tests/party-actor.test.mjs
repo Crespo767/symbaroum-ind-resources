@@ -143,3 +143,82 @@ test("PartyActorSheet.getData formats vehicle and hitched draft animal correctly
   assert.equal(data.storage.draftAnimal.name, "Cavalo Alazão");
   assert.equal(data.storage.draftAnimal.capacity, 80);
 });
+
+test("Party sheet template includes party-region and party-location controls in header", () => {
+  assert.match(templateSource, /class="party-region"/);
+  assert.match(templateSource, /name="system\.location\.region"/);
+  assert.match(templateSource, /class="party-location"/);
+  assert.match(templateSource, /name="system\.location\.name"/);
+});
+
+test("Stylesheet contains rules for party-region and party-location", () => {
+  assert.match(cssSource, /\.sheet-header \.party-region/);
+  assert.match(cssSource, /\.sheet-header \.party-location/);
+  assert.match(cssSource, /\.party-region select/);
+  assert.match(cssSource, /\.party-location input/);
+});
+
+test("PartyActorSheet formats location regions and modifiers correctly in getData", async () => {
+  globalThis.Hooks = globalThis.Hooks ?? { once() {}, on() {}, callAll() {} };
+  globalThis.foundry = globalThis.foundry ?? { utils: { deepClone: (x) => JSON.parse(JSON.stringify(x)) } };
+  globalThis.ActorSheet = class {
+    constructor(actor) { this.actor = actor; }
+  };
+
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+
+  // Caso 1: padrão (ambria)
+  const defaultParty = {
+    id: "party-default",
+    system: {},
+    items: new Map()
+  };
+  const sheet1 = new PartyActorSheet(defaultParty);
+  const data1 = await sheet1.getData();
+  assert.equal(data1.partyLocation.region, "ambria");
+  assert.equal(data1.partyLocation.modifier, 0);
+  assert.equal(data1.partyLocation.name, "");
+  assert.equal(data1.partyLocation.regions.length, 4);
+
+  // Caso 2: Davokar Selvagem (+2) com local específico
+  const wildParty = {
+    id: "party-wild",
+    system: {
+      location: {
+        region: "wild",
+        name: "Ruínas de Odaban"
+      }
+    },
+    items: new Map()
+  };
+  const sheet2 = new PartyActorSheet(wildParty);
+  const data2 = await sheet2.getData();
+  assert.equal(data2.partyLocation.region, "wild");
+  assert.equal(data2.partyLocation.modifier, 2);
+  assert.equal(data2.partyLocation.modifierText, "+2");
+  assert.equal(data2.partyLocation.name, "Ruínas de Odaban");
+
+  // Caso 3: Davokar Escura (+5)
+  const darkParty = {
+    id: "party-dark",
+    system: {
+      location: {
+        region: "dark",
+        name: "Coração de Symbar"
+      }
+    },
+    items: new Map()
+  };
+  const sheet3 = new PartyActorSheet(darkParty);
+  const data3 = await sheet3.getData();
+  assert.equal(data3.partyLocation.region, "dark");
+  assert.equal(data3.partyLocation.modifier, 5);
+  assert.equal(data3.partyLocation.modifierText, "+5");
+
+  // getRegionModifier estático
+  assert.equal(PartyActorSheet.getRegionModifier("ambria"), 0);
+  assert.equal(PartyActorSheet.getRegionModifier("bright"), 0);
+  assert.equal(PartyActorSheet.getRegionModifier("wild"), 2);
+  assert.equal(PartyActorSheet.getRegionModifier("dark"), 5);
+});
+

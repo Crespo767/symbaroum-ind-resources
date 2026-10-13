@@ -917,5 +917,14 @@
   "TENEBRE.Party.DraftAnimalLinkedNotice": "Draft animal linked: {name}",
   "TENEBRE.Party.DraftAnimalUnlinkedNotice": "Draft animal unhitched.",
   "TENEBRE.Party.StorageOptionDraftAnimal": "Hitched Animal (Optional):",
-  "TENEBRE.Party.StorageOptionNoDraftAnimal": "No animal hitched"
+  "TENEBRE.Party.StorageOptionNoDraftAnimal": "No animal hitched",
+  "TENEBRE.Party.RegionLabel": "Region",
+  "TENEBRE.Party.RegionTooltip": "Current expedition region. Determines the modifier applied to Davokar tables.",
+  "TENEBRE.Party.RegionAmbria": "Ambria (±0)",
+  "TENEBRE.Party.RegionBright": "Bright Davokar (+0)",
+  "TENEBRE.Party.RegionWild": "Wild Davokar (+2)",
+  "TENEBRE.Party.RegionDark": "Dark Davokar (+5)",
+  "TENEBRE.Party.LocationNameLabel": "Location",
+  "TENEBRE.Party.LocationNamePlaceholder": "E.g.: Thistle Hold, Ruins...",
+  "TENEBRE.Party.LocationNameTooltip": "Specific site or landmark where characters currently are."
 }

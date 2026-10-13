@@ -917,5 +917,14 @@
   "TENEBRE.Party.DraftAnimalLinkedNotice": "Animal de tração vinculado: {name}",
   "TENEBRE.Party.DraftAnimalUnlinkedNotice": "Animal de tração desatrelado.",
   "TENEBRE.Party.StorageOptionDraftAnimal": "Animal de Tração (Opcional):",
-  "TENEBRE.Party.StorageOptionNoDraftAnimal": "Nenhum animal atrelado"
+  "TENEBRE.Party.StorageOptionNoDraftAnimal": "Nenhum animal atrelado",
+  "TENEBRE.Party.RegionLabel": "Região",
+  "TENEBRE.Party.RegionTooltip": "Região onde o grupo se encontra. Define a modificação aplicada às tabelas de Davokar.",
+  "TENEBRE.Party.RegionAmbria": "Ambria (±0)",
+  "TENEBRE.Party.RegionBright": "Davokar Iluminada (+0)",
+  "TENEBRE.Party.RegionWild": "Davokar Selvagem (+2)",
+  "TENEBRE.Party.RegionDark": "Davokar Escura (+5)",
+  "TENEBRE.Party.LocationNameLabel": "Local",
+  "TENEBRE.Party.LocationNamePlaceholder": "Ex.: Forte do Cardo, Ruínas...",
+  "TENEBRE.Party.LocationNameTooltip": "Local específico ou ponto de referência onde os personagens se encontram."
 }

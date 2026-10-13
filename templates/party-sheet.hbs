@@ -21,6 +21,20 @@
                         </div>
                     {{/ifNotLimited}}
                 </div>
+                <div class="wrapper-row">
+                    <div class="party-region" data-tooltip="{{localize "TENEBRE.Party.RegionTooltip"}} ({{partyLocation.modifierText}})">
+                        <label for="{{id}}-party-region">{{localize "TENEBRE.Party.RegionLabel"}}</label>
+                        <select id="{{id}}-party-region" name="system.location.region" {{#unless editable}}disabled{{/unless}}>
+                            {{#each partyLocation.regions}}
+                            <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                            {{/each}}
+                        </select>
+                    </div>
+                    <div class="party-location" data-tooltip="{{localize "TENEBRE.Party.LocationNameTooltip"}}">
+                        <label for="{{id}}-party-location">{{localize "TENEBRE.Party.LocationNameLabel"}}</label>
+                        <input id="{{id}}-party-location" name="system.location.name" type="text" value="{{partyLocation.name}}" placeholder="{{localize "TENEBRE.Party.LocationNamePlaceholder"}}" {{#unless editable}}disabled{{/unless}} />
+                    </div>
+                </div>
             </div>
         </div>
 

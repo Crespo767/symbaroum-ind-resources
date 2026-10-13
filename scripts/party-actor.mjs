@@ -105,6 +105,10 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
         capacity: fields.NumberField ? new fields.NumberField({ initial: 0, min: 0 }) : 0,
         draftAnimal: fields.ObjectField ? new fields.ObjectField({ initial: {} }) : {}
       });
+      schema.location = new fields.SchemaField({
+        region: fields.StringField ? new fields.StringField({ initial: "ambria" }) : "ambria",
+        name: fields.StringField ? new fields.StringField({ initial: "" }) : ""
+      });
     }
     return schema;
   }
@@ -124,6 +128,11 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
       capacity: 0,
       draftAnimal: null
     };
+    this.location ??= {
+      region: "ambria",
+      name: ""
+    };
+    if (!this.location.region) this.location.region = "ambria";
     this.experience ??= { total: 0, artifactrr: 0, spent: 0, available: 0 };
     const exp = this.experience;
     exp.available = (Number(exp.total) || 0) - (Number(exp.artifactrr) || 0) - (Number(exp.spent) || 0);
@@ -170,6 +179,21 @@ export class PartyActorSheet extends BaseActorSheet {
         }
       ]
     };
+  }
+
+  /**
+   * Retorna a modificação numérica das tabelas da Davokar para uma região.
+   * @param {string} regionKey
+   * @returns {number}
+   */
+  static getRegionModifier(regionKey) {
+    switch (regionKey) {
+      case "dark": return 5;
+      case "wild": return 2;
+      case "bright": return 0;
+      case "ambria":
+      default: return 0;
+    }
   }
 
   _resolveActor(actorId) {
@@ -400,6 +424,45 @@ export class PartyActorSheet extends BaseActorSheet {
       draftAnimal: draftAnimal
     };
 
+    const rawLocation = this.actor?.system?.location ?? {};
+    const regionKey = rawLocation.region || "ambria";
+    const regionOptions = [
+      {
+        key: "ambria",
+        label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionAmbria") || "Ambria (±0)",
+        modifier: 0,
+        selected: regionKey === "ambria"
+      },
+      {
+        key: "bright",
+        label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionBright") || "Davokar Iluminada (+0)",
+        modifier: 0,
+        selected: regionKey === "bright"
+      },
+      {
+        key: "wild",
+        label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionWild") || "Davokar Selvagem (+2)",
+        modifier: 2,
+        selected: regionKey === "wild"
+      },
+      {
+        key: "dark",
+        label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionDark") || "Davokar Escura (+5)",
+        modifier: 5,
+        selected: regionKey === "dark"
+      }
+    ];
+
+    const currentRegion = regionOptions.find(r => r.key === regionKey) || regionOptions[0];
+
+    data.partyLocation = {
+      region: regionKey,
+      name: rawLocation.name || "",
+      regions: regionOptions,
+      modifier: currentRegion.modifier,
+      modifierText: currentRegion.modifier > 0 ? `+${currentRegion.modifier}` : (currentRegion.key === "ambria" ? "±0" : "+0")
+    };
+
     return data;
   }
 
@@ -529,6 +592,20 @@ export class PartyActorSheet extends BaseActorSheet {
     super.activateListeners?.(html);
     const root = html?.[0] ?? html;
     if (!root?.querySelectorAll) return;
+
+    root.querySelectorAll('select[name="system.location.region"]').forEach(el => {
+      el.addEventListener("change", async (ev) => {
+        const val = ev.currentTarget.value;
+        await this.actor?.update?.({ "system.location.region": val });
+      });
+    });
+
+    root.querySelectorAll('input[name="system.location.name"]').forEach(el => {
+      el.addEventListener("change", async (ev) => {
+        const val = ev.currentTarget.value;
+        await this.actor?.update?.({ "system.location.name": val });
+      });
+    });
 
     root.querySelectorAll('[data-action="open-member-sheet"]').forEach(el => {
       el.addEventListener("click", async (ev) => {

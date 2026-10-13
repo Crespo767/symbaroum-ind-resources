@@ -4119,17 +4119,32 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 
 .tenebre-party-sheet .party-section .section-title {
   font-family: var(--font-title, serif);
-  font-size: 1.05em;
+  font-size: 1.15em;
   font-weight: bold;
-  color: #2b2015;
-  border-bottom: 1px solid rgba(60, 48, 34, 0.3);
-  padding-bottom: 3px;
-  margin: 0 0 4px 0;
+  color: #dfb743;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.6);
+  margin: 4px 0 6px 0;
+  padding: 0 4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.tenebre-party-sheet .party-section .section-title::before,
+.tenebre-party-sheet .party-section .section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(223, 183, 67, 0.5));
+  margin: 0 12px;
+}
+
+.tenebre-party-sheet .party-section .section-title::after {
+  background: linear-gradient(90deg, rgba(223, 183, 67, 0.5), transparent);
 }
 
 .tenebre-party-sheet .party-companions-section {
@@ -4188,17 +4203,32 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 
 .tenebre-party-sheet .party-inventory-section .section-title {
   font-family: var(--font-title, serif);
-  font-size: 1.05em;
+  font-size: 1.15em;
   font-weight: bold;
-  color: #2b2015;
-  border-bottom: 1px solid rgba(60, 48, 34, 0.3);
-  padding-bottom: 3px;
-  margin: 0 0 4px 0;
+  color: #dfb743;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.6);
+  margin: 6px 0 6px 0;
+  padding: 0 4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.tenebre-party-sheet .party-inventory-section .section-title::before,
+.tenebre-party-sheet .party-inventory-section .section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(223, 183, 67, 0.5));
+  margin: 0 12px;
+}
+
+.tenebre-party-sheet .party-inventory-section .section-title::after {
+  background: linear-gradient(90deg, rgba(223, 183, 67, 0.5), transparent);
 }
 
 .tenebre-party-sheet .party-items-list {
@@ -4665,6 +4695,55 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   color: #8b1111;
   background: rgba(180, 20, 20, 0.08);
 }
+
+/* ==========================================================================
+   Ficha de Grupo: Local e Região (Modificadores de Davokar)
+   ========================================================================== */
+
+.symbaroum.sheet.actor .player.party .sheet-header .party-region,
+.symbaroum.sheet.actor .player.party .sheet-header .party-location {
+  display: flex;
+  flex-direction: row;
+  flex-basis: calc(50% - 5px);
+  align-items: center;
+}
+
+.symbaroum.sheet.actor .player.party .sheet-header .party-region label,
+.symbaroum.sheet.actor .player.party .sheet-header .party-location label {
+  width: 100px;
+}
+
+.symbaroum.sheet.actor .player.party .sheet-header .party-region select {
+  width: 50px;
+  flex-grow: 1;
+  height: 28px;
+  background: var(--box-editable, rgba(255, 255, 255, 0.6)) repeat;
+  border: 1px solid black;
+  box-shadow: inset 0 0 6px black;
+  color: var(--color-text-dark, #191813);
+  font-family: inherit;
+  font-size: 0.9em;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.symbaroum.sheet.actor .player.party .sheet-header .party-region select:disabled,
+.symbaroum.sheet.actor .player.party .sheet-header .party-location input:disabled {
+  opacity: 0.85;
+  cursor: default;
+}
+
+.symbaroum.sheet.actor .player.party .sheet-header .party-region select option {
+  background: #f5eedb;
+  color: #191813;
+}
+
+.symbaroum.sheet.actor .player.party .sheet-header .party-location input {
+  width: 50px;
+  flex-grow: 1;
+  height: 28px;
+}
+
 
 
 
