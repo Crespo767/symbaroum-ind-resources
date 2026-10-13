@@ -3971,13 +3971,29 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 2px;
   padding: 0 4px;
+}
+
+.tenebre-party-sheet .member-switch {
+  color: #3c3022;
+  cursor: pointer;
+  padding: 8px 6px;
+  font-size: 1.25em;
+  opacity: 0.75;
+  transition: opacity 0.2s, color 0.2s, transform 0.15s;
+}
+
+.tenebre-party-sheet .member-switch:hover {
+  color: #1a1612;
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 .tenebre-party-sheet .member-delete {
   color: #3c3022;
   cursor: pointer;
-  padding: 8px 10px;
+  padding: 8px 6px;
   font-size: 1.4em;
   opacity: 0.75;
   transition: opacity 0.2s, color 0.2s;
@@ -3988,14 +4004,64 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   opacity: 1;
 }
 
+.tenebre-party-sheet .party-characters-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 2px;
+}
+
+.tenebre-party-sheet .party-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tenebre-party-sheet .party-section .section-title {
+  font-family: var(--font-title, serif);
+  font-size: 1.05em;
+  font-weight: bold;
+  color: #2b2015;
+  border-bottom: 1px solid rgba(60, 48, 34, 0.3);
+  padding-bottom: 3px;
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tenebre-party-sheet .party-companions-section {
+  margin-top: 4px;
+}
+
+.tenebre-party-sheet .party-companions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tenebre-party-sheet .party-member-card[draggable="true"] {
+  cursor: grab;
+}
+
+.tenebre-party-sheet .party-member-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 .tenebre-party-sheet .party-empty-dropzone {
   text-align: center;
   color: var(--color-title, #2b2015);
-  padding: 40px 20px;
+  padding: 24px 18px;
   border: 2px dashed rgba(60, 40, 20, 0.4);
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.03);
-  margin: 10px 0;
+  margin: 6px 0;
+}
+
+.tenebre-party-sheet .party-empty-dropzone.companions-empty {
+  margin-top: 4px;
 }
 
 .tenebre-party-sheet .sheet-tabs .item {

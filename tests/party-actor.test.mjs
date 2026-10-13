@@ -35,6 +35,7 @@ test("PartyDataModel defines expected party schema", () => {
   assert.ok(schema.motto, "motto field exists");
   assert.ok(schema.description, "description field exists");
   assert.ok(schema.members, "members field exists");
+  assert.ok(schema.companions, "companions field exists");
   assert.ok(schema.isParty, "isParty field exists");
   assert.ok(schema.experience, "experience field exists");
   assert.ok(schema.health, "health field exists");
@@ -47,6 +48,7 @@ test("PartyDataModel derives isParty and available experience", () => {
   assert.equal(model.isParty, true);
   assert.equal(model.experience.available, 65);
   assert.deepEqual(model.health.toughness, { value: 0, max: 0 });
+  assert.deepEqual(model.companions, []);
 });
 
 test("PartyActorService uses the module sub-type declared in module.json and never rewrites core type lists", () => {
@@ -420,9 +422,9 @@ test("PartyActorSheet supports dropping items, rendering inventory categories an
   sheet.actor = mockPartyActor;
   sheet.isEditable = true;
 
-  // 1. defaultOptions dragSelector includes items
+  // 1. defaultOptions dragSelector includes items and member cards
   const opts = PartyActorSheet.defaultOptions;
-  assert.equal(opts.dragDrop[0].dragSelector, ".item[data-item-id]");
+  assert.equal(opts.dragDrop[0].dragSelector, ".item[data-item-id], .party-member-card[data-actor-id]");
 
   // 2. getData categorizes items and calls i18n.localize with correct this context
   globalThis.game = {
@@ -496,12 +498,17 @@ test("PartyActorSheet supports dropping items, rendering inventory categories an
   assert.match(templateContent, /data-action="decrease-quantity"/);
   assert.match(templateContent, /data-action="delete-item"/);
   assert.match(templateContent, /data-action="open-item-sheet"/);
+  assert.match(templateContent, /party-members-section/);
+  assert.match(templateContent, /party-companions-section/);
+  assert.match(templateContent, /data-action="toggle-member-type"/);
 
   const cssPath = path.join(root, "styles/symbaroum-ind-resources.css");
   const cssContent = fs.readFileSync(cssPath, "utf8");
   assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-item-row/);
   assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-inventory-content/);
   assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-items-list/);
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-companions-section/);
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.member-switch/);
 
   // 8. Localization verification
   const ptBr = JSON.parse(fs.readFileSync(path.join(root, "languages/pt-BR.json"), "utf8"));
@@ -514,6 +521,151 @@ test("PartyActorSheet supports dropping items, rendering inventory categories an
   assert.ok(en["TENEBRE.Party.DecreaseQuantity"]);
   assert.ok(ptBr["TENEBRE.Party.DeleteItem"]);
   assert.ok(en["TENEBRE.Party.DeleteItem"]);
+  assert.ok(ptBr["TENEBRE.Party.CompanionsSectionTitle"]);
+  assert.ok(en["TENEBRE.Party.CompanionsSectionTitle"]);
+  assert.ok(ptBr["TENEBRE.Party.MoveToCompanions"]);
+  assert.ok(en["TENEBRE.Party.MoveToCompanions"]);
+  assert.ok(ptBr["TENEBRE.Party.MoveToMembers"]);
+  assert.ok(en["TENEBRE.Party.MoveToMembers"]);
+});
+
+test("PartyActorSheet handles companion drag and drop, toggle and separation", async () => {
+  const updates = [];
+  const mockPartyActor = {
+    id: "party1",
+    uuid: "Actor.party1",
+    type: PARTY_ACTOR_TYPE,
+    system: {
+      members: ["player1"],
+      companions: ["comp1"]
+    },
+    update: async (data) => {
+      updates.push(data);
+      if (data["system.members"]) mockPartyActor.system.members = data["system.members"];
+      if (data["system.companions"]) mockPartyActor.system.companions = data["system.companions"];
+      return mockPartyActor;
+    }
+  };
+
+  const player1 = {
+    id: "player1",
+    uuid: "Actor.player1",
+    name: "Alano",
+    type: "player",
+    img: "player1.png",
+    system: {
+      bio: { occupation: "Guerreiro" },
+      experience: { total: 50, available: 10 },
+      attributes: {
+        strong: { value: 15, total: 15 },
+        accurate: { value: 13, total: 13 }
+      }
+    }
+  };
+
+  const comp1 = {
+    id: "comp1",
+    uuid: "Actor.comp1",
+    name: "Mula de Carga",
+    type: "monster",
+    img: "mule.png",
+    system: {
+      race: "Animal",
+      attributes: {
+        strong: 14,
+        resolute: 13
+      }
+    }
+  };
+
+  const comp2 = {
+    id: "comp2",
+    uuid: "Actor.comp2",
+    name: "Lobo Domado",
+    type: "monster",
+    img: "wolf.png",
+    system: {
+      race: "Fera",
+      attributes: {
+        quick: 15,
+        strong: 11
+      }
+    }
+  };
+
+  const player2 = {
+    id: "player2",
+    uuid: "Actor.player2",
+    name: "Godo",
+    type: "player",
+    img: "player2.png",
+    system: {
+      bio: { occupation: "Mago" },
+      experience: { total: 40 },
+      attributes: {
+        resolute: { value: 15, total: 15 }
+      }
+    }
+  };
+
+  const actorRegistry = new Map([
+    ["player1", player1],
+    ["comp1", comp1],
+    ["comp2", comp2],
+    ["player2", player2]
+  ]);
+
+  globalThis.game = {
+    actors: actorRegistry,
+    user: { isGM: true },
+    i18n: {
+      localize: (k) => k
+    }
+  };
+
+  const sheet = new PartyActorSheet();
+  sheet.actor = mockPartyActor;
+  sheet.isEditable = true;
+
+  // 1. getData resolves both members and companions
+  const data = await sheet.getData();
+  assert.equal(data.members.length, 1);
+  assert.equal(data.members[0].name, "Alano");
+  assert.equal(data.members[0].isCompanion, false);
+  assert.equal(data.members[0].topAttributes[0].total, 15);
+
+  assert.equal(data.companions.length, 1);
+  assert.equal(data.companions[0].name, "Mula de Carga");
+  assert.equal(data.companions[0].isCompanion, true);
+  // Numeric attribute support on monster
+  assert.equal(data.companions[0].topAttributes[0].total, 14);
+
+  // 2. Drop monster onto sheet defaults to companions
+  await sheet._onDropActor({}, { id: "comp2" });
+  assert.deepEqual(mockPartyActor.system.companions, ["comp1", "comp2"]);
+
+  // 3. Drop player onto companions dropzone goes to companions
+  const mockCompanionEvent = {
+    target: {
+      closest: (sel) => sel.includes("party-companions-section") ? {} : null
+    }
+  };
+  await sheet._onDropActor(mockCompanionEvent, { id: "player2" });
+  assert.ok(mockPartyActor.system.companions.includes("player2"));
+
+  // 4. Toggle member type switches from companions to members
+  await sheet._onToggleMemberType("player2");
+  assert.ok(mockPartyActor.system.members.includes("player2"));
+  assert.ok(!mockPartyActor.system.companions.includes("player2"));
+
+  // 5. Toggle member type switches from members to companions
+  await sheet._onToggleMemberType("player1");
+  assert.ok(!mockPartyActor.system.members.includes("player1"));
+  assert.ok(mockPartyActor.system.companions.includes("player1"));
+
+  // 6. Remove member removes from either list
+  await sheet._onRemoveMember("comp1");
+  assert.ok(!mockPartyActor.system.companions.includes("comp1"));
 });
 
 

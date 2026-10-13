@@ -31,55 +31,130 @@
 
         <div class="sheet-body">
             <div class="tab" data-group="primary" data-tab="characters">
-                <div class="party-members-list">
-                    {{#each members}}
-                    <div class="party-member-card foreground" data-actor-id="{{id}}">
-                        <!-- Imagem do Personagem -->
-                        <div class="member-portrait" data-action="open-member-sheet" data-actor-id="{{id}}" data-tooltip="{{name}}">
-                            <img src="{{img}}" alt="{{name}}" />
+                <div class="party-characters-tab-content">
+                    <!-- Seção de Jogadores -->
+                    <div class="party-section party-members-section" data-drop-zone="members">
+                        <div class="party-section-header">
+                            <h3 class="section-title"><i class="fas fa-users"></i> {{localize "TENEBRE.Party.MembersSectionTitle"}} ({{members.length}})</h3>
                         </div>
-
-                        <!-- Nome, Ocupação, Quantidade de XP -->
-                        <div class="member-identity" data-action="open-member-sheet" data-actor-id="{{id}}">
-                            <span class="member-name">{{name}}</span>
-                            {{#if occupation}}
-                            <span class="member-occupation">• {{occupation}}</span>
-                            {{/if}}
-                            <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
-                        </div>
-
-                        <!-- Campo de informações: 4 maiores atributos no canto esquerdo -->
-                        <div class="member-info-box">
-                            {{#if topAttributes.length}}
-                            <div class="member-top-attributes" data-tooltip="{{#if canRoll}}{{localize "TENEBRE.Party.TopAttributesTooltip"}}{{else}}{{localize "TENEBRE.Party.TopAttributesReadonlyTooltip"}}{{/if}}">
-                                {{#each topAttributes}}
-                                <div class="member-attr-badge {{#if ../canRoll}}is-rollable{{else}}is-readonly{{/if}}" {{#if ../canRoll}}data-action="roll-member-attribute" data-actor-id="{{../id}}" data-attribute="{{key}}"{{/if}} data-tooltip="{{label}}: {{total}}">
-                                    <span class="attr-abbr">{{abbr}}</span>
-                                    <span class="attr-val">{{total}}</span>
+                        <div class="party-members-list">
+                            {{#each members}}
+                            <div class="party-member-card foreground" data-actor-id="{{id}}" draggable="true">
+                                <!-- Imagem do Personagem -->
+                                <div class="member-portrait" data-action="open-member-sheet" data-actor-id="{{id}}" data-tooltip="{{name}}">
+                                    <img src="{{img}}" alt="{{name}}" />
                                 </div>
-                                {{/each}}
+
+                                <!-- Nome, Ocupação, Quantidade de XP -->
+                                <div class="member-identity" data-action="open-member-sheet" data-actor-id="{{id}}">
+                                    <span class="member-name">{{name}}</span>
+                                    {{#if occupation}}
+                                    <span class="member-occupation">• {{occupation}}</span>
+                                    {{/if}}
+                                    {{#if hasXp}}
+                                    <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
+                                    {{/if}}
+                                </div>
+
+                                <!-- Campo de informações: 4 maiores atributos no canto esquerdo -->
+                                <div class="member-info-box">
+                                    {{#if topAttributes.length}}
+                                    <div class="member-top-attributes" data-tooltip="{{#if canRoll}}{{localize "TENEBRE.Party.TopAttributesTooltip"}}{{else}}{{localize "TENEBRE.Party.TopAttributesReadonlyTooltip"}}{{/if}}">
+                                        {{#each topAttributes}}
+                                        <div class="member-attr-badge {{#if ../canRoll}}is-rollable{{else}}is-readonly{{/if}}" {{#if ../canRoll}}data-action="roll-member-attribute" data-actor-id="{{../id}}" data-attribute="{{key}}"{{/if}} data-tooltip="{{label}}: {{total}}">
+                                            <span class="attr-abbr">{{abbr}}</span>
+                                            <span class="attr-val">{{total}}</span>
+                                        </div>
+                                        {{/each}}
+                                    </div>
+                                    {{/if}}
+                                </div>
+
+                                <!-- Botões de controle: Alternar para companheiro / Remover -->
+                                {{#if ../editable}}
+                                <div class="member-actions">
+                                    <a class="item-control member-switch" data-action="toggle-member-type" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.MoveToCompanions"}}">
+                                        <i class="fas fa-paw"></i>
+                                    </a>
+                                    <a class="item-control member-delete" data-action="remove-member" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.RemoveMember"}}">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                </div>
+                                {{/if}}
                             </div>
-                            {{/if}}
-                        </div>
+                            {{/each}}
 
-                        <!-- Botão de exclusão / remover membro -->
-                        {{#if ../editable}}
-                        <div class="member-actions">
-                            <a class="item-control member-delete" data-action="remove-member" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.RemoveMember"}}">
-                                <i class="fas fa-trash-alt"></i>
-                            </a>
+                            {{#unless members.length}}
+                            <div class="party-empty-dropzone" data-drop-zone="members">
+                                <i class="fas fa-user-plus" style="font-size: 2em; opacity: 0.55; margin-bottom: 8px; display: block;"></i>
+                                <h4 style="margin: 0 0 5px; font-weight: bold; font-family: var(--font-title); font-size: 1.05em;">{{localize "TENEBRE.Party.CharactersEmptyTitle"}}</h4>
+                                <p style="margin: 0; font-size: 0.85em; opacity: 0.8;">{{localize "TENEBRE.Party.CharactersEmptyHint"}}</p>
+                            </div>
+                            {{/unless}}
                         </div>
-                        {{/if}}
                     </div>
-                    {{/each}}
 
-                    {{#unless members.length}}
-                    <div class="party-empty-dropzone">
-                        <i class="fas fa-user-plus" style="font-size: 2.2em; opacity: 0.55; margin-bottom: 10px; display: block;"></i>
-                        <h4 style="margin: 0 0 5px; font-weight: bold; font-family: var(--font-title); font-size: 1.1em;">{{localize "TENEBRE.Party.CharactersEmptyTitle"}}</h4>
-                        <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">{{localize "TENEBRE.Party.CharactersEmptyHint"}}</p>
+                    <!-- Seção de Companheiros -->
+                    <div class="party-section party-companions-section" data-drop-zone="companions">
+                        <div class="party-section-header">
+                            <h3 class="section-title"><i class="fas fa-paw"></i> {{localize "TENEBRE.Party.CompanionsSectionTitle"}} ({{companions.length}})</h3>
+                        </div>
+                        <div class="party-companions-list">
+                            {{#each companions}}
+                            <div class="party-member-card foreground companion-card" data-actor-id="{{id}}" draggable="true">
+                                <!-- Imagem do Companheiro -->
+                                <div class="member-portrait" data-action="open-member-sheet" data-actor-id="{{id}}" data-tooltip="{{name}}">
+                                    <img src="{{img}}" alt="{{name}}" />
+                                </div>
+
+                                <!-- Nome, Raça/Ocupação, XP -->
+                                <div class="member-identity" data-action="open-member-sheet" data-actor-id="{{id}}">
+                                    <span class="member-name">{{name}}</span>
+                                    {{#if occupation}}
+                                    <span class="member-occupation">• {{occupation}}</span>
+                                    {{/if}}
+                                    {{#if hasXp}}
+                                    <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
+                                    {{/if}}
+                                </div>
+
+                                <!-- Campo de informações: 4 maiores atributos -->
+                                <div class="member-info-box">
+                                    {{#if topAttributes.length}}
+                                    <div class="member-top-attributes" data-tooltip="{{#if canRoll}}{{localize "TENEBRE.Party.TopAttributesTooltip"}}{{else}}{{localize "TENEBRE.Party.TopAttributesReadonlyTooltip"}}{{/if}}">
+                                        {{#each topAttributes}}
+                                        <div class="member-attr-badge {{#if ../canRoll}}is-rollable{{else}}is-readonly{{/if}}" {{#if ../canRoll}}data-action="roll-member-attribute" data-actor-id="{{../id}}" data-attribute="{{key}}"{{/if}} data-tooltip="{{label}}: {{total}}">
+                                            <span class="attr-abbr">{{abbr}}</span>
+                                            <span class="attr-val">{{total}}</span>
+                                        </div>
+                                        {{/each}}
+                                    </div>
+                                    {{/if}}
+                                </div>
+
+                                <!-- Botões de controle: Alternar para jogador / Remover -->
+                                {{#if ../editable}}
+                                <div class="member-actions">
+                                    <a class="item-control member-switch" data-action="toggle-member-type" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.MoveToMembers"}}">
+                                        <i class="fas fa-user"></i>
+                                    </a>
+                                    <a class="item-control member-delete" data-action="remove-member" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.RemoveCompanion"}}">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                </div>
+                                {{/if}}
+                            </div>
+                            {{/each}}
+
+                            {{#unless companions.length}}
+                            <div class="party-empty-dropzone companions-empty" data-drop-zone="companions">
+                                <i class="fas fa-paw" style="font-size: 2em; opacity: 0.55; margin-bottom: 8px; display: block;"></i>
+                                <h4 style="margin: 0 0 5px; font-weight: bold; font-family: var(--font-title); font-size: 1.05em;">{{localize "TENEBRE.Party.CompanionsEmptyTitle"}}</h4>
+                                <p style="margin: 0; font-size: 0.85em; opacity: 0.8;">{{localize "TENEBRE.Party.CompanionsEmptyHint"}}</p>
+                            </div>
+                            {{/unless}}
+                        </div>
                     </div>
-                    {{/unless}}
                 </div>
             </div>
 

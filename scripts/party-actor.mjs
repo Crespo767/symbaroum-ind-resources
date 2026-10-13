@@ -18,7 +18,8 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
     const schema = {
       motto: fields.StringField ? new fields.StringField({ initial: "" }) : "",
       description: fields.HTMLField ? new fields.HTMLField({ initial: "" }) : "",
-      members: fields.ArrayField && fields.StringField ? new fields.ArrayField(new fields.StringField(), { initial: [] }) : []
+      members: fields.ArrayField && fields.StringField ? new fields.ArrayField(new fields.StringField(), { initial: [] }) : [],
+      companions: fields.ArrayField && fields.StringField ? new fields.ArrayField(new fields.StringField(), { initial: [] }) : []
     };
     if (fields.BooleanField) {
       schema.isParty = new fields.BooleanField({ initial: true });
@@ -43,6 +44,8 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
   /** Chamado pelo core depois do prepareDerivedData do ator. */
   prepareDerivedData() {
     this.isParty = true;
+    this.members ??= [];
+    this.companions ??= [];
     this.experience ??= { total: 0, artifactrr: 0, spent: 0, available: 0 };
     const exp = this.experience;
     exp.available = (Number(exp.total) || 0) - (Number(exp.artifactrr) || 0) - (Number(exp.spent) || 0);
@@ -64,9 +67,9 @@ export class PartyActorSheet extends BaseActorSheet {
       classes: ["symbaroum", "sheet", "actor", "player", "party", "tenebre-party-sheet"],
       template: `modules/${MODULE_ID}/templates/party-sheet.hbs`,
       width: 800,
-      height: 580,
+      height: 620,
       resizable: true,
-      dragDrop: [{ dragSelector: ".item[data-item-id]", dropSelector: null }],
+      dragDrop: [{ dragSelector: ".item[data-item-id], .party-member-card[data-actor-id]", dropSelector: null }],
       tabs: [
         {
           navSelector: ".sheet-tabs",
@@ -78,9 +81,9 @@ export class PartyActorSheet extends BaseActorSheet {
       classes: ["symbaroum", "sheet", "actor", "player", "party", "tenebre-party-sheet"],
       template: `modules/${MODULE_ID}/templates/party-sheet.hbs`,
       width: 800,
-      height: 580,
+      height: 620,
       resizable: true,
-      dragDrop: [{ dragSelector: ".item[data-item-id]", dropSelector: null }],
+      dragDrop: [{ dragSelector: ".item[data-item-id], .party-member-card[data-actor-id]", dropSelector: null }],
       tabs: [
         {
           navSelector: ".sheet-tabs",
@@ -88,6 +91,50 @@ export class PartyActorSheet extends BaseActorSheet {
           initial: "characters"
         }
       ]
+    };
+  }
+
+  _resolveActor(actorId) {
+    if (!actorId) return null;
+    let memberActor = globalThis.game?.actors?.get(actorId);
+    if (!memberActor && globalThis.fromUuidSync) {
+      try {
+        const doc = globalThis.fromUuidSync(actorId);
+        memberActor = doc?.actor ?? doc;
+      } catch {}
+    }
+    return memberActor;
+  }
+
+  _prepareMemberCardData(memberActor, isCompanion = false) {
+    const sys = memberActor.system ?? {};
+    const bio = sys.bio ?? {};
+    const exp = sys.experience ?? {};
+    const totalXp = Number(exp.total) || 0;
+    const availableXp = exp.available !== undefined ? (Number(exp.available) || 0) : totalXp;
+    const occupation = (bio.occupation && typeof bio.occupation === "string") ? bio.occupation.trim() : (typeof sys.occupation === "string" ? sys.occupation.trim() : "");
+    const race = (bio.race && typeof bio.race === "string") ? bio.race.trim() : (typeof sys.race === "string" ? sys.race.trim() : "");
+    const defaultLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.CompanionsSectionTitle") || "Companheiro";
+    const occupationDisplay = occupation || race || (memberActor.type === "monster" ? defaultLabel : "");
+    const topAttributes = this._getMemberTopAttributes(memberActor, 4);
+    const canRoll = Boolean(memberActor.isOwner || globalThis.game?.user?.isGM);
+
+    return {
+      id: memberActor.id,
+      uuid: memberActor.uuid,
+      name: memberActor.name,
+      img: memberActor.img || "icons/svg/mystery-man.svg",
+      occupation: occupationDisplay,
+      totalXp: totalXp,
+      availableXp: availableXp,
+      hasXp: totalXp > 0 || Boolean(exp.total),
+      isCompanion: isCompanion,
+      isMonster: memberActor.type === "monster",
+      topAttributes: topAttributes,
+      canRoll: canRoll,
+      isOwner: canRoll,
+      actor: memberActor,
+      system: sys
     };
   }
 
@@ -102,42 +149,22 @@ export class PartyActorSheet extends BaseActorSheet {
     const memberIds = Array.isArray(this.actor?.system?.members) ? this.actor.system.members : [];
     const members = [];
     for (const memberId of memberIds) {
-      let memberActor = globalThis.game?.actors?.get(memberId);
-      if (!memberActor && globalThis.fromUuidSync) {
-        try {
-          const doc = globalThis.fromUuidSync(memberId);
-          memberActor = doc?.actor ?? doc;
-        } catch {}
-      }
+      const memberActor = this._resolveActor(memberId);
       if (memberActor) {
-        const sys = memberActor.system ?? {};
-        const bio = sys.bio ?? {};
-        const exp = sys.experience ?? {};
-        const totalXp = Number(exp.total) || 0;
-        const availableXp = exp.available !== undefined ? (Number(exp.available) || 0) : totalXp;
-        const occupation = (bio.occupation && typeof bio.occupation === "string") ? bio.occupation.trim() : "";
-        const race = (bio.race && typeof bio.race === "string") ? bio.race.trim() : "";
-        const occupationDisplay = occupation || race || "";
-        const topAttributes = this._getMemberTopAttributes(memberActor, 4);
-        const canRoll = Boolean(memberActor.isOwner || globalThis.game?.user?.isGM);
-
-        members.push({
-          id: memberActor.id,
-          uuid: memberActor.uuid,
-          name: memberActor.name,
-          img: memberActor.img,
-          occupation: occupationDisplay,
-          totalXp: totalXp,
-          availableXp: availableXp,
-          topAttributes: topAttributes,
-          canRoll: canRoll,
-          isOwner: canRoll,
-          actor: memberActor,
-          system: sys
-        });
+        members.push(this._prepareMemberCardData(memberActor, false));
       }
     }
     data.members = members;
+
+    const companionIds = Array.isArray(this.actor?.system?.companions) ? this.actor.system.companions : [];
+    const companions = [];
+    for (const companionId of companionIds) {
+      const companionActor = this._resolveActor(companionId);
+      if (companionActor) {
+        companions.push(this._prepareMemberCardData(companionActor, true));
+      }
+    }
+    data.companions = companions;
 
     const rawItems = Array.from(this.actor?.items?.values?.() ?? []);
     const items = rawItems.map(item => {
@@ -250,9 +277,11 @@ export class PartyActorSheet extends BaseActorSheet {
     };
 
     for (const [key, attrData] of Object.entries(attrs)) {
-      if (!attrData || typeof attrData !== "object") continue;
-      const total = Number(attrData.total ?? attrData.value ?? 0);
-      const labelKey = attrData.label || `ATTRIBUTE.${key.toUpperCase()}`;
+      if (attrData === null || attrData === undefined) continue;
+      const isObj = typeof attrData === "object";
+      const total = isObj ? Number(attrData.total ?? attrData.value ?? 0) : Number(attrData);
+      if (isNaN(total)) continue;
+      const labelKey = (isObj && attrData.label) || `ATTRIBUTE.${key.toUpperCase()}`;
       const abbrKey = `ATTRIBUTE.${key.toUpperCase()}ABBR`;
       const label = globalThis.game?.i18n?.localize ? globalThis.game.i18n.localize(labelKey) : labelKey;
       let abbr = globalThis.game?.i18n?.localize ? globalThis.game.i18n.localize(abbrKey) : "";
@@ -264,7 +293,7 @@ export class PartyActorSheet extends BaseActorSheet {
         total,
         label,
         abbr,
-        modifier: attrData.modifier
+        modifier: isObj ? attrData.modifier : undefined
       });
     }
 
@@ -273,13 +302,7 @@ export class PartyActorSheet extends BaseActorSheet {
   }
 
   async _onRollMemberAttribute(actorId, attributeKey) {
-    let memberActor = globalThis.game?.actors?.get(actorId);
-    if (!memberActor && globalThis.fromUuidSync) {
-      try {
-        const doc = globalThis.fromUuidSync(actorId);
-        memberActor = doc?.actor ?? doc;
-      } catch {}
-    }
+    const memberActor = this._resolveActor(actorId);
     if (!memberActor) return;
 
     const canRoll = Boolean(memberActor.isOwner || globalThis.game?.user?.isGM);
@@ -341,6 +364,16 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
+    root.querySelectorAll('[data-action="toggle-member-type"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const actorId = el.dataset.actorId;
+        if (!actorId) return;
+        this._onToggleMemberType(actorId);
+      });
+    });
+
     root.querySelectorAll('[data-action="open-item-sheet"]').forEach(el => {
       el.addEventListener("click", (ev) => {
         ev.preventDefault();
@@ -395,6 +428,18 @@ export class PartyActorSheet extends BaseActorSheet {
         return;
       }
     }
+
+    if (li?.dataset?.actorId) {
+      const actorDoc = this._resolveActor(li.dataset.actorId);
+      if (actorDoc) {
+        const dragData = typeof actorDoc.toDragData === "function"
+          ? actorDoc.toDragData()
+          : { type: "Actor", uuid: actorDoc.uuid, id: actorDoc.id };
+        event.dataTransfer?.setData?.("text/plain", JSON.stringify(dragData));
+        return;
+      }
+    }
+
     return super._onDragStart ? super._onDragStart(event) : undefined;
   }
 
@@ -499,6 +544,28 @@ export class PartyActorSheet extends BaseActorSheet {
     }
   }
 
+  async _onToggleMemberType(actorId) {
+    if (!this.isEditable || !actorId) return;
+    const currentMembers = Array.isArray(this.actor?.system?.members) ? [...this.actor.system.members] : [];
+    const currentCompanions = Array.isArray(this.actor?.system?.companions) ? [...this.actor.system.companions] : [];
+
+    if (currentMembers.includes(actorId)) {
+      const newMembers = currentMembers.filter(id => id !== actorId);
+      const newCompanions = [...currentCompanions.filter(id => id !== actorId), actorId];
+      return this.actor.update({
+        "system.members": newMembers,
+        "system.companions": newCompanions
+      });
+    } else if (currentCompanions.includes(actorId)) {
+      const newCompanions = currentCompanions.filter(id => id !== actorId);
+      const newMembers = [...currentMembers.filter(id => id !== actorId), actorId];
+      return this.actor.update({
+        "system.members": newMembers,
+        "system.companions": newCompanions
+      });
+    }
+  }
+
   async _onDropActor(event, data) {
     if (!this.isEditable) return false;
     let droppedActor = null;
@@ -514,18 +581,54 @@ export class PartyActorSheet extends BaseActorSheet {
     if (isPartyActor(droppedActor)) return false;
 
     const currentMembers = Array.isArray(this.actor?.system?.members) ? [...this.actor.system.members] : [];
-    if (currentMembers.includes(droppedActor.id) || (droppedActor.uuid && currentMembers.includes(droppedActor.uuid))) return false;
+    const currentCompanions = Array.isArray(this.actor?.system?.companions) ? [...this.actor.system.companions] : [];
 
-    currentMembers.push(droppedActor.id);
-    return this.actor.update({ "system.members": currentMembers });
+    const isCompanionTarget = Boolean(event?.target?.closest?.(".party-companions-section, [data-drop-zone='companions']"));
+    const isMemberTarget = Boolean(event?.target?.closest?.(".party-members-section, [data-drop-zone='members']"));
+
+    // Se soltou na seção de companheiros, ou se soltou um monstro/criatura/PNJ sem ter mirado na de jogadores
+    const targetCompanion = isCompanionTarget || (!isMemberTarget && droppedActor.type === "monster");
+
+    if (targetCompanion) {
+      if (currentCompanions.includes(droppedActor.id) || (droppedActor.uuid && currentCompanions.includes(droppedActor.uuid))) {
+        return false;
+      }
+      const newMembers = currentMembers.filter(id => id !== droppedActor.id && id !== droppedActor.uuid);
+      const newCompanions = [...currentCompanions, droppedActor.id];
+      const updates = { "system.companions": newCompanions };
+      if (newMembers.length !== currentMembers.length) {
+        updates["system.members"] = newMembers;
+      }
+      return this.actor.update(updates);
+    } else {
+      if (currentMembers.includes(droppedActor.id) || (droppedActor.uuid && currentMembers.includes(droppedActor.uuid))) {
+        return false;
+      }
+      const newCompanions = currentCompanions.filter(id => id !== droppedActor.id && id !== droppedActor.uuid);
+      const newMembers = [...currentMembers, droppedActor.id];
+      const updates = { "system.members": newMembers };
+      if (newCompanions.length !== currentCompanions.length) {
+        updates["system.companions"] = newCompanions;
+      }
+      return this.actor.update(updates);
+    }
   }
 
   async _onRemoveMember(actorId) {
     if (!this.isEditable || !actorId) return;
     const currentMembers = Array.isArray(this.actor?.system?.members) ? [...this.actor.system.members] : [];
-    const filtered = currentMembers.filter(id => id !== actorId);
-    if (filtered.length !== currentMembers.length) {
-      return this.actor.update({ "system.members": filtered });
+    const currentCompanions = Array.isArray(this.actor?.system?.companions) ? [...this.actor.system.companions] : [];
+    const filteredMembers = currentMembers.filter(id => id !== actorId);
+    const filteredCompanions = currentCompanions.filter(id => id !== actorId);
+    const updates = {};
+    if (filteredMembers.length !== currentMembers.length) {
+      updates["system.members"] = filteredMembers;
+    }
+    if (filteredCompanions.length !== currentCompanions.length) {
+      updates["system.companions"] = filteredCompanions;
+    }
+    if (Object.keys(updates).length > 0) {
+      return this.actor.update(updates);
     }
   }
 }

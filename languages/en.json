@@ -871,5 +871,12 @@
   "TENEBRE.Party.IncreaseQuantity": "Increase quantity",
   "TENEBRE.Party.DecreaseQuantity": "Decrease quantity",
   "TENEBRE.Party.OpenItemSheet": "View details",
-  "TENEBRE.Party.DeleteItem": "Remove item from party"
+  "TENEBRE.Party.DeleteItem": "Remove item from party",
+  "TENEBRE.Party.MembersSectionTitle": "Players",
+  "TENEBRE.Party.CompanionsSectionTitle": "Companions",
+  "TENEBRE.Party.CompanionsEmptyTitle": "No companions in party",
+  "TENEBRE.Party.CompanionsEmptyHint": "Drag mount, pack animal, ally, or other character sheets here.",
+  "TENEBRE.Party.MoveToCompanions": "Move to Companions",
+  "TENEBRE.Party.MoveToMembers": "Move to Players",
+  "TENEBRE.Party.RemoveCompanion": "Remove from party"
 }

@@ -871,5 +871,12 @@
   "TENEBRE.Party.IncreaseQuantity": "Aumentar quantidade",
   "TENEBRE.Party.DecreaseQuantity": "Diminuir quantidade",
   "TENEBRE.Party.OpenItemSheet": "Ver detalhes",
-  "TENEBRE.Party.DeleteItem": "Remover item do grupo"
+  "TENEBRE.Party.DeleteItem": "Remover item do grupo",
+  "TENEBRE.Party.MembersSectionTitle": "Jogadores",
+  "TENEBRE.Party.CompanionsSectionTitle": "Companheiros",
+  "TENEBRE.Party.CompanionsEmptyTitle": "Nenhum companheiro no grupo",
+  "TENEBRE.Party.CompanionsEmptyHint": "Arraste fichas de montarias, animais de carga, aliados ou outros personagens para cá.",
+  "TENEBRE.Party.MoveToCompanions": "Mover para Companheiros",
+  "TENEBRE.Party.MoveToMembers": "Mover para Jogadores",
+  "TENEBRE.Party.RemoveCompanion": "Remover do grupo"
 }
