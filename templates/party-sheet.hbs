@@ -161,6 +161,79 @@
             <!-- Aba Inventário -->
             <div class="tab" data-group="primary" data-tab="inventory">
                 <div class="party-inventory">
+                    <!-- Box de Local de Armazenamento / Carga do Grupo -->
+                    <div class="party-storage-location-box foreground {{#if storage.hasLocation}}is-linked{{else}}is-unlinked{{/if}}" data-drop-zone="storage-location">
+                        {{#if storage.hasLocation}}
+                        <div class="storage-linked-container">
+                            <!-- Retrato / Ícone do local -->
+                            <div class="storage-portrait {{#if storage.canOpenSheet}}is-clickable{{/if}}" {{#if storage.canOpenSheet}}data-action="open-storage-sheet" data-uuid="{{storage.uuid}}" data-id="{{storage.id}}" data-tooltip="{{localize "TENEBRE.Party.OpenStorageSheet"}}"{{/if}}>
+                                <img src="{{storage.img}}" alt="{{storage.name}}" />
+                            </div>
+
+                            <!-- Informações do Local e Barra de Carga -->
+                            <div class="storage-details">
+                                <div class="storage-title-row">
+                                    <span class="storage-name" {{#if storage.canOpenSheet}}data-action="open-storage-sheet" data-uuid="{{storage.uuid}}" data-id="{{storage.id}}" data-tooltip="{{localize "TENEBRE.Party.OpenStorageSheet"}}"{{/if}}>
+                                        {{storage.name}}
+                                    </span>
+                                    <span class="storage-badge"><i class="{{storage.categoryIcon}}"></i> {{storage.categoryLabel}}</span>
+                                    {{#if storage.isOverloaded}}
+                                    <span class="storage-badge is-overload-badge"><i class="fas fa-exclamation-triangle"></i> {{localize "TENEBRE.Party.Overloaded"}}</span>
+                                    {{/if}}
+                                </div>
+
+                                <!-- Barra de Capacidade -->
+                                <div class="storage-bar-wrapper" data-tooltip="{{localize "TENEBRE.Party.CurrentLoad"}}: {{storage.currentLoad}} / {{storage.capacity}} {{localize "TENEBRE.Party.Units"}}">
+                                    <div class="storage-bar-progress {{#if storage.isOverloaded}}is-overloaded{{/if}}" style="width: {{storage.pct}}%;"></div>
+                                </div>
+
+                                <div class="storage-stats-row">
+                                    <span class="storage-stats-text">
+                                        <i class="fas fa-weight-hanging"></i> {{localize "TENEBRE.Party.CurrentLoad"}}: <strong>{{storage.currentLoad}}</strong> / <strong>{{storage.capacity}}</strong> {{localize "TENEBRE.Party.Units"}} ({{storage.pct}}%)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Botões de Ação -->
+                            {{#if editable}}
+                            <div class="storage-actions">
+                                {{#if storage.canOpenSheet}}
+                                <a class="storage-action-btn" data-action="open-storage-sheet" data-uuid="{{storage.uuid}}" data-id="{{storage.id}}" data-tooltip="{{localize "TENEBRE.Party.OpenStorageSheet"}}">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                                {{/if}}
+                                <a class="storage-action-btn" data-action="edit-storage-capacity" data-tooltip="{{localize "TENEBRE.Party.EditStorageCapacity"}}">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                                <a class="storage-action-btn" data-action="select-storage-location" data-tooltip="{{localize "TENEBRE.Party.ChangeStorageLocation"}}">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </a>
+                                <a class="storage-action-btn delete-btn" data-action="unlink-storage-location" data-tooltip="{{localize "TENEBRE.Party.UnlinkStorageLocation"}}">
+                                    <i class="fas fa-unlink"></i>
+                                </a>
+                            </div>
+                            {{/if}}
+                        </div>
+                        {{else}}
+                        <div class="storage-unlinked-container">
+                            <div class="storage-unlinked-icon">
+                                <i class="fas fa-dolly"></i>
+                            </div>
+                            <div class="storage-unlinked-text">
+                                <h4 class="storage-unlinked-title">{{localize "TENEBRE.Party.StorageUnlinkedTitle"}}</h4>
+                                <p class="storage-unlinked-hint">{{localize "TENEBRE.Party.StorageUnlinkedHint"}}</p>
+                            </div>
+                            {{#if editable}}
+                            <div class="storage-unlinked-actions">
+                                <button type="button" class="select-storage-btn" data-action="select-storage-location">
+                                    <i class="fas fa-link"></i> {{localize "TENEBRE.Party.LinkStorageBtn"}}
+                                </button>
+                            </div>
+                            {{/if}}
+                        </div>
+                        {{/if}}
+                    </div>
+
                     {{#if inventoryItems.length}}
                     <div class="party-inventory-content">
                         {{#each inventoryCategories}}

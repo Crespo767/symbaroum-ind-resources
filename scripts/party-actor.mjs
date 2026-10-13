@@ -1,11 +1,69 @@
 import { MODULE_ID } from "./constants.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
+import { EncumbranceService } from "./encumbrance.mjs";
 
 /** Tipo de ator declarado em module.json (documentTypes.Actor.party); o core o registra sozinho. */
 export const PARTY_ACTOR_TYPE = `${MODULE_ID}.party`;
 
 export function isPartyActor(actor) {
   return actor?.type === PARTY_ACTOR_TYPE;
+}
+
+/** Presets oficiais de locais de armazenamento (veículos, animais, recipientes) */
+export const OFFICIAL_STORAGE_PRESETS = [
+  { id: "cart", name: "Carroça", category: "vehicle", capacity: 200, img: "icons/environment/settlement/wagon.webp" },
+  { id: "wagon", name: "Carruagem / Carreta", category: "vehicle", capacity: 500, img: "icons/environment/settlement/wagon.webp" },
+  { id: "canoe", name: "Canoa", category: "vehicle", capacity: 60, img: "icons/svg/anchor.svg" },
+  { id: "rowboat", name: "Barco a Remo", category: "vehicle", capacity: 120, img: "icons/svg/anchor.svg" },
+  { id: "riverboat", name: "Barco de Rio", category: "vehicle", capacity: 600, img: "icons/environment/settlement/ship.webp" },
+  { id: "sledge", name: "Trenó", category: "vehicle", capacity: 150, img: "icons/environment/settlement/wagon.webp" },
+  { id: "mule", name: "Mula de Carga", category: "animal", capacity: 80, img: "icons/environment/creatures/horse-brown.webp" },
+  { id: "horse", name: "Cavalo de Carga", category: "animal", capacity: 80, img: "icons/environment/creatures/horse-brown.webp" },
+  { id: "ox", name: "Boi de Tração", category: "animal", capacity: 100, img: "icons/environment/creatures/horse-brown.webp" },
+  { id: "large-chest", name: "Baú Grande", category: "container", capacity: 30, img: "icons/containers/boxes/chest-wooden-sturdy.webp" },
+  { id: "barrel", name: "Barril", category: "container", capacity: 25, img: "icons/containers/boxes/barrel-reinforced-wood.webp" },
+  { id: "chest", name: "Baú de Viagem", category: "container", capacity: 20, img: "icons/containers/boxes/chest-wooden-sturdy.webp" },
+  { id: "sack", name: "Saco Grande", category: "container", capacity: 10, img: "icons/svg/item-bag.svg" }
+];
+
+export function detectStorageCategory(name = "", type = "") {
+  const norm = (name || "").toLowerCase().trim();
+  if (type === "monster" || norm.includes("cavalo") || norm.includes("mula") || norm.includes("burro") || norm.includes("asno") || norm.includes("boi") || norm.includes("besta") || norm.includes("animal") || norm.includes("horse") || norm.includes("mule") || norm.includes("donkey") || norm.includes("ox")) {
+    return "animal";
+  }
+  if (norm.includes("carroça") || norm.includes("carroca") || norm.includes("carreta") || norm.includes("carruagem") || norm.includes("canoa") || norm.includes("barco") || norm.includes("navio") || norm.includes("embarcação") || norm.includes("embarcacao") || norm.includes("trenó") || norm.includes("treno") || norm.includes("cart") || norm.includes("wagon") || norm.includes("canoe") || norm.includes("boat") || norm.includes("sledge") || norm.includes("ship")) {
+    return "vehicle";
+  }
+  if (norm.includes("baú") || norm.includes("bau") || norm.includes("barril") || norm.includes("caixa") || norm.includes("caixote") || norm.includes("saco") || norm.includes("mochila") || norm.includes("cesto") || norm.includes("chest") || norm.includes("barrel") || norm.includes("crate") || norm.includes("sack") || norm.includes("bag") || norm.includes("basket")) {
+    return "container";
+  }
+  return "custom";
+}
+
+export function detectStorageCapacity(name = "", type = "") {
+  const norm = (name || "").toLowerCase().trim();
+  // Veículos de grande porte
+  if (norm.includes("carruagem") || norm.includes("carreta") || norm.includes("wagon")) return 500;
+  if (norm.includes("barco de rio") || norm.includes("riverboat") || norm.includes("navio") || norm.includes("ship")) return 600;
+  if (norm.includes("carroça") || norm.includes("carroca") || norm.includes("cart")) return 200;
+  if (norm.includes("trenó") || norm.includes("treno") || norm.includes("sledge")) return 150;
+  if (norm.includes("barco a remo") || norm.includes("barco") || norm.includes("rowboat") || norm.includes("rowingboat")) return 120;
+  if (norm.includes("canoa") || norm.includes("canoe")) return 60;
+
+  // Animais
+  if (norm.includes("boi") || norm.includes("búfalo") || norm.includes("bufalo") || norm.includes("ox")) return 100;
+  if (norm.includes("mula") || norm.includes("burro") || norm.includes("asno") || norm.includes("cavalo") || norm.includes("horse") || norm.includes("mule") || norm.includes("donkey")) return 80;
+
+  // Recipientes
+  if (norm.includes("baú grande") || norm.includes("bau grande") || norm.includes("large chest")) return 30;
+  if (norm.includes("barril") || norm.includes("barrel")) return 25;
+  if (norm.includes("baú") || norm.includes("bau") || norm.includes("caixa") || norm.includes("caixote") || norm.includes("chest") || norm.includes("crate")) return 20;
+  if (norm.includes("saco") || norm.includes("mochila") || norm.includes("cesto") || norm.includes("sack") || norm.includes("basket")) return 10;
+
+  // Fallbacks por tipo
+  if (type === "monster") return 80;
+  if (type === "player") return 40;
+  return 100;
 }
 
 /**
@@ -37,6 +95,15 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
           max: new fields.NumberField({ initial: 0, integer: true })
         })
       });
+      schema.storageLocation = new fields.SchemaField({
+        id: fields.StringField ? new fields.StringField({ initial: "" }) : "",
+        uuid: fields.StringField ? new fields.StringField({ initial: "" }) : "",
+        name: fields.StringField ? new fields.StringField({ initial: "" }) : "",
+        img: fields.StringField ? new fields.StringField({ initial: "" }) : "",
+        type: fields.StringField ? new fields.StringField({ initial: "" }) : "",
+        category: fields.StringField ? new fields.StringField({ initial: "" }) : "",
+        capacity: fields.NumberField ? new fields.NumberField({ initial: 0, min: 0 }) : 0
+      });
     }
     return schema;
   }
@@ -46,6 +113,15 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
     this.isParty = true;
     this.members ??= [];
     this.companions ??= [];
+    this.storageLocation ??= {
+      id: "",
+      uuid: "",
+      name: "",
+      img: "",
+      type: "",
+      category: "",
+      capacity: 0
+    };
     this.experience ??= { total: 0, artifactrr: 0, spent: 0, available: 0 };
     const exp = this.experience;
     exp.available = (Number(exp.total) || 0) - (Number(exp.artifactrr) || 0) - (Number(exp.spent) || 0);
@@ -202,6 +278,62 @@ export class PartyActorSheet extends BaseActorSheet {
 
     data.inventoryItems = items;
     data.inventoryCategories = categories;
+
+    // Calcula a carga total dos itens do inventário do grupo
+    let totalWeight = 0;
+    for (const entry of items) {
+      let weight = 0;
+      try {
+        if (typeof EncumbranceService?.getItemStackSlots === "function") {
+          weight = EncumbranceService.getItemStackSlots(entry.item);
+        }
+      } catch {}
+      if (!weight || isNaN(weight) || weight <= 0) {
+        weight = entry.quantity;
+      }
+      totalWeight += Number(weight) || 0;
+    }
+    totalWeight = Math.round(totalWeight * 10) / 10;
+
+    const rawStorage = this.actor?.system?.storageLocation ?? {};
+    const storageName = (rawStorage.name || "").trim();
+    const hasStorage = Boolean(storageName || rawStorage.uuid || rawStorage.id);
+    const storageCapacity = Number(rawStorage.capacity) || 0;
+    const isOverloaded = storageCapacity > 0 ? (totalWeight > storageCapacity) : false;
+    const storagePct = storageCapacity > 0 ? Math.min(Math.round((totalWeight / storageCapacity) * 100), 100) : (totalWeight > 0 ? 100 : 0);
+
+    const categoryLabels = {
+      vehicle: globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageCategoryVehicle") || "Veículo",
+      animal: globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageCategoryAnimal") || "Animal de Carga",
+      container: globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageCategoryContainer") || "Recipiente",
+      custom: globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageCategoryCustom") || "Armazenamento"
+    };
+
+    const categoryIcons = {
+      vehicle: "fas fa-dolly-flatbed",
+      animal: "fas fa-horse",
+      container: "fas fa-box-open",
+      custom: "fas fa-warehouse"
+    };
+
+    const storageCat = rawStorage.category || "custom";
+
+    data.storage = {
+      hasLocation: hasStorage,
+      id: rawStorage.id || "",
+      uuid: rawStorage.uuid || "",
+      name: storageName || (globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageUnlinkedTitle") || "Não Vinculado"),
+      img: rawStorage.img || (storageCat === "animal" ? "icons/environment/creatures/horse-brown.webp" : "icons/environment/settlement/wagon.webp"),
+      type: rawStorage.type || "custom",
+      category: storageCat,
+      categoryLabel: categoryLabels[storageCat] || categoryLabels.custom,
+      categoryIcon: categoryIcons[storageCat] || categoryIcons.custom,
+      capacity: storageCapacity,
+      currentLoad: totalWeight,
+      pct: storagePct,
+      isOverloaded: isOverloaded,
+      canOpenSheet: Boolean(rawStorage.uuid || rawStorage.id)
+    };
 
     return data;
   }
@@ -412,6 +544,77 @@ export class PartyActorSheet extends BaseActorSheet {
         this._onDecreaseItemQuantity(itemId);
       });
     });
+
+    root.querySelectorAll('[data-action="open-storage-sheet"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const uuid = el.dataset.uuid || this.actor?.system?.storageLocation?.uuid;
+        const docId = el.dataset.id || this.actor?.system?.storageLocation?.id;
+        const docType = this.actor?.system?.storageLocation?.type;
+        let doc = null;
+        if (uuid && globalThis.fromUuid) {
+          try {
+            const resolved = await globalThis.fromUuid(uuid);
+            doc = resolved?.actor ?? resolved;
+          } catch {}
+        }
+        if (!doc && docId) {
+          if (docType === "actor" || !docType) doc = globalThis.game?.actors?.get(docId);
+          if (!doc && (docType === "item" || !docType)) doc = globalThis.game?.items?.get(docId) ?? this.actor?.items?.get(docId);
+        }
+        const targetSheet = doc?.sheet ?? doc?.actor?.sheet;
+        if (targetSheet) {
+          targetSheet.render(true);
+        } else {
+          globalThis.ui?.notifications?.info?.(
+            globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageNoSheetAvailable") ||
+            "Este local de armazenamento não possui ficha de documento."
+          );
+        }
+      });
+    });
+
+    root.querySelectorAll('[data-action="select-storage-location"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        this._onSelectStorageLocation();
+      });
+    });
+
+    root.querySelectorAll('[data-action="edit-storage-capacity"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        this._onEditStorageCapacity();
+      });
+    });
+
+    root.querySelectorAll('[data-action="unlink-storage-location"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!this.isEditable) return;
+        const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.UnlinkStorageDialogTitle") || "Desvincular Local de Armazenamento";
+        const content = `<p>${globalThis.game?.i18n?.localize?.("TENEBRE.Party.UnlinkStorageDialogContent") || "Deseja remover o vínculo deste local de armazenamento?"}</p>`;
+        if (globalThis.Dialog) {
+          new globalThis.Dialog({
+            title: title,
+            content: content,
+            buttons: {
+              yes: {
+                label: globalThis.game?.i18n?.localize?.("DIALOG.OK") || "OK",
+                callback: () => this._onUnlinkStorageLocation()
+              },
+              no: {
+                label: globalThis.game?.i18n?.localize?.("DIALOG.CANCEL") || "Cancelar"
+              }
+            },
+            default: "no"
+          }).render(true);
+        } else {
+          await this._onUnlinkStorageLocation();
+        }
+      });
+    });
   }
 
   _onDragStart(event) {
@@ -443,15 +646,22 @@ export class PartyActorSheet extends BaseActorSheet {
     return super._onDragStart ? super._onDragStart(event) : undefined;
   }
 
-  async _onDrop(event) {
-    let data = null;
-    try {
-      data = globalThis.TextEditor?.getDragEventData?.(event)
-        ?? JSON.parse(event.dataTransfer?.getData("text/plain") ?? "null");
-    } catch {
-      data = null;
+  async _onDrop(event, dropData = null) {
+    let data = dropData;
+    if (!data) {
+      try {
+        data = globalThis.TextEditor?.getDragEventData?.(event)
+          ?? JSON.parse(event.dataTransfer?.getData("text/plain") ?? "null");
+      } catch {
+        data = null;
+      }
     }
     if (!data) return false;
+
+    const isStorageDrop = Boolean(event.target?.closest?.(".party-storage-location-box, [data-drop-zone='storage-location']"));
+    if (isStorageDrop) {
+      return this._onDropStorageLocation(event, data);
+    }
 
     if (data.type === "Actor" || data.type === "Token") {
       return this._onDropActor(event, data);
@@ -630,6 +840,284 @@ export class PartyActorSheet extends BaseActorSheet {
     if (Object.keys(updates).length > 0) {
       return this.actor.update(updates);
     }
+  }
+
+  async _onDropStorageLocation(event, data) {
+    if (!this.isEditable) return false;
+
+    let doc = null;
+    let docType = "";
+
+    if (data.type === "Actor" || data.type === "Token") {
+      docType = "actor";
+      if (data.uuid && globalThis.fromUuid) {
+        try {
+          const resolved = await globalThis.fromUuid(data.uuid);
+          doc = resolved?.actor ?? resolved;
+        } catch {}
+      }
+      if (!doc && data.id) {
+        doc = globalThis.game?.actors?.get(data.id);
+      }
+    } else if (data.type === "Item") {
+      docType = "item";
+      if (globalThis.Item?.implementation?.fromDropData) {
+        try { doc = await globalThis.Item.implementation.fromDropData(data); } catch {}
+      }
+      if (!doc && data.uuid && globalThis.fromUuid) {
+        try { doc = await globalThis.fromUuid(data.uuid); } catch {}
+      }
+      if (!doc && data.id) {
+        doc = globalThis.game?.items?.get(data.id) ?? this.actor?.items?.get(data.id);
+      }
+      if (!doc && data.data) {
+        doc = data.data;
+      }
+    }
+
+    if (!doc) return false;
+
+    // Se for o próprio ator de grupo, ignora
+    if (doc.id === this.actor?.id || doc.uuid === this.actor?.uuid) return false;
+
+    const name = doc.name || "Armazenamento";
+    const img = doc.img || (docType === "actor" ? "icons/environment/creatures/horse-brown.webp" : "icons/environment/settlement/wagon.webp");
+    const category = detectStorageCategory(name, doc.type || docType);
+    const capacity = detectStorageCapacity(name, doc.type || docType);
+
+    await this.actor.update({
+      "system.storageLocation": {
+        id: doc.id || "",
+        uuid: doc.uuid || "",
+        name: name,
+        img: img,
+        type: docType,
+        category: category,
+        capacity: capacity
+      }
+    });
+
+    const msg = globalThis.game?.i18n?.format
+      ? globalThis.game.i18n.format("TENEBRE.Party.StorageLinkedNotice", { name: name, capacity: capacity })
+      : `Local de armazenamento vinculado: ${name} (Capacidade: ${capacity} unidades)`;
+    globalThis.ui?.notifications?.info?.(msg);
+    return true;
+  }
+
+  async _onSelectStorageLocation() {
+    if (!this.isEditable) return;
+
+    const companionIds = Array.isArray(this.actor?.system?.companions) ? this.actor.system.companions : [];
+    const companions = [];
+    for (const compId of companionIds) {
+      const comp = this._resolveActor(compId);
+      if (comp) {
+        companions.push({
+          id: comp.id,
+          uuid: comp.uuid,
+          name: comp.name,
+          img: comp.img || "icons/environment/creatures/horse-brown.webp",
+          capacity: detectStorageCapacity(comp.name, comp.type),
+          category: detectStorageCategory(comp.name, comp.type)
+        });
+      }
+    }
+
+    let companionOptionsHtml = "";
+    if (companions.length > 0) {
+      companionOptionsHtml = `<optgroup label="${globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageOptionCompanions") || "Companheiros do Grupo"}">` +
+        companions.map(c => `<option value="comp:${c.id}">${c.name} (${c.category === "animal" ? "Animal" : "Companheiro"} - ${c.capacity} un.)</option>`).join("") +
+        `</optgroup>`;
+    }
+
+    const presetOptionsHtml = `<optgroup label="${globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageOptionPresets") || "Locais e Veículos Oficiais"}">` +
+      OFFICIAL_STORAGE_PRESETS.map(p => `<option value="preset:${p.id}">${p.name} (${p.capacity} un.)</option>`).join("") +
+      `</optgroup>`;
+
+    const customOptionHtml = `<option value="custom">${globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageOptionCustom") || "Personalizado..."}</option>`;
+
+    const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.SelectStorageDialogTitle") || "Vincular Local de Armazenamento do Grupo";
+    const prompt = globalThis.game?.i18n?.localize?.("TENEBRE.Party.SelectStoragePrompt") || "Selecione onde o inventário do grupo está armazenado:";
+    const nameLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageNameLabel") || "Nome do Local";
+    const capLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageCapacityLabel") || "Capacidade Máxima (unidades)";
+
+    const content = `
+      <form class="storage-selection-dialog-form" style="display:flex; flex-direction:column; gap:10px;">
+        <p style="margin:0 0 5px; font-size:0.9em; opacity:0.85;">${prompt}</p>
+        <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
+          <label style="font-weight:bold; font-size:0.9em;">Opção:</label>
+          <select id="storage-select-choice" style="width:100%; height:28px;">
+            ${companionOptionsHtml}
+            ${presetOptionsHtml}
+            ${customOptionHtml}
+          </select>
+        </div>
+        <div class="form-group" id="storage-custom-name-group" style="display:none; flex-direction:column; gap:4px;">
+          <label style="font-weight:bold; font-size:0.9em;">${nameLabel}:</label>
+          <input type="text" id="storage-custom-name" placeholder="Ex.: Carroça Reforçada, Depósito em Kastor..." style="width:100%; height:26px;" />
+        </div>
+        <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
+          <label style="font-weight:bold; font-size:0.9em;">${capLabel}:</label>
+          <input type="number" id="storage-custom-cap" value="200" min="0" style="width:100%; height:26px;" />
+        </div>
+      </form>
+    `;
+
+    if (!globalThis.Dialog) return;
+
+    new globalThis.Dialog({
+      title: title,
+      content: content,
+      buttons: {
+        confirm: {
+          icon: '<i class="fas fa-check"></i>',
+          label: globalThis.game?.i18n?.localize?.("DIALOG.OK") || "Confirmar",
+          callback: async (html) => {
+            const root = html?.[0] ?? html;
+            const choice = root.querySelector("#storage-select-choice")?.value || "";
+            const customName = root.querySelector("#storage-custom-name")?.value?.trim() || "";
+            const capVal = Number(root.querySelector("#storage-custom-cap")?.value) || 0;
+
+            let finalStorage = null;
+
+            if (choice.startsWith("comp:")) {
+              const compId = choice.slice(5);
+              const comp = companions.find(c => c.id === compId);
+              if (comp) {
+                finalStorage = {
+                  id: comp.id,
+                  uuid: comp.uuid,
+                  name: comp.name,
+                  img: comp.img,
+                  type: "actor",
+                  category: comp.category,
+                  capacity: capVal > 0 ? capVal : comp.capacity
+                };
+              }
+            } else if (choice.startsWith("preset:")) {
+              const presetId = choice.slice(7);
+              const preset = OFFICIAL_STORAGE_PRESETS.find(p => p.id === presetId);
+              if (preset) {
+                finalStorage = {
+                  id: preset.id,
+                  uuid: "",
+                  name: preset.name,
+                  img: preset.img,
+                  type: "preset",
+                  category: preset.category,
+                  capacity: capVal > 0 ? capVal : preset.capacity
+                };
+              }
+            } else {
+              finalStorage = {
+                id: "",
+                uuid: "",
+                name: customName || (globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageCategoryCustom") || "Armazenamento"),
+                img: "icons/environment/settlement/wagon.webp",
+                type: "custom",
+                category: "custom",
+                capacity: capVal > 0 ? capVal : 100
+              };
+            }
+
+            if (finalStorage) {
+              await this.actor.update({ "system.storageLocation": finalStorage });
+              const msg = globalThis.game?.i18n?.format
+                ? globalThis.game.i18n.format("TENEBRE.Party.StorageLinkedNotice", { name: finalStorage.name, capacity: finalStorage.capacity })
+                : `Local de armazenamento vinculado: ${finalStorage.name}`;
+              globalThis.ui?.notifications?.info?.(msg);
+            }
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: globalThis.game?.i18n?.localize?.("DIALOG.CANCEL") || "Cancelar"
+        }
+      },
+      default: "confirm",
+      render: (html) => {
+        const root = html?.[0] ?? html;
+        const select = root.querySelector("#storage-select-choice");
+        const customNameGroup = root.querySelector("#storage-custom-name-group");
+        const capInput = root.querySelector("#storage-custom-cap");
+
+        const updateFields = () => {
+          const val = select.value;
+          if (val === "custom") {
+            if (customNameGroup) customNameGroup.style.display = "flex";
+            if (capInput) capInput.value = 100;
+          } else if (val.startsWith("preset:")) {
+            if (customNameGroup) customNameGroup.style.display = "none";
+            const presetId = val.slice(7);
+            const preset = OFFICIAL_STORAGE_PRESETS.find(p => p.id === presetId);
+            if (preset && capInput) capInput.value = preset.capacity;
+          } else if (val.startsWith("comp:")) {
+            if (customNameGroup) customNameGroup.style.display = "none";
+            const compId = val.slice(5);
+            const comp = companions.find(c => c.id === compId);
+            if (comp && capInput) capInput.value = comp.capacity;
+          }
+        };
+
+        select?.addEventListener("change", updateFields);
+        updateFields();
+      }
+    }).render(true);
+  }
+
+  async _onEditStorageCapacity() {
+    if (!this.isEditable) return;
+    const currentCap = Number(this.actor?.system?.storageLocation?.capacity) || 0;
+    const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.EditCapacityDialogTitle") || "Alterar Capacidade de Carga";
+    const label = globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageCapacityLabel") || "Capacidade Máxima (unidades)";
+
+    if (globalThis.Dialog) {
+      new globalThis.Dialog({
+        title: title,
+        content: `
+          <div style="margin-bottom:10px;">
+            <p style="font-size:0.9em; opacity:0.85; margin:0 0 8px;">Defina o novo limite de carga que este local suporta:</p>
+            <label style="font-weight:bold; display:block; margin-bottom:4px;">${label}:</label>
+            <input type="number" id="new-storage-capacity-val" value="${currentCap}" min="0" style="width:100%; height:28px;" />
+          </div>
+        `,
+        buttons: {
+          confirm: {
+            label: globalThis.game?.i18n?.localize?.("DIALOG.OK") || "Salvar",
+            callback: async (html) => {
+              const root = html?.[0] ?? html;
+              const val = Number(root.querySelector("#new-storage-capacity-val")?.value);
+              if (!isNaN(val) && val >= 0) {
+                await this.actor.update({ "system.storageLocation.capacity": val });
+              }
+            }
+          },
+          cancel: {
+            label: globalThis.game?.i18n?.localize?.("DIALOG.CANCEL") || "Cancelar"
+          }
+        },
+        default: "confirm"
+      }).render(true);
+    }
+  }
+
+  async _onUnlinkStorageLocation() {
+    if (!this.isEditable) return;
+    await this.actor.update({
+      "system.storageLocation": {
+        id: "",
+        uuid: "",
+        name: "",
+        img: "",
+        type: "",
+        category: "",
+        capacity: 0
+      }
+    });
+    globalThis.ui?.notifications?.info?.(
+      globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageUnlinkedNotice") ||
+      "Local de armazenamento desvinculado."
+    );
   }
 }
 
