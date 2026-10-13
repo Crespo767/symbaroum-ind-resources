@@ -51,9 +51,9 @@
                         <!-- Campo de informações: 4 maiores atributos no canto esquerdo -->
                         <div class="member-info-box">
                             {{#if topAttributes.length}}
-                            <div class="member-top-attributes" data-tooltip="{{localize "TENEBRE.Party.TopAttributesTooltip"}}">
+                            <div class="member-top-attributes" data-tooltip="{{#if canRoll}}{{localize "TENEBRE.Party.TopAttributesTooltip"}}{{else}}{{localize "TENEBRE.Party.TopAttributesReadonlyTooltip"}}{{/if}}">
                                 {{#each topAttributes}}
-                                <div class="member-attr-badge" data-action="roll-member-attribute" data-actor-id="{{../id}}" data-attribute="{{key}}" data-tooltip="{{label}}: {{total}}">
+                                <div class="member-attr-badge {{#if ../canRoll}}is-rollable{{else}}is-readonly{{/if}}" {{#if ../canRoll}}data-action="roll-member-attribute" data-actor-id="{{../id}}" data-attribute="{{key}}"{{/if}} data-tooltip="{{label}}: {{total}}">
                                     <span class="attr-abbr">{{abbr}}</span>
                                     <span class="attr-val">{{total}}</span>
                                 </div>

@@ -3854,22 +3854,31 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   background: rgba(43, 32, 21, 0.08);
   border: 1px solid rgba(60, 48, 34, 0.4);
   border-radius: 2px;
-  cursor: pointer;
+  cursor: default;
   user-select: none;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   line-height: 1;
   box-sizing: border-box;
 }
 
-.tenebre-party-sheet .member-attr-badge:hover {
+.tenebre-party-sheet .member-attr-badge.is-rollable {
+  cursor: pointer;
+}
+
+.tenebre-party-sheet .member-attr-badge.is-rollable:hover {
   background: rgba(43, 32, 21, 0.18);
   border-color: #2b2015;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transform: translateY(-1px);
 }
 
-.tenebre-party-sheet .member-attr-badge:active {
+.tenebre-party-sheet .member-attr-badge.is-rollable:active {
   transform: translateY(0);
+}
+
+.tenebre-party-sheet .member-attr-badge.is-readonly {
+  cursor: default;
+  opacity: 0.9;
 }
 
 .tenebre-party-sheet .member-attr-badge .attr-abbr {

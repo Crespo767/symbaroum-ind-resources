@@ -289,28 +289,52 @@ test("PartyActorSheet resolves top 4 attributes and delegates attribute rolls", 
   assert.equal(top[2].abbr, "RAP");
   assert.equal(top[3].total, 10);
 
-  // Test roll delegation
-  await sheet._onRollMemberAttribute("heroX", "cunning");
-  assert.equal(rolledAttribute, "cunning", "delegates roll to memberActor.rollAttribute");
+  // Test authorization: non-owner and non-GM is blocked with warning notification
+  let warnMessage = null;
+  globalThis.ui = {
+    notifications: {
+      warn: (msg) => { warnMessage = msg; }
+    }
+  };
+  globalThis.game.user = { isGM: false };
+  mockHero.isOwner = false;
 
-  // Test template includes attributes badges
+  await sheet._onRollMemberAttribute("heroX", "cunning");
+  assert.equal(rolledAttribute, null, "blocks roll when user does not own character and is not GM");
+  assert.ok(warnMessage, "triggers warning notification for unauthorized roll");
+
+  // Test authorization: owner or GM is permitted
+  mockHero.isOwner = true;
+  await sheet._onRollMemberAttribute("heroX", "cunning");
+  assert.equal(rolledAttribute, "cunning", "delegates roll to memberActor.rollAttribute when owned");
+
+  // Test template includes attributes badges and conditional rollable/readonly handling
   const templatePath = path.join(root, "templates/party-sheet.hbs");
   const templateContent = fs.readFileSync(templatePath, "utf8");
   assert.match(templateContent, /class="member-top-attributes"/);
   assert.match(templateContent, /data-action="roll-member-attribute"/);
-  assert.match(templateContent, /class="member-attr-badge"/);
+  assert.match(templateContent, /member-attr-badge/);
+  assert.match(templateContent, /is-rollable/);
+  assert.match(templateContent, /is-readonly/);
+  assert.match(templateContent, /TopAttributesReadonlyTooltip/);
 
-  // Test css styles
+  // Test css styles for default cursor, rollable hover, and readonly
   const cssPath = path.join(root, "styles/symbaroum-ind-resources.css");
   const cssContent = fs.readFileSync(cssPath, "utf8");
   assert.match(cssContent, /\.tenebre-party-sheet\s+\.member-top-attributes/);
   assert.match(cssContent, /\.tenebre-party-sheet\s+\.member-attr-badge/);
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.member-attr-badge\.is-rollable/);
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.member-attr-badge\.is-readonly/);
 
   // Test localization
   const ptBr = JSON.parse(fs.readFileSync(path.join(root, "languages/pt-BR.json"), "utf8"));
   const en = JSON.parse(fs.readFileSync(path.join(root, "languages/en.json"), "utf8"));
   assert.ok(ptBr["TENEBRE.Party.TopAttributesTooltip"], "pt-BR has TopAttributesTooltip");
   assert.ok(en["TENEBRE.Party.TopAttributesTooltip"], "en has TopAttributesTooltip");
+  assert.ok(ptBr["TENEBRE.Party.TopAttributesReadonlyTooltip"], "pt-BR has TopAttributesReadonlyTooltip");
+  assert.ok(en["TENEBRE.Party.TopAttributesReadonlyTooltip"], "en has TopAttributesReadonlyTooltip");
+  assert.ok(ptBr["TENEBRE.Party.RollNotAllowed"], "pt-BR has RollNotAllowed");
+  assert.ok(en["TENEBRE.Party.RollNotAllowed"], "en has RollNotAllowed");
 });
 
 test("PartyActorSheet defines Inventory tab next to Characters tab", () => {

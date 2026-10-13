@@ -863,5 +863,7 @@
   "TENEBRE.Party.InventoryEmptyHint": "Área reservada para o inventário e equipamentos do grupo.",
   "TENEBRE.Party.ExperienceTotalTooltip": "XP Total do Grupo",
   "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Gasto com Rerolagens/Artefatos",
-  "TENEBRE.Party.TopAttributesTooltip": "Maiores atributos (clique para rolar)"
+  "TENEBRE.Party.TopAttributesTooltip": "Maiores atributos (clique para rolar)",
+  "TENEBRE.Party.TopAttributesReadonlyTooltip": "Maiores atributos",
+  "TENEBRE.Party.RollNotAllowed": "Você só pode rolar testes do seu próprio personagem."
 }

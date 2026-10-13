@@ -863,5 +863,7 @@
   "TENEBRE.Party.InventoryEmptyHint": "Reserved area for party inventory and equipment.",
   "TENEBRE.Party.ExperienceTotalTooltip": "Total Party XP",
   "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Spent on Rerolls/Artifacts",
-  "TENEBRE.Party.TopAttributesTooltip": "Top attributes (click to roll)"
+  "TENEBRE.Party.TopAttributesTooltip": "Top attributes (click to roll)",
+  "TENEBRE.Party.TopAttributesReadonlyTooltip": "Top attributes",
+  "TENEBRE.Party.RollNotAllowed": "You can only roll tests for your own character."
 }

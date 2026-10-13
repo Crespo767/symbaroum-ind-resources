@@ -111,6 +111,7 @@ export class PartyActorSheet extends BaseActorSheet {
         const race = (bio.race && typeof bio.race === "string") ? bio.race.trim() : "";
         const occupationDisplay = occupation || race || "";
         const topAttributes = this._getMemberTopAttributes(memberActor, 4);
+        const canRoll = Boolean(memberActor.isOwner || globalThis.game?.user?.isGM);
 
         members.push({
           id: memberActor.id,
@@ -121,6 +122,8 @@ export class PartyActorSheet extends BaseActorSheet {
           totalXp: totalXp,
           availableXp: availableXp,
           topAttributes: topAttributes,
+          canRoll: canRoll,
+          isOwner: canRoll,
           actor: memberActor,
           system: sys
         });
@@ -178,6 +181,15 @@ export class PartyActorSheet extends BaseActorSheet {
       } catch {}
     }
     if (!memberActor) return;
+
+    const canRoll = Boolean(memberActor.isOwner || globalThis.game?.user?.isGM);
+    if (!canRoll) {
+      globalThis.ui?.notifications?.warn?.(
+        globalThis.game?.i18n?.localize?.("TENEBRE.Party.RollNotAllowed") ||
+        "Você só pode rolar testes do seu próprio personagem."
+      );
+      return;
+    }
 
     if (typeof memberActor.rollAttribute === "function") {
       return memberActor.rollAttribute(attributeKey);
