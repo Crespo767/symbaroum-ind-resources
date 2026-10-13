@@ -37,6 +37,7 @@ test("PartyDataModel defines expected party schema", () => {
   assert.ok(schema.members, "members field exists");
   assert.ok(schema.isParty, "isParty field exists");
   assert.ok(schema.experience, "experience field exists");
+  assert.ok(schema.health, "health field exists");
 });
 
 test("PartyDataModel derives isParty and available experience", () => {
@@ -45,6 +46,7 @@ test("PartyDataModel derives isParty and available experience", () => {
   model.prepareDerivedData();
   assert.equal(model.isParty, true);
   assert.equal(model.experience.available, 65);
+  assert.deepEqual(model.health.toughness, { value: 0, max: 0 });
 });
 
 test("PartyActorService uses the module sub-type declared in module.json and never rewrites core type lists", () => {
@@ -422,9 +424,29 @@ test("PartyActorSheet supports dropping items, rendering inventory categories an
   const opts = PartyActorSheet.defaultOptions;
   assert.equal(opts.dragDrop[0].dragSelector, ".item[data-item-id]");
 
-  // 2. getData categorizes items
+  // 2. getData categorizes items and calls i18n.localize with correct this context
+  globalThis.game = {
+    documentTypes: { Actor: ["symbaroum-ind-resources.party"] },
+    modules: new Map(),
+    i18n: {
+      translations: {
+        "ITEM.TypeWeapon": "Arma (i18n)",
+        "ITEM.TypeArmor": "Armadura (i18n)",
+        "ITEM.TypeEquipment": "Equipamento (i18n)"
+      },
+      localize(key) {
+        if (!this || !this.translations) {
+          throw new TypeError("Cannot read properties of undefined (reading 'translations')");
+        }
+        return this.translations[key] || key;
+      }
+    }
+  };
+
   const data = await sheet.getData();
   assert.equal(data.inventoryItems.length, 3);
+  assert.equal(data.inventoryItems[0].name, "Cota de Malha");
+  assert.equal(data.inventoryItems[0].typeLabel, "Armadura (i18n)");
   assert.equal(data.inventoryCategories.length, 3);
   assert.equal(data.inventoryCategories[0].key, "weapons");
   assert.equal(data.inventoryCategories[0].items[0].detail, "1d8");

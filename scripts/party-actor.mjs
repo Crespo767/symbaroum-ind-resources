@@ -30,6 +30,12 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
         spent: new fields.NumberField({ initial: 0, integer: true, min: 0 }),
         available: new fields.NumberField({ initial: 0, integer: true })
       });
+      schema.health = new fields.SchemaField({
+        toughness: new fields.SchemaField({
+          value: new fields.NumberField({ initial: 0, integer: true }),
+          max: new fields.NumberField({ initial: 0, integer: true })
+        })
+      });
     }
     return schema;
   }
@@ -40,6 +46,8 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
     this.experience ??= { total: 0, artifactrr: 0, spent: 0, available: 0 };
     const exp = this.experience;
     exp.available = (Number(exp.total) || 0) - (Number(exp.artifactrr) || 0) - (Number(exp.spent) || 0);
+    this.health ??= { toughness: { value: 0, max: 0 } };
+    this.health.toughness ??= { value: 0, max: 0 };
   }
 }
 
@@ -172,8 +180,8 @@ export class PartyActorSheet extends BaseActorSheet {
   }
 
   _getItemTypeLabel(type) {
-    const loc = globalThis.game?.i18n?.localize;
-    if (loc) {
+    const i18n = globalThis.game?.i18n;
+    if (typeof i18n?.localize === "function") {
       const typeKeyMap = {
         weapon: "ITEM.TypeWeapon",
         armor: "ITEM.TypeArmor",
@@ -187,8 +195,10 @@ export class PartyActorSheet extends BaseActorSheet {
         burden: "ITEM.TypeBurden"
       };
       const key = typeKeyMap[type] || `ITEM.Type${type}`;
-      const translated = loc(key);
-      if (translated && translated !== key) return translated;
+      try {
+        const translated = i18n.localize(key);
+        if (translated && translated !== key) return translated;
+      } catch {}
     }
     const fallbackMap = {
       weapon: "Arma",
