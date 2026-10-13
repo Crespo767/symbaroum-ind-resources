@@ -58,7 +58,7 @@ export class PartyActorSheet extends BaseActorSheet {
       width: 800,
       height: 580,
       resizable: true,
-      dragDrop: [{ dragSelector: null, dropSelector: null }],
+      dragDrop: [{ dragSelector: ".item[data-item-id]", dropSelector: null }],
       tabs: [
         {
           navSelector: ".sheet-tabs",
@@ -72,7 +72,7 @@ export class PartyActorSheet extends BaseActorSheet {
       width: 800,
       height: 580,
       resizable: true,
-      dragDrop: [{ dragSelector: null, dropSelector: null }],
+      dragDrop: [{ dragSelector: ".item[data-item-id]", dropSelector: null }],
       tabs: [
         {
           navSelector: ".sheet-tabs",
@@ -130,7 +130,97 @@ export class PartyActorSheet extends BaseActorSheet {
       }
     }
     data.members = members;
+
+    const rawItems = Array.from(this.actor?.items?.values?.() ?? []);
+    const items = rawItems.map(item => {
+      const sys = item.system ?? {};
+      const type = item.type;
+      const quantity = Number(sys.number ?? sys.quantity ?? 1) || 1;
+      const detail = this._getItemDetail(item);
+      const typeLabel = this._getItemTypeLabel(type);
+
+      return {
+        id: item.id,
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img || "icons/svg/item-bag.svg",
+        type: type,
+        typeLabel: typeLabel,
+        quantity: quantity,
+        detail: detail,
+        system: sys,
+        item: item
+      };
+    }).sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
+
+    const weapons = items.filter(i => i.type === "weapon");
+    const armors = items.filter(i => i.type === "armor");
+    const artifacts = items.filter(i => i.type === "artifact" || i.system?.isArtifact);
+    const equipments = items.filter(i => i.type !== "weapon" && i.type !== "armor" && i.type !== "artifact" && !i.system?.isArtifact);
+
+    const categories = [
+      { key: "weapons", label: "TITLE.WEAPONS", icon: "fas fa-shield-alt", items: weapons },
+      { key: "armors", label: "TITLE.ARMORS", icon: "fas fa-shield", items: armors },
+      { key: "artifacts", label: "TITLE.ARTIFACTS", icon: "fas fa-ring", items: artifacts },
+      { key: "equipments", label: "TITLE.EQUIPMENTS", icon: "fas fa-boxes", items: equipments }
+    ].filter(cat => cat.items.length > 0);
+
+    data.inventoryItems = items;
+    data.inventoryCategories = categories;
+
     return data;
+  }
+
+  _getItemTypeLabel(type) {
+    const loc = globalThis.game?.i18n?.localize;
+    if (loc) {
+      const typeKeyMap = {
+        weapon: "ITEM.TypeWeapon",
+        armor: "ITEM.TypeArmor",
+        equipment: "ITEM.TypeEquipment",
+        artifact: "ITEM.TypeArtifact",
+        ability: "ITEM.TypeAbility",
+        mysticalPower: "ITEM.TypeMysticalpower",
+        ritual: "ITEM.TypeRitual",
+        trait: "ITEM.TypeTrait",
+        boon: "ITEM.TypeBoon",
+        burden: "ITEM.TypeBurden"
+      };
+      const key = typeKeyMap[type] || `ITEM.Type${type}`;
+      const translated = loc(key);
+      if (translated && translated !== key) return translated;
+    }
+    const fallbackMap = {
+      weapon: "Arma",
+      armor: "Armadura",
+      equipment: "Equipamento",
+      artifact: "Artefato",
+      ability: "Habilidade",
+      mysticalPower: "Poder Místico",
+      ritual: "Ritual",
+      trait: "Traço",
+      boon: "Dádiva",
+      burden: "Fardo"
+    };
+    return fallbackMap[type] || type;
+  }
+
+  _getItemDetail(item) {
+    const sys = item.system ?? {};
+    if (item.type === "weapon") {
+      const dmg = sys.damage?.displayTextShort || sys.baseDamage;
+      return dmg ? `${dmg}` : "";
+    }
+    if (item.type === "armor") {
+      const prot = sys.displayTextShort || sys.baseProtection;
+      return prot ? `${prot}` : "";
+    }
+    if (item.type === "artifact" || sys.isArtifact) {
+      if (sys.power1?.name) {
+        return sys.power1.name;
+      }
+    }
+    return "";
   }
 
   _getMemberTopAttributes(memberActor, count = 4) {
@@ -240,6 +330,62 @@ export class PartyActorSheet extends BaseActorSheet {
         this._onRemoveMember(actorId);
       });
     });
+
+    root.querySelectorAll('[data-action="open-item-sheet"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        const itemId = el.dataset.itemId || el.closest(".item")?.dataset.itemId;
+        if (!itemId) return;
+        this.actor?.items?.get?.(itemId)?.sheet?.render(true);
+      });
+    });
+
+    root.querySelectorAll('[data-action="delete-item"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const itemId = el.dataset.itemId || el.closest(".item")?.dataset.itemId;
+        if (!itemId) return;
+        this._onDeleteItem(itemId);
+      });
+    });
+
+    root.querySelectorAll('[data-action="increase-quantity"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const itemId = el.dataset.itemId || el.closest(".item")?.dataset.itemId;
+        if (!itemId) return;
+        this._onIncreaseItemQuantity(itemId);
+      });
+    });
+
+    root.querySelectorAll('[data-action="decrease-quantity"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const itemId = el.dataset.itemId || el.closest(".item")?.dataset.itemId;
+        if (!itemId) return;
+        this._onDecreaseItemQuantity(itemId);
+      });
+    });
+  }
+
+  _onDragStart(event) {
+    const li = event.currentTarget;
+    if (event.target?.classList?.contains("content-link")) return;
+
+    if (li?.dataset?.itemId) {
+      const item = this.actor?.items?.get?.(li.dataset.itemId);
+      if (item) {
+        const dragData = typeof item.toDragData === "function"
+          ? item.toDragData()
+          : { type: "Item", uuid: item.uuid, id: item.id };
+        event.dataTransfer?.setData?.("text/plain", JSON.stringify(dragData));
+        return;
+      }
+    }
+    return super._onDragStart ? super._onDragStart(event) : undefined;
   }
 
   async _onDrop(event) {
@@ -255,7 +401,92 @@ export class PartyActorSheet extends BaseActorSheet {
     if (data.type === "Actor" || data.type === "Token") {
       return this._onDropActor(event, data);
     }
+    if (data.type === "Item") {
+      return this._onDropItem(event, data);
+    }
     return super._onDrop ? super._onDrop(event) : false;
+  }
+
+  async _onDropItem(event, data) {
+    if (!this.isEditable) return false;
+
+    let item = null;
+    if (globalThis.Item?.implementation?.fromDropData) {
+      try {
+        item = await globalThis.Item.implementation.fromDropData(data);
+      } catch {}
+    }
+    if (!item && data?.uuid && globalThis.fromUuid) {
+      try {
+        item = await globalThis.fromUuid(data.uuid);
+      } catch {}
+    }
+    if (!item && data?.data) {
+      item = data.data;
+    }
+    if (!item) return false;
+
+    const itemData = typeof item.toObject === "function"
+      ? item.toObject()
+      : (globalThis.foundry?.utils?.deepClone?.(item) ?? item);
+
+    // Se o item já pertence a este ator, faz reordenação interna
+    if (this.actor.uuid === item.parent?.uuid) {
+      return this._onSortItem ? this._onSortItem(event, itemData) : false;
+    }
+
+    return this._onDropItemCreate(itemData);
+  }
+
+  async _onDropItemCreate(itemData) {
+    const items = Array.isArray(itemData) ? itemData : [itemData];
+    return this.actor.createEmbeddedDocuments("Item", items);
+  }
+
+  async _onDeleteItem(itemId) {
+    if (!this.isEditable || !itemId) return;
+    const item = this.actor?.items?.get?.(itemId);
+    if (!item) return;
+
+    if (globalThis.Dialog && globalThis.game?.i18n?.localize) {
+      const title = globalThis.game.i18n.localize("TOOLTIP.DELETE_ITEM") || "Excluir Item";
+      const confirmLabel = globalThis.game.i18n.localize("DIALOG.OK") || "OK";
+      const cancelLabel = globalThis.game.i18n.localize("DIALOG.CANCEL") || "Cancelar";
+      new globalThis.Dialog({
+        title: title,
+        content: `<p>${title}: <strong>${item.name}</strong>?</p>`,
+        buttons: {
+          yes: {
+            label: confirmLabel,
+            callback: () => this.actor.deleteEmbeddedDocuments("Item", [itemId])
+          },
+          no: {
+            label: cancelLabel
+          }
+        },
+        default: "no"
+      }).render(true);
+    } else {
+      await this.actor.deleteEmbeddedDocuments("Item", [itemId]);
+    }
+  }
+
+  async _onIncreaseItemQuantity(itemId) {
+    if (!this.isEditable || !itemId) return;
+    const item = this.actor?.items?.get?.(itemId);
+    if (!item) return;
+    const current = Number(item.system?.number ?? item.system?.quantity ?? 1) || 1;
+    await item.update({ "system.number": current + 1 });
+  }
+
+  async _onDecreaseItemQuantity(itemId) {
+    if (!this.isEditable || !itemId) return;
+    const item = this.actor?.items?.get?.(itemId);
+    if (!item) return;
+    const current = Number(item.system?.number ?? item.system?.quantity ?? 1) || 1;
+    if (current > 1) {
+      await item.update({ "system.number": current - 1 });
+    }
   }
 
   async _onDropActor(event, data) {

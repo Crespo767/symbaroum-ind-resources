@@ -83,13 +83,58 @@
                 </div>
             </div>
 
+            <!-- Aba Inventário -->
             <div class="tab" data-group="primary" data-tab="inventory">
                 <div class="party-inventory">
+                    {{#if inventoryItems.length}}
+                    <div class="party-inventory-content">
+                        {{#each inventoryCategories}}
+                        <div class="party-inventory-section">
+                            <h3 class="section-title"><i class="{{icon}}"></i> {{localize label}} ({{items.length}})</h3>
+                            <div class="party-items-list">
+                                {{#each items}}
+                                <div class="party-item-row foreground item" data-item-id="{{id}}" draggable="true">
+                                    <div class="item-icon-box" data-action="open-item-sheet" data-tooltip="{{name}}">
+                                        <img src="{{img}}" alt="{{name}}" class="item-img" />
+                                    </div>
+                                    <div class="item-main-info" data-action="open-item-sheet" data-tooltip="{{name}}">
+                                        <span class="item-name">{{name}}</span>
+                                        {{#if detail}}<span class="item-detail">({{detail}})</span>{{/if}}
+                                    </div>
+                                    <div class="item-type-badge">{{typeLabel}}</div>
+                                    <div class="item-quantity-box">
+                                        {{#if ../../editable}}
+                                        <a class="quantity-btn" data-action="decrease-quantity" data-tooltip="{{localize "TENEBRE.Party.DecreaseQuantity"}}">
+                                            <i class="fas fa-minus"></i>
+                                        </a>
+                                        {{/if}}
+                                        <span class="quantity-value" data-tooltip="{{localize "EQUIPMENT.QUANTITY_SHORT"}}">{{quantity}}</span>
+                                        {{#if ../../editable}}
+                                        <a class="quantity-btn" data-action="increase-quantity" data-tooltip="{{localize "TENEBRE.Party.IncreaseQuantity"}}">
+                                            <i class="fas fa-plus"></i>
+                                        </a>
+                                        {{/if}}
+                                    </div>
+                                    {{#if ../../editable}}
+                                    <div class="item-actions">
+                                        <a class="item-action-btn delete-btn" data-action="delete-item" data-tooltip="{{localize "TENEBRE.Party.DeleteItem"}}">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </a>
+                                    </div>
+                                    {{/if}}
+                                </div>
+                                {{/each}}
+                            </div>
+                        </div>
+                        {{/each}}
+                    </div>
+                    {{else}}
                     <div class="party-empty-dropzone">
                         <i class="fas fa-boxes" style="font-size: 2.2em; opacity: 0.55; margin-bottom: 10px; display: block;"></i>
                         <h4 style="margin: 0 0 5px; font-weight: bold; font-family: var(--font-title); font-size: 1.1em;">{{localize "TENEBRE.Party.InventoryEmptyTitle"}}</h4>
                         <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">{{localize "TENEBRE.Party.InventoryEmptyHint"}}</p>
                     </div>
+                    {{/if}}
                 </div>
             </div>
         </div>

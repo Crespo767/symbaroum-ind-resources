@@ -357,6 +357,143 @@ test("PartyActorSheet defines Inventory tab next to Characters tab", () => {
   assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-inventory/);
 });
 
+test("PartyActorSheet supports dropping items, rendering inventory categories and managing items", async () => {
+  const createdItems = [];
+  const deletedItems = [];
+  const updatedItemData = [];
+
+  const sword = {
+    id: "item1",
+    uuid: "Actor.party1.Item.item1",
+    name: "Espada Longa",
+    type: "weapon",
+    img: "sword.png",
+    system: { baseDamage: "1d8", number: 1 },
+    update: async (data) => { updatedItemData.push(data); return sword; },
+    toDragData: () => ({ type: "Item", uuid: "Actor.party1.Item.item1", id: "item1" })
+  };
+  const armor = {
+    id: "item2",
+    uuid: "Actor.party1.Item.item2",
+    name: "Cota de Malha",
+    type: "armor",
+    img: "chainmail.png",
+    system: { baseProtection: "1d6", number: 1 },
+    update: async (data) => { updatedItemData.push(data); return armor; },
+    toDragData: () => ({ type: "Item", uuid: "Actor.party1.Item.item2", id: "item2" })
+  };
+  const potion = {
+    id: "item3",
+    uuid: "Actor.party1.Item.item3",
+    name: "Poção de Cura",
+    type: "equipment",
+    img: "potion.png",
+    system: { number: 3 },
+    update: async (data) => { updatedItemData.push(data); return potion; },
+    toDragData: () => ({ type: "Item", uuid: "Actor.party1.Item.item3", id: "item3" })
+  };
+
+  const itemsMap = new Map([
+    ["item1", sword],
+    ["item2", armor],
+    ["item3", potion]
+  ]);
+
+  const mockPartyActor = {
+    id: "party1",
+    uuid: "Actor.party1",
+    type: PARTY_ACTOR_TYPE,
+    items: itemsMap,
+    createEmbeddedDocuments: async (embeddedName, items) => {
+      createdItems.push(...items);
+      return items;
+    },
+    deleteEmbeddedDocuments: async (embeddedName, ids) => {
+      deletedItems.push(...ids);
+      return ids;
+    }
+  };
+
+  const sheet = new PartyActorSheet();
+  sheet.actor = mockPartyActor;
+  sheet.isEditable = true;
+
+  // 1. defaultOptions dragSelector includes items
+  const opts = PartyActorSheet.defaultOptions;
+  assert.equal(opts.dragDrop[0].dragSelector, ".item[data-item-id]");
+
+  // 2. getData categorizes items
+  const data = await sheet.getData();
+  assert.equal(data.inventoryItems.length, 3);
+  assert.equal(data.inventoryCategories.length, 3);
+  assert.equal(data.inventoryCategories[0].key, "weapons");
+  assert.equal(data.inventoryCategories[0].items[0].detail, "1d8");
+  assert.equal(data.inventoryCategories[1].key, "armors");
+  assert.equal(data.inventoryCategories[2].key, "equipments");
+  assert.equal(data.inventoryCategories[2].items[0].quantity, 3);
+
+  // 3. _onDropItem creates embedded item document
+  const dropData = {
+    type: "Item",
+    data: {
+      name: "Tocha",
+      type: "equipment",
+      system: { number: 5 }
+    }
+  };
+  await sheet._onDropItem({}, dropData);
+  assert.equal(createdItems.length, 1);
+  assert.equal(createdItems[0].name, "Tocha");
+
+  // 4. _onIncreaseItemQuantity / _onDecreaseItemQuantity updates quantity
+  await sheet._onIncreaseItemQuantity("item3");
+  assert.deepEqual(updatedItemData[0], { "system.number": 4 });
+  await sheet._onDecreaseItemQuantity("item3");
+  assert.deepEqual(updatedItemData[1], { "system.number": 2 });
+
+  // 5. _onDeleteItem deletes item
+  await sheet._onDeleteItem("item1");
+  assert.deepEqual(deletedItems, ["item1"]);
+
+  // 6. _onDragStart populates dragData
+  let setTransfer = null;
+  const mockEvent = {
+    currentTarget: { dataset: { itemId: "item2" } },
+    target: { classList: { contains: () => false } },
+    dataTransfer: { setData: (format, val) => { setTransfer = JSON.parse(val); } }
+  };
+  sheet._onDragStart(mockEvent);
+  assert.equal(setTransfer.uuid, "Actor.party1.Item.item2");
+
+  // 7. Template and CSS verification
+  const templatePath = path.join(root, "templates/party-sheet.hbs");
+  const templateContent = fs.readFileSync(templatePath, "utf8");
+  assert.match(templateContent, /party-item-row/);
+  assert.match(templateContent, /item-quantity-box/);
+  assert.match(templateContent, /data-action="increase-quantity"/);
+  assert.match(templateContent, /data-action="decrease-quantity"/);
+  assert.match(templateContent, /data-action="delete-item"/);
+  assert.match(templateContent, /data-action="open-item-sheet"/);
+
+  const cssPath = path.join(root, "styles/symbaroum-ind-resources.css");
+  const cssContent = fs.readFileSync(cssPath, "utf8");
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-item-row/);
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-inventory-content/);
+  assert.match(cssContent, /\.tenebre-party-sheet\s+\.party-items-list/);
+
+  // 8. Localization verification
+  const ptBr = JSON.parse(fs.readFileSync(path.join(root, "languages/pt-BR.json"), "utf8"));
+  const en = JSON.parse(fs.readFileSync(path.join(root, "languages/en.json"), "utf8"));
+  assert.ok(ptBr["TENEBRE.Party.InventoryItemsLabel"]);
+  assert.ok(en["TENEBRE.Party.InventoryItemsLabel"]);
+  assert.ok(ptBr["TENEBRE.Party.IncreaseQuantity"]);
+  assert.ok(en["TENEBRE.Party.IncreaseQuantity"]);
+  assert.ok(ptBr["TENEBRE.Party.DecreaseQuantity"]);
+  assert.ok(en["TENEBRE.Party.DecreaseQuantity"]);
+  assert.ok(ptBr["TENEBRE.Party.DeleteItem"]);
+  assert.ok(en["TENEBRE.Party.DeleteItem"]);
+});
+
 
 
 

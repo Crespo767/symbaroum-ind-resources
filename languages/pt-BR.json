@@ -865,5 +865,10 @@
   "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Gasto com Rerolagens/Artefatos",
   "TENEBRE.Party.TopAttributesTooltip": "Maiores atributos (clique para rolar)",
   "TENEBRE.Party.TopAttributesReadonlyTooltip": "Maiores atributos",
-  "TENEBRE.Party.RollNotAllowed": "Você só pode rolar testes do seu próprio personagem."
+  "TENEBRE.Party.RollNotAllowed": "Você só pode rolar testes do seu próprio personagem.",
+  "TENEBRE.Party.InventoryItemsLabel": "Itens",
+  "TENEBRE.Party.IncreaseQuantity": "Aumentar quantidade",
+  "TENEBRE.Party.DecreaseQuantity": "Diminuir quantidade",
+  "TENEBRE.Party.OpenItemSheet": "Ver detalhes",
+  "TENEBRE.Party.DeleteItem": "Remover item do grupo"
 }

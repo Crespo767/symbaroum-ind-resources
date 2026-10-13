@@ -3938,5 +3938,180 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   padding: 10px 5px;
 }
 
+.tenebre-party-sheet .party-inventory-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tenebre-party-sheet .party-inventory-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tenebre-party-sheet .party-inventory-section .section-title {
+  font-family: var(--font-title, serif);
+  font-size: 1.05em;
+  font-weight: bold;
+  color: #2b2015;
+  border-bottom: 1px solid rgba(60, 48, 34, 0.3);
+  padding-bottom: 3px;
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tenebre-party-sheet .party-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tenebre-party-sheet .party-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid rgba(60, 48, 34, 0.4);
+  border-radius: 3px;
+  background-color: #e2ddcf;
+  background-image: url("/systems/symbaroum/asset/image/foreground.webp");
+  background-size: cover;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  cursor: grab;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tenebre-party-sheet .party-item-row:hover {
+  border-color: #2b2015;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+
+.tenebre-party-sheet .party-item-row:active {
+  cursor: grabbing;
+}
+
+.tenebre-party-sheet .party-item-row .item-icon-box {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid rgba(60, 48, 34, 0.3);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.tenebre-party-sheet .party-item-row .item-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tenebre-party-sheet .party-item-row .item-main-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.tenebre-party-sheet .party-item-row .item-name {
+  font-family: var(--font-title, serif);
+  font-size: 1.05em;
+  font-weight: bold;
+  color: #2b2015;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tenebre-party-sheet .party-item-row .item-name:hover {
+  text-decoration: underline;
+  color: #1a1612;
+}
+
+.tenebre-party-sheet .party-item-row .item-detail {
+  font-family: var(--font-text, sans-serif);
+  font-size: 0.85em;
+  color: #5a4836;
+  white-space: nowrap;
+  font-weight: normal;
+}
+
+.tenebre-party-sheet .party-item-row .item-type-badge {
+  flex: 0 0 auto;
+  font-family: var(--font-text, sans-serif);
+  font-size: 0.8em;
+  text-transform: uppercase;
+  background: rgba(43, 32, 21, 0.08);
+  border: 1px solid rgba(60, 48, 34, 0.25);
+  border-radius: 2px;
+  padding: 1px 6px;
+  color: #4a3b2c;
+  letter-spacing: 0.4px;
+}
+
+.tenebre-party-sheet .party-item-row .item-quantity-box {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 1px 4px;
+  border-radius: 2px;
+  border: 1px solid rgba(60, 48, 34, 0.2);
+}
+
+.tenebre-party-sheet .party-item-row .quantity-btn {
+  cursor: pointer;
+  color: #3c3022;
+  padding: 2px 4px;
+  font-size: 0.85em;
+  transition: color 0.15s, transform 0.1s;
+}
+
+.tenebre-party-sheet .party-item-row .quantity-btn:hover {
+  color: #1a1612;
+  transform: scale(1.15);
+}
+
+.tenebre-party-sheet .party-item-row .quantity-value {
+  min-width: 20px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.9em;
+  color: #2b2015;
+}
+
+.tenebre-party-sheet .party-item-row .item-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.tenebre-party-sheet .party-item-row .item-action-btn {
+  cursor: pointer;
+  color: #3c3022;
+  padding: 4px 6px;
+  font-size: 1.1em;
+  opacity: 0.7;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.tenebre-party-sheet .party-item-row .item-action-btn.delete-btn:hover {
+  color: #8b1111;
+  opacity: 1;
+}
+
 
 

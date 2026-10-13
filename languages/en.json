@@ -865,5 +865,10 @@
   "TENEBRE.Party.ExperienceArtifactrrTooltip": "XP Spent on Rerolls/Artifacts",
   "TENEBRE.Party.TopAttributesTooltip": "Top attributes (click to roll)",
   "TENEBRE.Party.TopAttributesReadonlyTooltip": "Top attributes",
-  "TENEBRE.Party.RollNotAllowed": "You can only roll tests for your own character."
+  "TENEBRE.Party.RollNotAllowed": "You can only roll tests for your own character.",
+  "TENEBRE.Party.InventoryItemsLabel": "Items",
+  "TENEBRE.Party.IncreaseQuantity": "Increase quantity",
+  "TENEBRE.Party.DecreaseQuantity": "Decrease quantity",
+  "TENEBRE.Party.OpenItemSheet": "View details",
+  "TENEBRE.Party.DeleteItem": "Remove item from party"
 }
