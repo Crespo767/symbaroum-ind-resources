@@ -239,6 +239,7 @@
   "TENEBRE.Rest.DialogTitle": "Descanso",
   "TENEBRE.Rest.Days": "Dias de descanso",
   "TENEBRE.Rest.HealingPerDay": "Cura por dia",
+  "TENEBRE.Rest.SpendTravelBread": "Gastar pão de viagem",
   "TENEBRE.Rest.NoActorsSelectedKeybinding": "Selecione um token ou vincule um personagem jogador para descansar.",
   "TENEBRE.Rest.NoActorsSelected": "Selecione pelo menos um token de personagem jogador.",
   "TENEBRE.Keybindings.OpenRestDialog": "Abrir Diálogo de Descanso (Tenebre)",

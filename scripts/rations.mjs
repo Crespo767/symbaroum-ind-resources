@@ -85,18 +85,20 @@ export class RationService {
     }
   }
 
-  static async consumeDay(actor, item = null) {
-    if (!TenebreSettings.get("enableRations")) return;
+  static async consumeDay(actor, item = null, { days = 1 } = {}) {
+    if (!TenebreSettings.get("enableRations")) return false;
 
     await this.consolidate(actor);
 
     const state = this.getState(actor, item);
-    if (state.quantity <= 0) {
+    if (state.quantity <= 0 || state.totalUsesRemaining <= 0) {
       ui.notifications.warn(game.i18n.localize("TENEBRE.Rations.NoRations"));
-      return;
+      return false;
     }
 
-    const nextTotalUses = Math.max(0, state.totalUsesRemaining - 1);
+    const daysRequested = Math.max(1, Number(days) || 1);
+    const toConsume = Math.min(daysRequested, state.totalUsesRemaining);
+    const nextTotalUses = Math.max(0, state.totalUsesRemaining - toConsume);
     const nextQuantity = nextTotalUses > 0 ? Math.ceil(nextTotalUses / state.usesPerUnit) : 0;
     const nextUsesRemaining = currentUnitUses(nextTotalUses, state.usesPerUnit);
     const rationItem = state.items.find((entry) => itemQuantity(entry) > 0);
@@ -125,6 +127,7 @@ export class RationService {
       totalUsesRemaining: nextTotalUses,
       totalUsesCapacity: nextQuantity * state.usesPerUnit
     });
+    return true;
   }
 
   static async #postRationChat(actor, newState) {

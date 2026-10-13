@@ -239,6 +239,7 @@
   "TENEBRE.Rest.DialogTitle": "Rest",
   "TENEBRE.Rest.Days": "Days of rest",
   "TENEBRE.Rest.HealingPerDay": "Healing per day",
+  "TENEBRE.Rest.SpendTravelBread": "Spend Travel Bread",
   "TENEBRE.Rest.NoActorsSelectedKeybinding": "Select a token or bind a player character to rest.",
   "TENEBRE.Rest.NoActorsSelected": "Select at least one player character token.",
   "TENEBRE.Keybindings.OpenRestDialog": "Open Rest Dialog (Tenebre)",

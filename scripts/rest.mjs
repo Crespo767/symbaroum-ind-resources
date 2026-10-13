@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { HungerService } from "./hunger.mjs";
+import { RationService } from "./rations.mjs";
 import { escapeHtml } from "./utils.mjs";
 import { createChatMessageAfterDice } from "./dice.mjs";
 import { SocketService } from "./sockets.mjs";
@@ -11,6 +12,21 @@ export class RestService {
     const restHealingEnabled = TenebreSettings.get("enableRestHealing");
     const configuredHealing = Number(TenebreSettings.get("restHealing"));
     const defaultHealing = restHealingEnabled && Number.isFinite(configuredHealing) ? configuredHealing : 0;
+    const rationsEnabled = TenebreSettings.get("enableRations");
+    const rationState = rationsEnabled ? RationService.getState(actor) : null;
+    const hasBread = Boolean(rationsEnabled && ((rationState?.totalUsesRemaining ?? 0) > 0 || (rationState?.quantity ?? 0) > 0));
+
+    const spendBreadRow = rationsEnabled
+      ? `
+        <div class="damagemodifier tenebre-rest-bread-row">
+          <label for="tenebre-spend-bread">${game.i18n.localize("TENEBRE.Rest.SpendTravelBread")}</label>
+          <div class="tenebre-rest-checkbox-control">
+            <input type="checkbox" id="tenebre-spend-bread" name="spendBread" ${hasBread ? "checked" : "disabled"}${!hasBread ? ` title="${escapeHtml(game.i18n.localize("TENEBRE.Rations.NoRations"))}"` : ""}>
+            <span class="tenebre-rest-checkbox-check" aria-hidden="true"></span>
+          </div>
+        </div>
+      `
+      : "";
 
     const content = `
       <div class="symbaroum dialog tenebre-rest-dialog">
@@ -26,6 +42,7 @@ export class RestService {
           <label for="tenebre-healing">${game.i18n.localize("TENEBRE.Rest.HealingPerDay")}</label>
           <input type="number" id="tenebre-healing" name="healing" value="${defaultHealing}" min="0" max="100">
         </div>
+        ${spendBreadRow}
       </div>
     `;
 
@@ -38,7 +55,8 @@ export class RestService {
         callback: (_event, _button, dialog) => {
           return {
             days: Number(dialog.element.querySelector("#tenebre-days")?.value) || 1,
-            healing: restHealingEnabled ? (Number(dialog.element.querySelector("#tenebre-healing")?.value) ?? 1) : 0
+            healing: restHealingEnabled ? (Number(dialog.element.querySelector("#tenebre-healing")?.value) ?? 1) : 0,
+            spendBread: Boolean(dialog.element.querySelector("#tenebre-spend-bread")?.checked)
           };
         }
       },
@@ -46,11 +64,14 @@ export class RestService {
     });
 
     if (result == null) return;
-    await RestService.applyRest(actor, result.days, result.healing);
+    await RestService.applyRest(actor, result.days, result.healing, { spendBread: result.spendBread });
   }
 
   // Aplica efeitos de descanso (recuperação de vitalidade, remoção de corrupção temporária e resets de morte)
-  static async applyRest(actor, days = 1, healingPerDay = null) {
+  static async applyRest(actor, days = 1, healingPerDay = null, { spendBread = false } = {}) {
+    if (spendBread && TenebreSettings.get("enableRations")) {
+      await RationService.consumeDay(actor, null, { days });
+    }
     const updates = {};
     const results = { days, actorName: actor.name, healed: 0, corruptionCleared: 0, hungerResults: [], hungerStrongRecovered: 0 };
 
