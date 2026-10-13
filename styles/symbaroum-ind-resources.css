@@ -3871,32 +3871,103 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 3px;
-  margin-left: 14px;
-  min-width: 180px;
-  max-width: 240px;
+  gap: 4px;
+  margin-left: 12px;
+  flex: 0 0 180px;
+  min-width: 150px;
+  max-width: 220px;
 }
 
 .tenebre-party-sheet .member-identity .member-name {
   font-family: var(--font-title, serif);
-  font-size: 1.25em;
+  font-size: 1.15em;
   font-weight: bold;
   color: #1a1612;
   line-height: 1.2;
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.tenebre-party-sheet .member-identity .member-occupation,
-.tenebre-party-sheet .member-identity .member-xp {
-  font-size: 0.9em;
-  color: #3e3224;
-  line-height: 1.2;
+.tenebre-party-sheet .member-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.tenebre-party-sheet .member-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72em;
+  line-height: 1;
+}
+
+.tenebre-party-sheet .member-bar-row .bar-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 54px;
+  font-weight: bold;
+  color: #3c3022;
+}
+
+.tenebre-party-sheet .member-bar-row.toughness-row .bar-label i {
+  color: #8b1e1e;
+  font-size: 1.05em;
+}
+
+.tenebre-party-sheet .member-bar-row.corruption-row .bar-label i {
+  color: #55276b;
+  font-size: 1.05em;
+}
+
+.tenebre-party-sheet .member-bar-row .bar-val {
+  font-family: var(--font-text, sans-serif);
+  font-size: 0.95em;
+  white-space: nowrap;
+}
+
+.tenebre-party-sheet .member-bar-row .bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(60, 48, 34, 0.35);
+  position: relative;
+}
+
+.tenebre-party-sheet .member-bar-row .bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.tenebre-party-sheet .member-bar-row .toughness-fill {
+  background: linear-gradient(90deg, #992323, #bf3636);
+}
+
+.tenebre-party-sheet .member-bar-row .toughness-fill.is-wounded {
+  background: linear-gradient(90deg, #661010, #881a1a);
+}
+
+.tenebre-party-sheet .member-bar-row .corruption-fill {
+  background: linear-gradient(90deg, #532d66, #7d4499);
+}
+
+.tenebre-party-sheet .member-bar-row .corruption-fill.is-over-threshold {
+  background: linear-gradient(90deg, #3a104c, #591673);
+  box-shadow: 0 0 4px #7d4499;
 }
 
 .tenebre-party-sheet .member-info-box {
-  flex: 1;
-  min-height: 72px;
-  margin: 0 14px;
+  flex: 0 0 auto;
+  min-height: 68px;
+  margin: 0 10px;
   border: 1px dashed rgba(80, 60, 40, 0.4);
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.015);
@@ -3905,6 +3976,35 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   justify-content: flex-start;
   padding: 6px 10px;
   box-sizing: border-box;
+}
+
+.tenebre-party-sheet .member-meta {
+  flex: 1 1 auto;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.tenebre-party-sheet .member-meta .member-occupation,
+.tenebre-party-sheet .member-meta .member-xp {
+  font-size: 0.88em;
+  color: #3e3224;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tenebre-party-sheet .member-meta .member-occupation {
+  font-style: italic;
+}
+
+.tenebre-party-sheet .member-meta .member-xp {
+  font-weight: 500;
 }
 
 .tenebre-party-sheet .member-top-attributes {

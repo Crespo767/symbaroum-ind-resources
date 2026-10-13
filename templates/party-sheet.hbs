@@ -45,15 +45,31 @@
                                     <img src="{{img}}" alt="{{name}}" />
                                 </div>
 
-                                <!-- Nome, Ocupação, Quantidade de XP -->
+                                <!-- Nome e Barras de Vitalidade e Corrupção -->
                                 <div class="member-identity" data-action="open-member-sheet" data-actor-id="{{id}}">
                                     <span class="member-name">{{name}}</span>
-                                    {{#if occupation}}
-                                    <span class="member-occupation">• {{occupation}}</span>
-                                    {{/if}}
-                                    {{#if hasXp}}
-                                    <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
-                                    {{/if}}
+                                    <div class="member-bars">
+                                        <!-- Barra de Vitalidade -->
+                                        <div class="member-bar-row toughness-row" data-tooltip="{{localize "HEALTH.TOUGHNESS"}}: {{health.toughness.value}} / {{health.toughness.max}}">
+                                            <div class="bar-label">
+                                                <i class="fas fa-heart"></i>
+                                                <span class="bar-val">{{health.toughness.value}}/{{health.toughness.max}}</span>
+                                            </div>
+                                            <div class="bar-track">
+                                                <div class="bar-fill toughness-fill {{#if health.toughness.isWounded}}is-wounded{{/if}}" style="width: {{health.toughness.pct}}%;"></div>
+                                            </div>
+                                        </div>
+                                        <!-- Barra de Corrupção -->
+                                        <div class="member-bar-row corruption-row" data-tooltip="{{localize "HEALTH.CORRUPTION"}}: {{health.corruption.value}} / {{health.corruption.max}}{{#if health.corruption.threshold}} ({{localize "HEALTH.CORRUPTION_THRESHOLD"}}: {{health.corruption.threshold}}){{/if}}">
+                                            <div class="bar-label">
+                                                <i class="fas fa-burn"></i>
+                                                <span class="bar-val">{{health.corruption.value}}/{{health.corruption.max}}</span>
+                                            </div>
+                                            <div class="bar-track">
+                                                <div class="bar-fill corruption-fill {{#if health.corruption.isOverThreshold}}is-over-threshold{{/if}}" style="width: {{health.corruption.pct}}%;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Campo de informações: 4 maiores atributos no canto esquerdo -->
@@ -67,6 +83,16 @@
                                         </div>
                                         {{/each}}
                                     </div>
+                                    {{/if}}
+                                </div>
+
+                                <!-- Informações de Ocupação e XP no campo da direita -->
+                                <div class="member-meta" data-action="open-member-sheet" data-actor-id="{{id}}">
+                                    {{#if occupation}}
+                                    <span class="member-occupation">• {{occupation}}</span>
+                                    {{/if}}
+                                    {{#if hasXp}}
+                                    <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
                                     {{/if}}
                                 </div>
 
@@ -107,15 +133,31 @@
                                     <img src="{{img}}" alt="{{name}}" />
                                 </div>
 
-                                <!-- Nome, Raça/Ocupação, XP -->
+                                <!-- Nome e Barras de Vitalidade e Corrupção -->
                                 <div class="member-identity" data-action="open-member-sheet" data-actor-id="{{id}}">
                                     <span class="member-name">{{name}}</span>
-                                    {{#if occupation}}
-                                    <span class="member-occupation">• {{occupation}}</span>
-                                    {{/if}}
-                                    {{#if hasXp}}
-                                    <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
-                                    {{/if}}
+                                    <div class="member-bars">
+                                        <!-- Barra de Vitalidade -->
+                                        <div class="member-bar-row toughness-row" data-tooltip="{{localize "HEALTH.TOUGHNESS"}}: {{health.toughness.value}} / {{health.toughness.max}}">
+                                            <div class="bar-label">
+                                                <i class="fas fa-heart"></i>
+                                                <span class="bar-val">{{health.toughness.value}}/{{health.toughness.max}}</span>
+                                            </div>
+                                            <div class="bar-track">
+                                                <div class="bar-fill toughness-fill {{#if health.toughness.isWounded}}is-wounded{{/if}}" style="width: {{health.toughness.pct}}%;"></div>
+                                            </div>
+                                        </div>
+                                        <!-- Barra de Corrupção -->
+                                        <div class="member-bar-row corruption-row" data-tooltip="{{localize "HEALTH.CORRUPTION"}}: {{health.corruption.value}} / {{health.corruption.max}}{{#if health.corruption.threshold}} ({{localize "HEALTH.CORRUPTION_THRESHOLD"}}: {{health.corruption.threshold}}){{/if}}">
+                                            <div class="bar-label">
+                                                <i class="fas fa-burn"></i>
+                                                <span class="bar-val">{{health.corruption.value}}/{{health.corruption.max}}</span>
+                                            </div>
+                                            <div class="bar-track">
+                                                <div class="bar-fill corruption-fill {{#if health.corruption.isOverThreshold}}is-over-threshold{{/if}}" style="width: {{health.corruption.pct}}%;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Campo de informações: 4 maiores atributos -->
@@ -129,6 +171,16 @@
                                         </div>
                                         {{/each}}
                                     </div>
+                                    {{/if}}
+                                </div>
+
+                                <!-- Informações de Ocupação e XP no campo da direita -->
+                                <div class="member-meta" data-action="open-member-sheet" data-actor-id="{{id}}">
+                                    {{#if occupation}}
+                                    <span class="member-occupation">• {{occupation}}</span>
+                                    {{/if}}
+                                    {{#if hasXp}}
+                                    <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
                                     {{/if}}
                                 </div>
 

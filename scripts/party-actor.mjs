@@ -187,13 +187,39 @@ export class PartyActorSheet extends BaseActorSheet {
     const bio = sys.bio ?? {};
     const exp = sys.experience ?? {};
     const totalXp = Number(exp.total) || 0;
-    const availableXp = exp.available !== undefined ? (Number(exp.available) || 0) : totalXp;
+    const availableXp = exp.available !== undefined
+      ? (Number(exp.available) || 0)
+      : (exp.spent !== undefined ? Math.max(0, totalXp - (Number(exp.spent) || 0) - (Number(exp.artifactrr) || 0)) : totalXp);
     const occupation = (bio.occupation && typeof bio.occupation === "string") ? bio.occupation.trim() : (typeof sys.occupation === "string" ? sys.occupation.trim() : "");
     const race = (bio.race && typeof bio.race === "string") ? bio.race.trim() : (typeof sys.race === "string" ? sys.race.trim() : "");
     const defaultLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.CompanionsSectionTitle") || "Companheiro";
     const occupationDisplay = occupation || race || (memberActor.type === "monster" ? defaultLabel : "");
     const topAttributes = this._getMemberTopAttributes(memberActor, 4);
     const canRoll = Boolean(memberActor.isOwner || globalThis.game?.user?.isGM);
+
+    // Vitalidade / Tenacidade (Toughness)
+    const toughnessData = sys.health?.toughness ?? {};
+    const toughnessVal = Number(toughnessData.value) || 0;
+    const toughnessMax = Number(toughnessData.max) || 0;
+    const toughnessThreshold = Number(toughnessData.threshold) || 0;
+    const toughnessPct = toughnessMax > 0
+      ? Math.max(0, Math.min(100, Math.round((toughnessVal / toughnessMax) * 100)))
+      : (toughnessVal > 0 ? 100 : 0);
+    const isWounded = toughnessThreshold > 0 && toughnessVal <= toughnessThreshold;
+
+    // Corrupção (Corruption)
+    const corruptionData = sys.health?.corruption ?? {};
+    const permCorr = Number(corruptionData.permanent) || 0;
+    const tempCorr = Number(corruptionData.temporary) || 0;
+    const longCorr = Number(corruptionData.longterm) || 0;
+    const corruptionVal = corruptionData.value !== undefined ? (Number(corruptionData.value) || 0) : (permCorr + tempCorr + longCorr);
+    const corruptionThreshold = Number(corruptionData.threshold) || 0;
+    const corruptionMax = Number(corruptionData.max) || 0;
+    const corruptionCap = corruptionMax > 0 ? corruptionMax : (corruptionThreshold > 0 ? corruptionThreshold * 2 : 10);
+    const corruptionPct = corruptionCap > 0
+      ? Math.max(0, Math.min(100, Math.round((corruptionVal / corruptionCap) * 100)))
+      : 0;
+    const isCorruptionOverThreshold = corruptionThreshold > 0 && corruptionVal >= corruptionThreshold;
 
     return {
       id: memberActor.id,
@@ -207,6 +233,22 @@ export class PartyActorSheet extends BaseActorSheet {
       isCompanion: isCompanion,
       isMonster: memberActor.type === "monster",
       topAttributes: topAttributes,
+      health: {
+        toughness: {
+          value: toughnessVal,
+          max: toughnessMax,
+          threshold: toughnessThreshold,
+          pct: toughnessPct,
+          isWounded: isWounded
+        },
+        corruption: {
+          value: corruptionVal,
+          max: corruptionMax,
+          threshold: corruptionThreshold,
+          pct: corruptionPct,
+          isOverThreshold: isCorruptionOverThreshold
+        }
+      },
       canRoll: canRoll,
       isOwner: canRoll,
       actor: memberActor,
