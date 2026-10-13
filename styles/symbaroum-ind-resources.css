@@ -4697,19 +4697,17 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 }
 
 /* ==========================================================================
-   Ficha de Grupo: Local e Região (Modificadores de Davokar)
+   Ficha de Grupo: Região de Davokar (Modificadores)
    ========================================================================== */
 
-.symbaroum.sheet.actor .player.party .sheet-header .party-region,
-.symbaroum.sheet.actor .player.party .sheet-header .party-location {
+.symbaroum.sheet.actor .player.party .sheet-header .party-region {
   display: flex;
   flex-direction: row;
   flex-basis: calc(50% - 5px);
   align-items: center;
 }
 
-.symbaroum.sheet.actor .player.party .sheet-header .party-region label,
-.symbaroum.sheet.actor .player.party .sheet-header .party-location label {
+.symbaroum.sheet.actor .player.party .sheet-header .party-region label {
   width: 100px;
 }
 
@@ -4727,8 +4725,7 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   cursor: pointer;
 }
 
-.symbaroum.sheet.actor .player.party .sheet-header .party-region select:disabled,
-.symbaroum.sheet.actor .player.party .sheet-header .party-location input:disabled {
+.symbaroum.sheet.actor .player.party .sheet-header .party-region select:disabled {
   opacity: 0.85;
   cursor: default;
 }
@@ -4736,12 +4733,6 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 .symbaroum.sheet.actor .player.party .sheet-header .party-region select option {
   background: #f5eedb;
   color: #191813;
-}
-
-.symbaroum.sheet.actor .player.party .sheet-header .party-location input {
-  width: 50px;
-  flex-grow: 1;
-  height: 28px;
 }
 
 

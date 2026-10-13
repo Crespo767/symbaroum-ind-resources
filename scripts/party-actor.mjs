@@ -600,13 +600,6 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
-    root.querySelectorAll('input[name="system.location.name"]').forEach(el => {
-      el.addEventListener("change", async (ev) => {
-        const val = ev.currentTarget.value;
-        await this.actor?.update?.({ "system.location.name": val });
-      });
-    });
-
     root.querySelectorAll('[data-action="open-member-sheet"]').forEach(el => {
       el.addEventListener("click", async (ev) => {
         ev.preventDefault();

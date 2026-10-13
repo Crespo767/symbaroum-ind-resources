@@ -144,18 +144,15 @@ test("PartyActorSheet.getData formats vehicle and hitched draft animal correctly
   assert.equal(data.storage.draftAnimal.capacity, 80);
 });
 
-test("Party sheet template includes party-region and party-location controls in header", () => {
+test("Party sheet template includes party-region control in header", () => {
   assert.match(templateSource, /class="party-region"/);
   assert.match(templateSource, /name="system\.location\.region"/);
-  assert.match(templateSource, /class="party-location"/);
-  assert.match(templateSource, /name="system\.location\.name"/);
+  assert.doesNotMatch(templateSource, /class="party-location"/);
 });
 
-test("Stylesheet contains rules for party-region and party-location", () => {
+test("Stylesheet contains rules for party-region", () => {
   assert.match(cssSource, /\.sheet-header \.party-region/);
-  assert.match(cssSource, /\.sheet-header \.party-location/);
   assert.match(cssSource, /\.party-region select/);
-  assert.match(cssSource, /\.party-location input/);
 });
 
 test("PartyActorSheet formats location regions and modifiers correctly in getData", async () => {
