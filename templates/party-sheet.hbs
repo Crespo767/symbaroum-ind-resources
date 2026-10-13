@@ -90,7 +90,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Campo de informações: 4 maiores atributos no canto esquerdo -->
+                                <!-- Campo de informações: atributos, ocupação e XP dentro da moldura -->
                                 <div class="member-info-box">
                                     {{#if topAttributes.length}}
                                     <div class="member-top-attributes" data-tooltip="{{#if canRoll}}{{localize "TENEBRE.Party.TopAttributesTooltip"}}{{else}}{{localize "TENEBRE.Party.TopAttributesReadonlyTooltip"}}{{/if}}">
@@ -102,16 +102,16 @@
                                         {{/each}}
                                     </div>
                                     {{/if}}
-                                </div>
 
-                                <!-- Informações de Ocupação e XP no campo da direita -->
-                                <div class="member-meta" data-action="open-member-sheet" data-actor-id="{{id}}">
-                                    {{#if occupation}}
-                                    <span class="member-occupation">• {{occupation}}</span>
-                                    {{/if}}
-                                    {{#if hasXp}}
-                                    <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
-                                    {{/if}}
+                                    <!-- Informações de Ocupação e XP -->
+                                    <div class="member-meta" data-action="open-member-sheet" data-actor-id="{{id}}">
+                                        {{#if occupation}}
+                                        <span class="member-occupation">• {{occupation}}</span>
+                                        {{/if}}
+                                        {{#if hasXp}}
+                                        <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
+                                        {{/if}}
+                                    </div>
                                 </div>
 
                                 <!-- Botões de controle: Alternar para companheiro / Remover -->
@@ -185,7 +185,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Campo de informações: 4 maiores atributos -->
+                                <!-- Campo de informações: atributos, ocupação e XP dentro da moldura -->
                                 <div class="member-info-box">
                                     {{#if topAttributes.length}}
                                     <div class="member-top-attributes" data-tooltip="{{#if canRoll}}{{localize "TENEBRE.Party.TopAttributesTooltip"}}{{else}}{{localize "TENEBRE.Party.TopAttributesReadonlyTooltip"}}{{/if}}">
@@ -197,16 +197,16 @@
                                         {{/each}}
                                     </div>
                                     {{/if}}
-                                </div>
 
-                                <!-- Informações de Ocupação e XP no campo da direita -->
-                                <div class="member-meta" data-action="open-member-sheet" data-actor-id="{{id}}">
-                                    {{#if occupation}}
-                                    <span class="member-occupation">• {{occupation}}</span>
-                                    {{/if}}
-                                    {{#if hasXp}}
-                                    <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
-                                    {{/if}}
+                                    <!-- Informações de Ocupação e XP -->
+                                    <div class="member-meta" data-action="open-member-sheet" data-actor-id="{{id}}">
+                                        {{#if occupation}}
+                                        <span class="member-occupation">• {{occupation}}</span>
+                                        {{/if}}
+                                        {{#if hasXp}}
+                                        <span class="member-xp">• XP: {{totalXp}}{{#if availableXp}} ({{availableXp}} livre){{/if}}</span>
+                                        {{/if}}
+                                    </div>
                                 </div>
 
                                 <!-- Botões de controle: Alternar para jogador / Remover -->
