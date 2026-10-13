@@ -50,10 +50,15 @@
                         </div>
                         <div class="party-members-list">
                             {{#each members}}
-                            <div class="party-member-card foreground" data-actor-id="{{id}}" draggable="true">
+                            <div class="party-member-card foreground {{#if isGuide}}is-expedition-guide{{/if}}" data-actor-id="{{id}}" draggable="true">
                                 <!-- Imagem do Personagem -->
                                 <div class="member-portrait" data-action="open-member-sheet" data-actor-id="{{id}}" data-tooltip="{{name}}">
                                     <img src="{{img}}" alt="{{name}}" />
+                                    {{#if isGuide}}
+                                    <div class="portrait-guide-badge" data-tooltip="{{localize "TENEBRE.Party.ExpeditionGuideBadge"}}">
+                                        <i class="fas fa-compass"></i>
+                                    </div>
+                                    {{/if}}
                                 </div>
 
                                 <!-- Nome e Barras de Vitalidade e Corrupção -->
@@ -145,10 +150,15 @@
                         </div>
                         <div class="party-companions-list">
                             {{#each companions}}
-                            <div class="party-member-card foreground companion-card" data-actor-id="{{id}}" draggable="true">
+                            <div class="party-member-card foreground companion-card {{#if isGuide}}is-expedition-guide{{/if}}" data-actor-id="{{id}}" draggable="true">
                                 <!-- Imagem do Companheiro -->
                                 <div class="member-portrait" data-action="open-member-sheet" data-actor-id="{{id}}" data-tooltip="{{name}}">
                                     <img src="{{img}}" alt="{{name}}" />
+                                    {{#if isGuide}}
+                                    <div class="portrait-guide-badge" data-tooltip="{{localize "TENEBRE.Party.ExpeditionGuideBadge"}}">
+                                        <i class="fas fa-compass"></i>
+                                    </div>
+                                    {{/if}}
                                 </div>
 
                                 <!-- Nome e Barras de Vitalidade e Corrupção -->

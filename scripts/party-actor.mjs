@@ -110,6 +110,10 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
         region: fields.StringField ? new fields.StringField({ initial: "ambria" }) : "ambria",
         name: fields.StringField ? new fields.StringField({ initial: "" }) : ""
       });
+      schema.expedition = new fields.SchemaField({
+        guideId: fields.StringField ? new fields.StringField({ initial: "" }) : "",
+        guideUuid: fields.StringField ? new fields.StringField({ initial: "" }) : ""
+      });
     }
     return schema;
   }
@@ -134,6 +138,10 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
       name: ""
     };
     if (!this.location.region) this.location.region = "ambria";
+    this.expedition ??= {
+      guideId: "",
+      guideUuid: ""
+    };
     this.experience ??= { total: 0, artifactrr: 0, spent: 0, available: 0 };
     const exp = this.experience;
     exp.available = (Number(exp.total) || 0) - (Number(exp.artifactrr) || 0) - (Number(exp.spent) || 0);
@@ -202,7 +210,7 @@ export class PartyActorSheet extends BaseActorSheet {
     let memberActor = globalThis.game?.actors?.get(actorId);
     if (!memberActor && globalThis.fromUuidSync) {
       try {
-        const doc = globalThis.fromUuidSync(actorId);
+        const doc = globalThis.fromUuidSync(actorId) ?? globalThis.fromUuidSync(`Actor.${actorId}`);
         memberActor = doc?.actor ?? doc;
       } catch {}
     }
@@ -223,8 +231,8 @@ export class PartyActorSheet extends BaseActorSheet {
     const occupationDisplay = occupation || race || (memberActor.type === "monster" ? defaultLabel : "");
     const topAttributes = this._getMemberTopAttributes(memberActor, 4);
     const canRoll = Boolean(memberActor.isOwner || globalThis.game?.user?.isGM);
-    const currentGuideId = this.actor?.system?.expedition?.guideId || "";
-    const isGuide = Boolean(currentGuideId && currentGuideId === memberActor.id);
+    const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
+    const isGuide = Boolean(currentGuideId && (currentGuideId === memberActor.id || (memberActor.uuid && currentGuideId === memberActor.uuid)));
 
     // Vitalidade / Tenacidade (Toughness)
     const toughnessData = sys.health?.toughness ?? {};
@@ -467,10 +475,14 @@ export class PartyActorSheet extends BaseActorSheet {
       modifierText: currentRegion.modifier > 0 ? `+${currentRegion.modifier}` : (currentRegion.key === "ambria" ? "±0" : "+0")
     };
 
-    const rawExpedition = this.actor?.system?.expedition ?? {};
-    const guideId = rawExpedition.guideId || "";
+    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const guideId = rawExpedition.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
+    const guideUuid = rawExpedition.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
     let guideActor = null;
-    if (guideId) {
+    if (guideUuid) {
+      guideActor = this._resolveActor(guideUuid);
+    }
+    if (!guideActor && guideId) {
       guideActor = this._resolveActor(guideId);
     }
 
@@ -867,7 +879,7 @@ export class PartyActorSheet extends BaseActorSheet {
         const card = el?.closest?.(".party-member-card") ?? el;
         const actorId = card?.dataset?.actorId;
         if (!actorId) return false;
-        const currentGuideId = this.actor?.system?.expedition?.guideId;
+        const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
         return currentGuideId !== actorId;
       },
       onClick: (target) => {
@@ -887,7 +899,7 @@ export class PartyActorSheet extends BaseActorSheet {
         const card = el?.closest?.(".party-member-card") ?? el;
         const actorId = card?.dataset?.actorId;
         if (!actorId) return false;
-        const currentGuideId = this.actor?.system?.expedition?.guideId;
+        const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
         return currentGuideId === actorId;
       },
       onClick: () => {
@@ -896,12 +908,16 @@ export class PartyActorSheet extends BaseActorSheet {
     });
 
     try {
-      new ContextMenuClass(
-        root,
-        ".party-member-card[data-actor-id]",
-        [setGuideEntry, unsetGuideEntry],
-        { fixed: true, jQuery: false }
-      );
+      if (typeof ContextMenuClass.create === "function") {
+        ContextMenuClass.create(this, root, ".party-member-card[data-actor-id]", [setGuideEntry, unsetGuideEntry]);
+      } else {
+        new ContextMenuClass(
+          root,
+          ".party-member-card[data-actor-id]",
+          [setGuideEntry, unsetGuideEntry],
+          { fixed: true, jQuery: false }
+        );
+      }
     } catch (err) {
       console.warn("Tenebre | Could not register member ContextMenu:", err);
     }
@@ -913,8 +929,13 @@ export class PartyActorSheet extends BaseActorSheet {
     if (!guideActor) return;
 
     await this.actor.update({
-      "system.expedition.guideId": actorId
+      "system.expedition.guideId": guideActor.id,
+      "system.expedition.guideUuid": guideActor.uuid || "",
+      [`flags.${MODULE_ID}.expedition.guideId`]: guideActor.id,
+      [`flags.${MODULE_ID}.expedition.guideUuid`]: guideActor.uuid || ""
     });
+
+    this.render(false);
 
     const msg = globalThis.game?.i18n?.format
       ? globalThis.game.i18n.format("TENEBRE.Party.GuideSetNotice", { name: guideActor.name })
@@ -925,8 +946,13 @@ export class PartyActorSheet extends BaseActorSheet {
   async _onUnsetGuide() {
     if (!this.isEditable) return;
     await this.actor.update({
-      "system.expedition.guideId": ""
+      "system.expedition.guideId": "",
+      "system.expedition.guideUuid": "",
+      [`flags.${MODULE_ID}.expedition.guideId`]: "",
+      [`flags.${MODULE_ID}.expedition.guideUuid`]: ""
     });
+
+    this.render(false);
 
     const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.GuideUnsetNotice")
       || "Guia da expedição removido.";

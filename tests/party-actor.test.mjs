@@ -229,8 +229,11 @@ test("Party sheet template includes expedition tab with guide card and actions",
   assert.match(templateSource, /data-action="select-guide"/);
   assert.match(templateSource, /data-action="unlink-guide"/);
   assert.match(templateSource, /TENEBRE\.Party\.ExpeditionGuideBadge/);
-  assert.match(templateSource, /TENEBRE\.Party\.ExpeditionNoGuideTitle/);
   assert.match(templateSource, /class="member-guide-tag"/);
+  assert.match(templateSource, /is-expedition-guide/);
+  assert.match(templateSource, /class="portrait-guide-badge"/);
+  assert.match(cssSource, /\.party-member-card\.is-expedition-guide/);
+  assert.match(cssSource, /\.portrait-guide-badge/);
 });
 
 test("PartyActorSheet formats expedition guide and members isGuide correctly", async () => {
@@ -307,15 +310,43 @@ test("PartyActorSheet._onSetGuide and _onUnsetGuide update party actor", async (
   };
 
   const sheet = new PartyActorSheet(mockPartyActor);
+  sheet.render = () => {};
   Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });
-  sheet._resolveActor = (id) => ({ id, name: "Guia Teste" });
+  sheet._resolveActor = (id) => ({ id, uuid: `Actor.${id}`, name: "Guia Teste" });
 
   await sheet._onSetGuide("guide-1");
-  assert.deepEqual(updates[0], { "system.expedition.guideId": "guide-1" });
+  assert.equal(updates[0]["system.expedition.guideId"], "guide-1");
+  assert.equal(updates[0]["flags.symbaroum-ind-resources.expedition.guideId"], "guide-1");
 
   await sheet._onUnsetGuide();
-  assert.deepEqual(updates[1], { "system.expedition.guideId": "" });
+  assert.equal(updates[1]["system.expedition.guideId"], "");
+  assert.equal(updates[1]["flags.symbaroum-ind-resources.expedition.guideId"], "");
 });
+
+test("PartyDataModel defines expedition in schema and prepareDerivedData", async () => {
+  const { PartyDataModel } = await import("../scripts/party-actor.mjs");
+  globalThis.foundry = globalThis.foundry ?? {};
+  globalThis.foundry.data = globalThis.foundry.data ?? {
+    fields: {
+      StringField: class { constructor(opt) { this.opt = opt; } },
+      BooleanField: class { constructor(opt) { this.opt = opt; } },
+      NumberField: class { constructor(opt) { this.opt = opt; } },
+      ArrayField: class { constructor(el, opt) { this.el = el; this.opt = opt; } },
+      SchemaField: class { constructor(fields) { this.fields = fields; } },
+      ObjectField: class { constructor(opt) { this.opt = opt; } },
+      HTMLField: class { constructor(opt) { this.opt = opt; } }
+    }
+  };
+
+  const schema = PartyDataModel.defineSchema();
+  assert.ok(schema.expedition, "PartyDataModel.schema must declare expedition");
+
+  const model = new PartyDataModel();
+  model.prepareDerivedData();
+  assert.ok(model.expedition, "PartyDataModel must initialize expedition in prepareDerivedData");
+  assert.equal(model.expedition.guideId, "");
+});
+
 
 
 
