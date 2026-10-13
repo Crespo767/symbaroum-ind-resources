@@ -219,3 +219,11 @@ test("PartyActorSheet formats location regions and modifiers correctly in getDat
   assert.equal(PartyActorSheet.getRegionModifier("dark"), 5);
 });
 
+test("Party sheet template includes expedition tab navigation and container", () => {
+  assert.match(templateSource, /data-tab="expedition"/);
+  assert.match(templateSource, /class="party-expedition-tab-content"/);
+  assert.match(templateSource, /TENEBRE\.Party\.TabExpedition/);
+  assert.match(templateSource, /TENEBRE\.Party\.ExpeditionEmptyTitle/);
+});
+
+

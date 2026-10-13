@@ -37,6 +37,7 @@
         <div class="sheet-tabs tabs" data-group="primary">
             <b class="item" data-tab="characters">{{localize "TENEBRE.Party.TabCharacters"}}</b>
             <b class="item" data-tab="inventory">{{localize "TENEBRE.Party.TabInventory"}}</b>
+            <b class="item" data-tab="expedition">{{localize "TENEBRE.Party.TabExpedition"}}</b>
         </div>
 
         <div class="sheet-body">
@@ -379,6 +380,17 @@
                         <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">{{localize "TENEBRE.Party.InventoryEmptyHint"}}</p>
                     </div>
                     {{/if}}
+                </div>
+            </div>
+
+            <!-- Aba de Expedição (vazia por enquanto) -->
+            <div class="tab" data-group="primary" data-tab="expedition">
+                <div class="party-expedition-tab-content">
+                    <div class="party-empty-dropzone">
+                        <i class="fas fa-compass" style="font-size: 2.2em; opacity: 0.55; margin-bottom: 10px; display: block;"></i>
+                        <h4 style="margin: 0 0 5px; font-weight: bold; font-family: var(--font-title); font-size: 1.1em;">{{localize "TENEBRE.Party.ExpeditionEmptyTitle"}}</h4>
+                        <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">{{localize "TENEBRE.Party.ExpeditionEmptyHint"}}</p>
+                    </div>
                 </div>
             </div>
         </div>
