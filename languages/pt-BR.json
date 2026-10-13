@@ -905,5 +905,17 @@
   "TENEBRE.Party.UnlinkStorageDialogTitle": "Desvincular Local de Armazenamento",
   "TENEBRE.Party.UnlinkStorageDialogContent": "Deseja remover o vínculo deste local de armazenamento?",
   "TENEBRE.Party.StorageNoSheetAvailable": "Este local não possui uma ficha de documento aberta.",
-  "TENEBRE.Party.EditCapacityDialogTitle": "Alterar Capacidade de Carga"
+  "TENEBRE.Party.EditCapacityDialogTitle": "Alterar Capacidade de Carga",
+  "TENEBRE.Party.DraftAnimalBadge": "Animal de Tração",
+  "TENEBRE.Party.HitchDraftAnimalBtn": "Atrelar Cavalo / Animal",
+  "TENEBRE.Party.HitchVehicleBtn": "Atrelar Carroça / Veículo",
+  "TENEBRE.Party.HitchConnectorTooltip": "Animal de tração atrelado ao transporte",
+  "TENEBRE.Party.HitchLabel": "Puxado por",
+  "TENEBRE.Party.UnlinkDraftAnimalTooltip": "Desatrelar animal",
+  "TENEBRE.Party.SelectDraftAnimalTitle": "Atrelar Animal de Tração / Cavalo",
+  "TENEBRE.Party.SelectDraftAnimalPrompt": "Selecione o cavalo ou animal de tração para atrelar ao veículo:",
+  "TENEBRE.Party.DraftAnimalLinkedNotice": "Animal de tração vinculado: {name}",
+  "TENEBRE.Party.DraftAnimalUnlinkedNotice": "Animal de tração desatrelado.",
+  "TENEBRE.Party.StorageOptionDraftAnimal": "Animal de Tração (Opcional):",
+  "TENEBRE.Party.StorageOptionNoDraftAnimal": "Nenhum animal atrelado"
 }

@@ -102,7 +102,8 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
         img: fields.StringField ? new fields.StringField({ initial: "" }) : "",
         type: fields.StringField ? new fields.StringField({ initial: "" }) : "",
         category: fields.StringField ? new fields.StringField({ initial: "" }) : "",
-        capacity: fields.NumberField ? new fields.NumberField({ initial: 0, min: 0 }) : 0
+        capacity: fields.NumberField ? new fields.NumberField({ initial: 0, min: 0 }) : 0,
+        draftAnimal: fields.ObjectField ? new fields.ObjectField({ initial: {} }) : {}
       });
     }
     return schema;
@@ -120,7 +121,8 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
       img: "",
       type: "",
       category: "",
-      capacity: 0
+      capacity: 0,
+      draftAnimal: null
     };
     this.experience ??= { total: 0, artifactrr: 0, spent: 0, available: 0 };
     const exp = this.experience;
@@ -360,6 +362,23 @@ export class PartyActorSheet extends BaseActorSheet {
 
     const storageCat = rawStorage.category || "custom";
 
+    const rawDraft = rawStorage.draftAnimal ?? {};
+    const draftName = (rawDraft.name || "").trim();
+    const hasDraftAnimal = Boolean(draftName || rawDraft.uuid || rawDraft.id);
+    let resolvedDraftActor = null;
+    if (hasDraftAnimal && (rawDraft.uuid || rawDraft.id)) {
+      resolvedDraftActor = this._resolveActor(rawDraft.uuid || rawDraft.id);
+    }
+    const draftAnimal = hasDraftAnimal ? {
+      id: rawDraft.id || resolvedDraftActor?.id || "",
+      uuid: rawDraft.uuid || resolvedDraftActor?.uuid || "",
+      name: draftName || resolvedDraftActor?.name || (globalThis.game?.i18n?.localize?.("TENEBRE.Party.DraftAnimalBadge") || "Animal de Tração"),
+      img: rawDraft.img || resolvedDraftActor?.img || "icons/environment/creatures/horse-brown.webp",
+      type: rawDraft.type || resolvedDraftActor?.type || "actor",
+      capacity: Number(rawDraft.capacity) || 0,
+      canOpenSheet: Boolean(rawDraft.uuid || rawDraft.id || resolvedDraftActor)
+    } : null;
+
     data.storage = {
       hasLocation: hasStorage,
       id: rawStorage.id || "",
@@ -374,7 +393,11 @@ export class PartyActorSheet extends BaseActorSheet {
       currentLoad: totalWeight,
       pct: storagePct,
       isOverloaded: isOverloaded,
-      canOpenSheet: Boolean(rawStorage.uuid || rawStorage.id)
+      isVehicle: storageCat === "vehicle",
+      isAnimal: storageCat === "animal",
+      canOpenSheet: Boolean(rawStorage.uuid || rawStorage.id),
+      hasDraftAnimal: Boolean(draftAnimal),
+      draftAnimal: draftAnimal
     };
 
     return data;
@@ -623,6 +646,28 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
+    root.querySelectorAll('[data-action="link-draft-animal"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        this._onLinkDraftAnimal();
+      });
+    });
+
+    root.querySelectorAll('[data-action="link-vehicle"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        this._onSelectStorageLocation();
+      });
+    });
+
+    root.querySelectorAll('[data-action="unlink-draft-animal"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this._onUnlinkDraftAnimal();
+      });
+    });
+
     root.querySelectorAll('[data-action="edit-storage-capacity"]').forEach(el => {
       el.addEventListener("click", (ev) => {
         ev.preventDefault();
@@ -700,7 +745,7 @@ export class PartyActorSheet extends BaseActorSheet {
     }
     if (!data) return false;
 
-    const isStorageDrop = Boolean(event.target?.closest?.(".party-storage-location-box, [data-drop-zone='storage-location']"));
+    const isStorageDrop = Boolean(event.target?.closest?.(".party-storage-location-box, [data-drop-zone='storage-location'], [data-drop-zone='draft-animal']"));
     if (isStorageDrop) {
       return this._onDropStorageLocation(event, data);
     }
@@ -927,6 +972,61 @@ export class PartyActorSheet extends BaseActorSheet {
     const category = detectStorageCategory(name, doc.type || docType);
     const capacity = detectStorageCapacity(name, doc.type || docType);
 
+    const isDraftSlot = Boolean(event.target?.closest?.("[data-drop-zone='draft-animal'], .draft-unit, .storage-hitch-slot"));
+    const currentStorage = this.actor?.system?.storageLocation ?? {};
+    const hasCurrentStorage = Boolean(currentStorage.name || currentStorage.id || currentStorage.uuid);
+
+    // 1. Drop diretamente no slot de animal de tração OU se o armazenamento atual for veículo/custom e o drop for um animal:
+    if (isDraftSlot || (hasCurrentStorage && currentStorage.category !== "animal" && category === "animal")) {
+      await this.actor.update({
+        "system.storageLocation.draftAnimal": {
+          id: doc.id || "",
+          uuid: doc.uuid || "",
+          name: name,
+          img: img,
+          type: docType,
+          capacity: capacity
+        }
+      });
+      const msg = globalThis.game?.i18n?.format
+        ? globalThis.game.i18n.format("TENEBRE.Party.DraftAnimalLinkedNotice", { name: name })
+        : `Animal de tração vinculado: ${name}`;
+      globalThis.ui?.notifications?.info?.(msg);
+      return true;
+    }
+
+    // 2. Se o armazenamento atual era um animal e o usuário soltou um veículo:
+    // Transforma o veículo no armazenamento principal e preserva o animal como draftAnimal!
+    if (hasCurrentStorage && currentStorage.category === "animal" && category === "vehicle") {
+      const prevAnimal = {
+        id: currentStorage.id || "",
+        uuid: currentStorage.uuid || "",
+        name: currentStorage.name || "Animal",
+        img: currentStorage.img || "icons/environment/creatures/horse-brown.webp",
+        type: currentStorage.type || "actor",
+        capacity: currentStorage.capacity || 80
+      };
+      await this.actor.update({
+        "system.storageLocation": {
+          id: doc.id || "",
+          uuid: doc.uuid || "",
+          name: name,
+          img: img,
+          type: docType,
+          category: category,
+          capacity: capacity,
+          draftAnimal: prevAnimal
+        }
+      });
+      const msg = globalThis.game?.i18n?.format
+        ? globalThis.game.i18n.format("TENEBRE.Party.StorageLinkedNotice", { name: name, capacity: capacity })
+        : `Local de armazenamento vinculado: ${name} (Capacidade: ${capacity} unidades)`;
+      globalThis.ui?.notifications?.info?.(msg);
+      return true;
+    }
+
+    // 3. Caso padrão: vincula como local principal preservando animal se for compatível
+    const existingDraft = currentStorage.draftAnimal || null;
     await this.actor.update({
       "system.storageLocation": {
         id: doc.id || "",
@@ -935,7 +1035,8 @@ export class PartyActorSheet extends BaseActorSheet {
         img: img,
         type: docType,
         category: category,
-        capacity: capacity
+        capacity: capacity,
+        draftAnimal: category === "vehicle" ? existingDraft : null
       }
     });
 
@@ -1063,6 +1164,10 @@ export class PartyActorSheet extends BaseActorSheet {
             }
 
             if (finalStorage) {
+              const existingDraft = this.actor?.system?.storageLocation?.draftAnimal;
+              if (existingDraft && (existingDraft.name || existingDraft.id || existingDraft.uuid) && (finalStorage.category === "vehicle" || finalStorage.category === "custom")) {
+                finalStorage.draftAnimal = existingDraft;
+              }
               await this.actor.update({ "system.storageLocation": finalStorage });
               const msg = globalThis.game?.i18n?.format
                 ? globalThis.game.i18n.format("TENEBRE.Party.StorageLinkedNotice", { name: finalStorage.name, capacity: finalStorage.capacity })
@@ -1153,12 +1258,198 @@ export class PartyActorSheet extends BaseActorSheet {
         img: "",
         type: "",
         category: "",
-        capacity: 0
+        capacity: 0,
+        draftAnimal: {
+          id: "",
+          uuid: "",
+          name: "",
+          img: "",
+          type: "",
+          capacity: 0
+        }
       }
     });
     globalThis.ui?.notifications?.info?.(
       globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageUnlinkedNotice") ||
       "Local de armazenamento desvinculado."
+    );
+  }
+
+  async _onLinkDraftAnimal() {
+    if (!this.isEditable) return;
+
+    const companionIds = Array.isArray(this.actor?.system?.companions) ? this.actor.system.companions : [];
+    const companions = [];
+    for (const compId of companionIds) {
+      const comp = this._resolveActor(compId);
+      if (comp) {
+        companions.push({
+          id: comp.id,
+          uuid: comp.uuid,
+          name: comp.name,
+          img: comp.img || "icons/environment/creatures/horse-brown.webp",
+          capacity: detectStorageCapacity(comp.name, comp.type),
+          category: detectStorageCategory(comp.name, comp.type)
+        });
+      }
+    }
+
+    const draftPresets = OFFICIAL_STORAGE_PRESETS.filter(p => p.category === "animal");
+
+    let companionOptionsHtml = "";
+    if (companions.length > 0) {
+      companionOptionsHtml = `<optgroup label="${globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageOptionCompanions") || "Companheiros do Grupo"}">` +
+        companions.map(c => `<option value="comp:${c.id}">${c.name} (${c.category === "animal" ? "Animal" : "Companheiro"} - ${c.capacity} un.)</option>`).join("") +
+        `</optgroup>`;
+    }
+
+    const presetOptionsHtml = `<optgroup label="${globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageOptionPresets") || "Animais Oficiais"}">` +
+      draftPresets.map(p => `<option value="preset:${p.id}">${p.name} (${p.capacity} un.)</option>`).join("") +
+      `</optgroup>`;
+
+    const customOptionHtml = `<option value="custom">${globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageOptionCustom") || "Personalizado..."}</option>`;
+
+    const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.SelectDraftAnimalTitle") || "Atrelar Animal de Tração / Cavalo";
+    const prompt = globalThis.game?.i18n?.localize?.("TENEBRE.Party.SelectDraftAnimalPrompt") || "Selecione o cavalo ou animal de tração para atrelar ao veículo:";
+    const nameLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageNameLabel") || "Nome do Animal";
+    const capLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.StorageCapacityLabel") || "Capacidade de Carga (unidades)";
+
+    const content = `
+      <form class="storage-selection-dialog-form" style="display:flex; flex-direction:column; gap:10px;">
+        <p style="margin:0 0 5px; font-size:0.9em; opacity:0.85;">${prompt}</p>
+        <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
+          <label style="font-weight:bold; font-size:0.9em;">Animal de Tração:</label>
+          <select id="draft-animal-choice" style="width:100%; height:28px;">
+            ${companionOptionsHtml}
+            ${presetOptionsHtml}
+            ${customOptionHtml}
+          </select>
+        </div>
+        <div class="form-group" id="draft-custom-name-group" style="display:none; flex-direction:column; gap:4px;">
+          <label style="font-weight:bold; font-size:0.9em;">${nameLabel}:</label>
+          <input type="text" id="draft-custom-name" placeholder="Ex.: Alazão, Cavalo de Carga..." style="width:100%; height:26px;" />
+        </div>
+        <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
+          <label style="font-weight:bold; font-size:0.9em;">${capLabel}:</label>
+          <input type="number" id="draft-custom-cap" value="80" min="0" style="width:100%; height:26px;" />
+        </div>
+      </form>
+    `;
+
+    if (!globalThis.Dialog) return;
+
+    new globalThis.Dialog({
+      title: title,
+      content: content,
+      buttons: {
+        confirm: {
+          icon: '<i class="fas fa-check"></i>',
+          label: globalThis.game?.i18n?.localize?.("DIALOG.OK") || "Atrelar",
+          callback: async (html) => {
+            const root = html?.[0] ?? html;
+            const choice = root.querySelector("#draft-animal-choice")?.value || "";
+            const customName = root.querySelector("#draft-custom-name")?.value?.trim() || "";
+            const capVal = Number(root.querySelector("#draft-custom-cap")?.value) || 0;
+
+            let finalDraft = null;
+
+            if (choice.startsWith("comp:")) {
+              const compId = choice.slice(5);
+              const comp = companions.find(c => c.id === compId);
+              if (comp) {
+                finalDraft = {
+                  id: comp.id,
+                  uuid: comp.uuid,
+                  name: comp.name,
+                  img: comp.img,
+                  type: "actor",
+                  capacity: capVal > 0 ? capVal : comp.capacity
+                };
+              }
+            } else if (choice.startsWith("preset:")) {
+              const presetId = choice.slice(7);
+              const preset = draftPresets.find(p => p.id === presetId);
+              if (preset) {
+                finalDraft = {
+                  id: preset.id,
+                  uuid: "",
+                  name: preset.name,
+                  img: preset.img,
+                  type: "preset",
+                  capacity: capVal > 0 ? capVal : preset.capacity
+                };
+              }
+            } else {
+              finalDraft = {
+                id: "",
+                uuid: "",
+                name: customName || (globalThis.game?.i18n?.localize?.("TENEBRE.Party.DraftAnimalBadge") || "Cavalo"),
+                img: "icons/environment/creatures/horse-brown.webp",
+                type: "custom",
+                capacity: capVal > 0 ? capVal : 80
+              };
+            }
+
+            if (finalDraft) {
+              await this.actor.update({ "system.storageLocation.draftAnimal": finalDraft });
+              const msg = globalThis.game?.i18n?.format
+                ? globalThis.game.i18n.format("TENEBRE.Party.DraftAnimalLinkedNotice", { name: finalDraft.name })
+                : `Animal de tração vinculado: ${finalDraft.name}`;
+              globalThis.ui?.notifications?.info?.(msg);
+            }
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: globalThis.game?.i18n?.localize?.("DIALOG.CANCEL") || "Cancelar"
+        }
+      },
+      default: "confirm",
+      render: (html) => {
+        const root = html?.[0] ?? html;
+        const select = root.querySelector("#draft-animal-choice");
+        const customNameGroup = root.querySelector("#draft-custom-name-group");
+        const capInput = root.querySelector("#draft-custom-cap");
+
+        const updateFields = () => {
+          const val = select.value;
+          if (val === "custom") {
+            if (customNameGroup) customNameGroup.style.display = "flex";
+            if (capInput) capInput.value = 80;
+          } else if (val.startsWith("preset:")) {
+            if (customNameGroup) customNameGroup.style.display = "none";
+            const presetId = val.slice(7);
+            const preset = draftPresets.find(p => p.id === presetId);
+            if (preset && capInput) capInput.value = preset.capacity;
+          } else if (val.startsWith("comp:")) {
+            if (customNameGroup) customNameGroup.style.display = "none";
+            const compId = val.slice(5);
+            const comp = companions.find(c => c.id === compId);
+            if (comp && capInput) capInput.value = comp.capacity;
+          }
+        };
+
+        select?.addEventListener("change", updateFields);
+        updateFields();
+      }
+    }).render(true);
+  }
+
+  async _onUnlinkDraftAnimal() {
+    if (!this.isEditable) return;
+    await this.actor.update({
+      "system.storageLocation.draftAnimal": {
+        id: "",
+        uuid: "",
+        name: "",
+        img: "",
+        type: "",
+        capacity: 0
+      }
+    });
+    globalThis.ui?.notifications?.info?.(
+      globalThis.game?.i18n?.localize?.("TENEBRE.Party.DraftAnimalUnlinkedNotice") ||
+      "Animal de tração desatrelado."
     );
   }
 }

@@ -4439,27 +4439,57 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 
 .tenebre-party-sheet .storage-linked-container {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.tenebre-party-sheet .storage-header-row {
+  display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
 }
 
-.tenebre-party-sheet .storage-portrait {
-  width: 44px;
-  height: 44px;
-  border: 1px solid #3c3022;
-  border-radius: 4px;
-  overflow: hidden;
-  flex: 0 0 auto;
-  background: #111;
+.tenebre-party-sheet .storage-entities-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
 }
 
-.tenebre-party-sheet .storage-portrait.is-clickable {
+.tenebre-party-sheet .storage-entity-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(60, 48, 34, 0.35);
+  border-radius: 3px;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.tenebre-party-sheet .storage-entity-card.is-clickable {
   cursor: pointer;
 }
 
-.tenebre-party-sheet .storage-portrait.is-clickable:hover {
+.tenebre-party-sheet .storage-entity-card.is-clickable:hover {
   border-color: #7a201b;
-  box-shadow: 0 0 6px rgba(122, 32, 27, 0.5);
+  background: rgba(122, 32, 27, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.tenebre-party-sheet .storage-portrait {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #3c3022;
+  border-radius: 3px;
+  overflow: hidden;
+  flex: 0 0 38px;
+  background: #111;
 }
 
 .tenebre-party-sheet .storage-portrait img {
@@ -4469,53 +4499,39 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   display: block;
 }
 
-.tenebre-party-sheet .storage-details {
-  flex: 1 1 auto;
-  min-width: 0;
+.tenebre-party-sheet .storage-entity-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.tenebre-party-sheet .storage-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
 }
 
 .tenebre-party-sheet .storage-name {
   font-family: var(--font-title, serif);
   font-weight: bold;
-  font-size: 1.05em;
+  font-size: 0.96em;
   color: var(--color-title, #2b2015);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.tenebre-party-sheet .storage-name[data-action="open-storage-sheet"] {
-  cursor: pointer;
-}
-
-.tenebre-party-sheet .storage-name[data-action="open-storage-sheet"]:hover {
-  color: #7a201b;
-  text-decoration: underline;
+  line-height: 1.2;
 }
 
 .tenebre-party-sheet .storage-badge {
   font-family: var(--font-text, sans-serif);
-  font-size: 0.75em;
+  font-size: 0.72em;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 1px 6px;
-  border-radius: 3px;
+  padding: 1px 5px;
+  border-radius: 2px;
   background: rgba(43, 32, 21, 0.1);
   color: #3c3022;
   border: 1px solid rgba(60, 48, 34, 0.25);
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  width: fit-content;
+  line-height: 1.1;
 }
 
 .tenebre-party-sheet .storage-badge.is-overload-badge {
@@ -4523,6 +4539,66 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   color: #8b1111;
   border-color: #8b1111;
   font-weight: bold;
+}
+
+.tenebre-party-sheet .storage-hitch-connector {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74em;
+  color: #7a201b;
+  font-weight: bold;
+  background: rgba(122, 32, 27, 0.08);
+  padding: 3px 7px;
+  border-radius: 10px;
+  border: 1px dashed rgba(122, 32, 27, 0.4);
+  line-height: 1;
+}
+
+.tenebre-party-sheet .storage-unlink-draft-btn {
+  cursor: pointer;
+  color: #8b1111;
+  font-size: 0.9em;
+  opacity: 0.65;
+  margin-left: 4px;
+  padding: 2px 4px;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.tenebre-party-sheet .storage-unlink-draft-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.tenebre-party-sheet .storage-hitch-slot.empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px dashed rgba(60, 48, 34, 0.45);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.02);
+  color: #4a3828;
+  font-family: var(--font-title, serif);
+  font-size: 0.82em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.tenebre-party-sheet .storage-hitch-slot.empty:hover {
+  border-color: #7a201b;
+  color: #7a201b;
+  background: rgba(122, 32, 27, 0.06);
+}
+
+.tenebre-party-sheet .storage-load-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .tenebre-party-sheet .storage-bar-wrapper {
@@ -4549,6 +4625,7 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 .tenebre-party-sheet .storage-stats-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   font-size: 0.82em;
   color: #3c3022;
   font-family: var(--font-text, sans-serif);

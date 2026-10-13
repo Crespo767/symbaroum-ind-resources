@@ -86,3 +86,60 @@ test("PartyActorSheet._prepareMemberCardData formats toughness and corruption co
   assert.equal(cardData.health.corruption.pct, 60);
   assert.equal(cardData.health.corruption.isOverThreshold, true);
 });
+
+test("Party sheet template includes dual storage entity and draft animal hitching support", () => {
+  assert.match(templateSource, /class="storage-entities-group"/);
+  assert.match(templateSource, /class="storage-entity-card primary-unit/);
+  assert.match(templateSource, /class="storage-hitch-connector"/);
+  assert.match(templateSource, /class="storage-entity-card draft-unit/);
+  assert.match(templateSource, /data-action="unlink-draft-animal"/);
+  assert.match(templateSource, /class="storage-hitch-slot empty"/);
+  assert.match(templateSource, /data-action="link-draft-animal"/);
+});
+
+test("Stylesheet contains rules for dual storage entity cards and hitch connectors", () => {
+  assert.match(cssSource, /\.tenebre-party-sheet \.storage-entities-group/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.storage-entity-card/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.storage-hitch-connector/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.storage-unlink-draft-btn/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.storage-hitch-slot\.empty/);
+});
+
+test("PartyActorSheet.getData formats vehicle and hitched draft animal correctly", async () => {
+  globalThis.Hooks = globalThis.Hooks ?? { once() {}, on() {}, callAll() {} };
+  globalThis.foundry = globalThis.foundry ?? { utils: { deepClone: (x) => JSON.parse(JSON.stringify(x)) } };
+  globalThis.ActorSheet = class {
+    constructor(actor) { this.actor = actor; }
+  };
+
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  const partyActor = {
+    id: "party1",
+    system: {
+      storageLocation: {
+        id: "cart-1",
+        name: "Carroça de Viagem",
+        category: "vehicle",
+        capacity: 200,
+        img: "icons/environment/settlement/wagon.webp",
+        draftAnimal: {
+          id: "horse-1",
+          name: "Cavalo Alazão",
+          capacity: 80,
+          img: "icons/environment/creatures/horse-brown.webp"
+        }
+      }
+    },
+    items: new Map()
+  };
+
+  const sheet = new PartyActorSheet(partyActor);
+  const data = await sheet.getData();
+
+  assert.equal(data.storage.hasLocation, true);
+  assert.equal(data.storage.name, "Carroça de Viagem");
+  assert.equal(data.storage.isVehicle, true);
+  assert.equal(data.storage.hasDraftAnimal, true);
+  assert.equal(data.storage.draftAnimal.name, "Cavalo Alazão");
+  assert.equal(data.storage.draftAnimal.capacity, 80);
+});

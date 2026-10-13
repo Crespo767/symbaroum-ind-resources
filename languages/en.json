@@ -905,5 +905,17 @@
   "TENEBRE.Party.UnlinkStorageDialogTitle": "Unlink Storage Location",
   "TENEBRE.Party.UnlinkStorageDialogContent": "Do you want to unlink this storage location?",
   "TENEBRE.Party.StorageNoSheetAvailable": "This storage has no open document sheet.",
-  "TENEBRE.Party.EditCapacityDialogTitle": "Edit Cargo Capacity"
+  "TENEBRE.Party.EditCapacityDialogTitle": "Edit Cargo Capacity",
+  "TENEBRE.Party.DraftAnimalBadge": "Draft Animal",
+  "TENEBRE.Party.HitchDraftAnimalBtn": "Hitch Draft Animal / Horse",
+  "TENEBRE.Party.HitchVehicleBtn": "Hitch Cart / Vehicle",
+  "TENEBRE.Party.HitchConnectorTooltip": "Draft animal hitched to transport",
+  "TENEBRE.Party.HitchLabel": "Pulled by",
+  "TENEBRE.Party.UnlinkDraftAnimalTooltip": "Unhitch animal",
+  "TENEBRE.Party.SelectDraftAnimalTitle": "Hitch Draft Animal / Horse",
+  "TENEBRE.Party.SelectDraftAnimalPrompt": "Select the draft animal or horse to hitch to the vehicle:",
+  "TENEBRE.Party.DraftAnimalLinkedNotice": "Draft animal linked: {name}",
+  "TENEBRE.Party.DraftAnimalUnlinkedNotice": "Draft animal unhitched.",
+  "TENEBRE.Party.StorageOptionDraftAnimal": "Hitched Animal (Optional):",
+  "TENEBRE.Party.StorageOptionNoDraftAnimal": "No animal hitched"
 }
