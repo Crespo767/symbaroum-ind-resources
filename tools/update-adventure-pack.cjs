@@ -1,18 +1,26 @@
 const { ClassicLevel } = require('classic-level');
 const path = require('path');
 
-function randomID(prefix = '') {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = prefix;
-  while (result.length < 16) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+function makeId(prefix, num) {
+  const pad = '0'.repeat(16 - prefix.length - String(num).length);
+  const id = `${prefix}${pad}${num}`;
+  if (id.length !== 16 || !/^[a-zA-Z0-9]{16}$/.test(id)) {
+    throw new Error(`Invalid ID "${id}" generated with prefix "${prefix}" (length: ${id.length})`);
   }
-  return result.slice(0, 16);
+  return id;
+}
+
+function validateDocumentId(id, label) {
+  if (typeof id !== 'string' || id.length !== 16 || !/^[a-zA-Z0-9]{16}$/.test(id)) {
+    throw new Error(`Validation failed: ${label} ID "${id}" must be a 16-character alphanumeric string (length: ${id?.length})`);
+  }
+  return id;
 }
 
 function createItem({ id, name, img, description, reference, cost, folder }) {
+  validateDocumentId(id, `Item ${name}`);
   return {
-    _id: id || randomID(),
+    _id: id,
     name,
     type: 'equipment',
     img,
@@ -63,8 +71,9 @@ function createItem({ id, name, img, description, reference, cost, folder }) {
 }
 
 function createTrait({ id, name, img, description, reference, noviceDesc, adeptDesc, masterDesc, noviceActive = true, adeptActive = false, masterActive = false }) {
+  validateDocumentId(id, `Trait ${name}`);
   return {
-    _id: id || randomID(),
+    _id: id,
     name,
     type: 'trait',
     img: img || 'systems/symbaroum/asset/image/trait.png',
@@ -120,8 +129,9 @@ function createTrait({ id, name, img, description, reference, noviceDesc, adeptD
 }
 
 function createWeapon({ id, name, img, damage, quality, attribute = 'accurate' }) {
+  validateDocumentId(id, `Weapon ${name}`);
   return {
-    _id: id || randomID(),
+    _id: id,
     name,
     type: 'weapon',
     img: img || 'icons/weapons/melee/claws-bear.webp',
@@ -202,9 +212,13 @@ function createWeapon({ id, name, img, damage, quality, attribute = 'accurate' }
 }
 
 function createActor({ id, name, img, race, shadow, appearance, tactics, attributes, toughness, items, folder }) {
-  const actorId = id || randomID();
+  validateDocumentId(id, `Actor ${name}`);
+  for (const item of (items || [])) {
+    validateDocumentId(item._id, `Actor ${name} item ${item.name}`);
+  }
+
   return {
-    _id: actorId,
+    _id: id,
     name,
     type: 'monster',
     img,
@@ -341,9 +355,11 @@ async function run() {
   console.log('Existing Adventure:', adventure.name);
   console.log('Existing Tables:', adventure.tables?.length || 0);
 
-  // Folder IDs
-  const itemFolderId = 'fldTransport0001';
-  const actorFolderId = 'fldAnimals000001';
+  // Folder IDs (strictly 16 characters)
+  const itemFolderId = makeId('fldTransport', 1); // fldTransport0001
+  const actorFolderId = makeId('fldAnimals', 1);   // fldAnimals000001
+  validateDocumentId(itemFolderId, 'itemFolderId');
+  validateDocumentId(actorFolderId, 'actorFolderId');
 
   adventure.folders = [
     {
@@ -365,7 +381,7 @@ async function run() {
   // 1. Veículos (Itens de Equipamento)
   adventure.items = [
     createItem({
-      id: 'itmCart0000000001',
+      id: makeId('itmCart', 1), // itmCart000000001
       name: 'Carroça',
       img: 'icons/commodities/tech/wheel.webp',
       reference: 'cart',
@@ -380,7 +396,7 @@ async function run() {
 </ul>`
     }),
     createItem({
-      id: 'itmWagon000000001',
+      id: makeId('itmWagon', 1), // itmWagon00000001
       name: 'Vagão',
       img: 'icons/environment/settlement/wagon.webp',
       reference: 'wagon',
@@ -394,7 +410,7 @@ async function run() {
 </ul>`
     }),
     createItem({
-      id: 'itmSleigh00000001',
+      id: makeId('itmSleigh', 1), // itmSleigh0000001
       name: 'Trenó',
       img: 'icons/commodities/tech/wheel.webp',
       reference: 'sleigh',
@@ -405,7 +421,7 @@ async function run() {
 <p>Pode ser tracionado por animais de carga ou expedicionários munidos de correias de tração.</p>`
     }),
     createItem({
-      id: 'itmCanoe000000001',
+      id: makeId('itmCanoe', 1), // itmCanoe00000001
       name: 'Canoa',
       img: 'icons/svg/anchor.svg',
       reference: 'canoe',
@@ -418,7 +434,7 @@ async function run() {
 </ul>`
     }),
     createItem({
-      id: 'itmRowboat0000001',
+      id: makeId('itmRowboat', 1), // itmRowboat000001
       name: 'Barco a remo',
       img: 'icons/svg/anchor.svg',
       reference: 'rowingboat',
@@ -431,7 +447,7 @@ async function run() {
 </ul>`
     }),
     createItem({
-      id: 'itmRiverboat00001',
+      id: makeId('itmRiverboat', 1), // itmRiverboat0001
       name: 'Barco de rio',
       img: 'icons/environment/settlement/ship.webp',
       reference: 'riverboat',
@@ -444,7 +460,7 @@ async function run() {
 </ul>`
     }),
     createItem({
-      id: 'itmGalley00000001',
+      id: makeId('itmGalley', 1), // itmGalley0000001
       name: 'Navio / Galé',
       img: 'icons/skills/trades/profession-sailing-ship.webp',
       reference: 'galley',
@@ -459,57 +475,10 @@ async function run() {
   ];
 
   // 2. Fichas de Animais (Actors de Monstro)
-  // Reusable traits:
-  const traitArmoredNovice = createTrait({
-    id: 'trtArmoredNovice1',
-    name: 'Armadurado',
-    img: 'systems/symbaroum/asset/image/trait.png',
-    reference: 'armored',
-    description: '<p>A criatura possui pele grossa, escamas ou couro que a torna especialmente difícil de ferir.</p>',
-    noviceDesc: '<p>A criatura tem uma proteção natural de 2.</p>',
-    noviceActive: true
-  });
-
-  const traitRobustNovice = createTrait({
-    id: 'trtRobustNovice01',
-    name: 'Robusto (M)',
-    img: 'systems/symbaroum/asset/image/trait.png',
-    reference: 'robust',
-    description: '<p>A criatura é maior e mais resistente que o normal, e só pode usar armaduras leves modificadas.</p>',
-    noviceDesc: '<p>A criatura ignora 2 pontos de dano de cada acerto, além de qualquer Armadura que esteja usando. Uma vez por turno, causa +2 pontos de dano em ataques corpo a corpo. Sua Defesa baseia-se em [Rápido-2].</p>',
-    noviceActive: true
-  });
-
-  const traitRobustAdept = createTrait({
-    id: 'trtRobustAdept01',
-    name: 'Robusto (M)',
-    img: 'systems/symbaroum/asset/image/trait.png',
-    reference: 'robust',
-    description: '<p>A criatura é maior e mais resistente que o normal, e só pode usar armaduras leves modificadas.</p>',
-    noviceDesc: '<p>A criatura ignora 2 pontos de dano de cada acerto.</p>',
-    adeptDesc: '<p>A criatura ignora 3 pontos de dano de cada acerto, além de qualquer Armadura que esteja usando. Uma vez por turno, causa +3 pontos de dano em ataques corpo a corpo. Sua Defesa baseia-se em [Rápido-3].</p>',
-    noviceActive: true,
-    adeptActive: true
-  });
-
-  const traitRobustMaster = createTrait({
-    id: 'trtRobustMaster1',
-    name: 'Robusto (M)',
-    img: 'systems/symbaroum/asset/image/trait.png',
-    reference: 'robust',
-    description: '<p>A criatura é maior e mais resistente que o normal, e só pode usar armaduras leves modificadas.</p>',
-    noviceDesc: '<p>A criatura ignora 2 pontos de dano de cada acerto.</p>',
-    adeptDesc: '<p>A criatura ignora 3 pontos de dano de cada acerto.</p>',
-    masterDesc: '<p>A criatura ignora 4 pontos de dano de cada acerto, além de qualquer Armadura que esteja usando. Uma vez por turno, causa +4 pontos de dano em ataques corpo a corpo. Sua Defesa baseia-se em [Rápido-4].</p>',
-    noviceActive: true,
-    adeptActive: true,
-    masterActive: true
-  });
-
   adventure.actors = [
     // Mula
     createActor({
-      id: 'actMule0000000001',
+      id: makeId('actMule', 1), // actMule000000001
       name: 'Mula',
       img: 'icons/environment/creatures/horse-white.webp',
       race: 'Mula (Besta)',
@@ -531,10 +500,28 @@ async function run() {
       toughness: { value: 14, max: 14, threshold: 7 },
       folder: actorFolderId,
       items: [
-        traitArmoredNovice,
-        traitRobustAdept,
+        createTrait({
+          id: makeId('trtArmMule', 1), // trtArmMule000001
+          name: 'Armadurado',
+          img: 'systems/symbaroum/asset/image/trait.png',
+          reference: 'armored',
+          description: '<p>A criatura possui pele grossa, escamas ou couro que a torna especialmente difícil de ferir.</p>',
+          noviceDesc: '<p>A criatura tem uma proteção natural de 2.</p>',
+          noviceActive: true
+        }),
+        createTrait({
+          id: makeId('trtRobMule', 1), // trtRobMule000001
+          name: 'Robusto (M)',
+          img: 'systems/symbaroum/asset/image/trait.png',
+          reference: 'robust',
+          description: '<p>A criatura é maior e mais resistente que o normal, e só pode usar armaduras leves modificadas.</p>',
+          noviceDesc: '<p>A criatura ignora 2 pontos de dano de cada acerto.</p>',
+          adeptDesc: '<p>A criatura ignora 3 pontos de dano de cada acerto, além de qualquer Armadura que esteja usando. Uma vez por turno, causa +3 pontos de dano em ataques corpo a corpo. Sua Defesa baseia-se em [Rápido-3].</p>',
+          noviceActive: true,
+          adeptActive: true
+        }),
         createWeapon({
-          id: 'wpnHoofMule000001',
+          id: makeId('wpnHoofMule', 1), // wpnHoofMule00001
           name: 'Cascos',
           img: 'icons/commodities/bones/hooves-cloven-brown.webp',
           damage: '1d6',
@@ -546,7 +533,7 @@ async function run() {
 
     // Burro
     createActor({
-      id: 'actDonkey00000001',
+      id: makeId('actDonkey', 1), // actDonkey0000001
       name: 'Burro',
       img: 'icons/environment/creatures/horse-tan.webp',
       race: 'Burro (Besta)',
@@ -568,10 +555,26 @@ async function run() {
       toughness: { value: 13, max: 13, threshold: 7 },
       folder: actorFolderId,
       items: [
-        traitArmoredNovice,
-        traitRobustNovice,
+        createTrait({
+          id: makeId('trtArmDonk', 1), // trtArmDonk000001
+          name: 'Armadurado',
+          img: 'systems/symbaroum/asset/image/trait.png',
+          reference: 'armored',
+          description: '<p>A criatura possui pele grossa, escamas ou couro que a torna especialmente difícil de ferir.</p>',
+          noviceDesc: '<p>A criatura tem uma proteção natural de 2.</p>',
+          noviceActive: true
+        }),
+        createTrait({
+          id: makeId('trtRobDonk', 1), // trtRobDonk000001
+          name: 'Robusto (M)',
+          img: 'systems/symbaroum/asset/image/trait.png',
+          reference: 'robust',
+          description: '<p>A criatura é maior e mais resistente que o normal, e só pode usar armaduras leves modificadas.</p>',
+          noviceDesc: '<p>A criatura ignora 2 pontos de dano de cada acerto, além de qualquer Armadura que esteja usando. Uma vez por turno, causa +2 pontos de dano em ataques corpo a corpo. Sua Defesa baseia-se em [Rápido-2].</p>',
+          noviceActive: true
+        }),
         createWeapon({
-          id: 'wpnHoofDonk000001',
+          id: makeId('wpnHoofDonk', 1), // wpnHoofDonk00001
           name: 'Cascos',
           img: 'icons/commodities/bones/hooves-cloven-brown.webp',
           damage: '1d6',
@@ -583,7 +586,7 @@ async function run() {
 
     // Boi
     createActor({
-      id: 'actOx000000000001',
+      id: makeId('actOx', 1), // actOx00000000001
       name: 'Boi',
       img: 'icons/creatures/mammals/ox-bull-horned-glowing-orange.webp',
       race: 'Boi (Besta)',
@@ -605,10 +608,28 @@ async function run() {
       toughness: { value: 16, max: 16, threshold: 8 },
       folder: actorFolderId,
       items: [
-        traitArmoredNovice,
-        traitRobustAdept,
+        createTrait({
+          id: makeId('trtArmOx', 1), // trtArmOx00000001
+          name: 'Armadurado',
+          img: 'systems/symbaroum/asset/image/trait.png',
+          reference: 'armored',
+          description: '<p>A criatura possui pele grossa, escamas ou couro que a torna especialmente difícil de ferir.</p>',
+          noviceDesc: '<p>A criatura tem uma proteção natural de 2.</p>',
+          noviceActive: true
+        }),
+        createTrait({
+          id: makeId('trtRobOx', 1), // trtRobOx00000001
+          name: 'Robusto (M)',
+          img: 'systems/symbaroum/asset/image/trait.png',
+          reference: 'robust',
+          description: '<p>A criatura é maior e mais resistente que o normal, e só pode usar armaduras leves modificadas.</p>',
+          noviceDesc: '<p>A criatura ignora 2 pontos de dano de cada acerto.</p>',
+          adeptDesc: '<p>A criatura ignora 3 pontos de dano de cada acerto, além de qualquer Armadura que esteja usando. Uma vez por turno, causa +3 pontos de dano em ataques corpo a corpo. Sua Defesa baseia-se em [Rápido-3].</p>',
+          noviceActive: true,
+          adeptActive: true
+        }),
         createWeapon({
-          id: 'wpnHornsOx0000001',
+          id: makeId('wpnHornsOx', 1), // wpnHornsOx00001
           name: 'Chifres',
           img: 'icons/weapons/staves/staff-animal-skull-bull.webp',
           damage: '1d8',
@@ -620,7 +641,7 @@ async function run() {
 
     // Cavalo
     createActor({
-      id: 'actHorse000000001',
+      id: makeId('actHorse', 1), // actHorse00000001
       name: 'Cavalo',
       img: 'icons/environment/creatures/horse-brown.webp',
       race: 'Cavalo (Besta)',
@@ -642,10 +663,30 @@ async function run() {
       toughness: { value: 15, max: 15, threshold: 8 },
       folder: actorFolderId,
       items: [
-        traitArmoredNovice,
-        traitRobustMaster,
+        createTrait({
+          id: makeId('trtArmHorse', 1), // trtArmHorse00001
+          name: 'Armadurado',
+          img: 'systems/symbaroum/asset/image/trait.png',
+          reference: 'armored',
+          description: '<p>A criatura possui pele grossa, escamas ou couro que a torna especialmente difícil de ferir.</p>',
+          noviceDesc: '<p>A criatura tem uma proteção natural de 2.</p>',
+          noviceActive: true
+        }),
+        createTrait({
+          id: makeId('trtRobHorse', 1), // trtRobHorse00001
+          name: 'Robusto (M)',
+          img: 'systems/symbaroum/asset/image/trait.png',
+          reference: 'robust',
+          description: '<p>A criatura é maior e mais resistente que o normal, e só pode usar armaduras leves modificadas.</p>',
+          noviceDesc: '<p>A criatura ignora 2 pontos de dano de cada acerto.</p>',
+          adeptDesc: '<p>A criatura ignora 3 pontos de dano de cada acerto.</p>',
+          masterDesc: '<p>A criatura ignora 4 pontos de dano de cada acerto, além de qualquer Armadura que esteja usando. Uma vez por turno, causa +4 pontos de dano em ataques corpo a corpo. Sua Defesa baseia-se em [Rápido-4].</p>',
+          noviceActive: true,
+          adeptActive: true,
+          masterActive: true
+        }),
         createWeapon({
-          id: 'wpnHoofHorse00001',
+          id: makeId('wpnHoofHorse', 1), // wpnHoofHorse0001
           name: 'Cascos',
           img: 'icons/commodities/bones/hooves-cloven-brown.webp',
           damage: '1d8',
@@ -669,9 +710,9 @@ async function run() {
   const verifyAdv = JSON.parse(verifyRaw);
 
   console.log('Verify Success!');
-  console.log('Folders:', verifyAdv.folders.map(f => f.name));
-  console.log('Items count:', verifyAdv.items.length, verifyAdv.items.map(i => i.name));
-  console.log('Actors count:', verifyAdv.actors.length, verifyAdv.actors.map(a => a.name));
+  console.log('Folders:', verifyAdv.folders.map(f => ({ id: f._id, name: f.name })));
+  console.log('Items count:', verifyAdv.items.length, verifyAdv.items.map(i => ({ id: i._id, name: i.name })));
+  console.log('Actors count:', verifyAdv.actors.length, verifyAdv.actors.map(a => ({ id: a._id, name: a.name, items: a.items.map(i => ({ id: i._id, name: i.name })) })));
   console.log('Tables preserved count:', verifyAdv.tables.length);
 
   await db.close();
