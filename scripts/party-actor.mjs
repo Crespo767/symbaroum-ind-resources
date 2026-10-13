@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
 
 /** Tipo de ator declarado em module.json (documentTypes.Actor.party); o core o registra sozinho. */
 export const PARTY_ACTOR_TYPE = `${MODULE_ID}.party`;
@@ -222,6 +223,8 @@ export class PartyActorSheet extends BaseActorSheet {
     const occupationDisplay = occupation || race || (memberActor.type === "monster" ? defaultLabel : "");
     const topAttributes = this._getMemberTopAttributes(memberActor, 4);
     const canRoll = Boolean(memberActor.isOwner || globalThis.game?.user?.isGM);
+    const currentGuideId = this.actor?.system?.expedition?.guideId || "";
+    const isGuide = Boolean(currentGuideId && currentGuideId === memberActor.id);
 
     // Vitalidade / Tenacidade (Toughness)
     const toughnessData = sys.health?.toughness ?? {};
@@ -257,6 +260,7 @@ export class PartyActorSheet extends BaseActorSheet {
       availableXp: availableXp,
       hasXp: totalXp > 0 || Boolean(exp.total),
       isCompanion: isCompanion,
+      isGuide: isGuide,
       isMonster: memberActor.type === "monster",
       topAttributes: topAttributes,
       health: {
@@ -461,6 +465,53 @@ export class PartyActorSheet extends BaseActorSheet {
       regions: regionOptions,
       modifier: currentRegion.modifier,
       modifierText: currentRegion.modifier > 0 ? `+${currentRegion.modifier}` : (currentRegion.key === "ambria" ? "±0" : "+0")
+    };
+
+    const rawExpedition = this.actor?.system?.expedition ?? {};
+    const guideId = rawExpedition.guideId || "";
+    let guideActor = null;
+    if (guideId) {
+      guideActor = this._resolveActor(guideId);
+    }
+
+    const hasGuide = Boolean(guideActor);
+    let guideData = null;
+    if (hasGuide) {
+      const guideSys = guideActor.system ?? {};
+      const guideBio = guideSys.bio ?? {};
+      const guideOccupation = (guideBio.occupation && typeof guideBio.occupation === "string")
+        ? guideBio.occupation.trim()
+        : (typeof guideSys.occupation === "string" ? guideSys.occupation.trim() : "");
+
+      const attrs = guideSys.attributes ?? {};
+      const getAttrVal = (attrObj) => {
+        if (!attrObj) return 0;
+        return typeof attrObj === "object" ? Number(attrObj.total ?? attrObj.value ?? 0) : Number(attrObj);
+      };
+      const vigilantVal = getAttrVal(attrs.vigilant);
+      const cunningVal = getAttrVal(attrs.cunning);
+
+      guideData = {
+        hasGuide: true,
+        id: guideActor.id,
+        uuid: guideActor.uuid,
+        name: guideActor.name,
+        img: guideActor.img || "icons/svg/mystery-man.svg",
+        occupation: guideOccupation,
+        vigilant: vigilantVal,
+        cunning: cunningVal,
+        canOpenSheet: true,
+        actor: guideActor
+      };
+    } else {
+      guideData = {
+        hasGuide: false
+      };
+    }
+
+    data.expedition = {
+      guideId: guideId,
+      guide: guideData
     };
 
     return data;
@@ -772,6 +823,215 @@ export class PartyActorSheet extends BaseActorSheet {
         }
       });
     });
+
+    root.querySelectorAll('[data-action="open-guide-sheet"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const actorId = el.dataset.actorId || this.actor?.system?.expedition?.guideId;
+        if (!actorId) return;
+        const targetActor = this._resolveActor(actorId);
+        targetActor?.sheet?.render(true);
+      });
+    });
+
+    root.querySelectorAll('[data-action="select-guide"]').forEach(el => {
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        this._onSelectGuide();
+      });
+    });
+
+    root.querySelectorAll('[data-action="unlink-guide"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!this.isEditable) return;
+        await this._onUnsetGuide();
+      });
+    });
+
+    this._bindMemberContextMenu(root);
+  }
+
+  _bindMemberContextMenu(root) {
+    const BaseContextMenu = globalThis.foundry?.applications?.ux?.ContextMenu ?? globalThis.ContextMenu;
+    const ContextMenuClass = BaseContextMenu?.implementation ?? BaseContextMenu;
+    if (typeof ContextMenuClass !== "function") return;
+
+    const setGuideEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.SetGuideContextMenu") || "Definir como guia do grupo",
+      icon: '<i class="fas fa-compass"></i>',
+      visible: (target) => {
+        if (!this.isEditable) return false;
+        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
+        const card = el?.closest?.(".party-member-card") ?? el;
+        const actorId = card?.dataset?.actorId;
+        if (!actorId) return false;
+        const currentGuideId = this.actor?.system?.expedition?.guideId;
+        return currentGuideId !== actorId;
+      },
+      onClick: (target) => {
+        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
+        const card = el?.closest?.(".party-member-card") ?? el;
+        const actorId = card?.dataset?.actorId;
+        if (actorId) void this._onSetGuide(actorId);
+      }
+    });
+
+    const unsetGuideEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.UnsetGuideContextMenu") || "Remover como guia do grupo",
+      icon: '<i class="fas fa-times"></i>',
+      visible: (target) => {
+        if (!this.isEditable) return false;
+        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
+        const card = el?.closest?.(".party-member-card") ?? el;
+        const actorId = card?.dataset?.actorId;
+        if (!actorId) return false;
+        const currentGuideId = this.actor?.system?.expedition?.guideId;
+        return currentGuideId === actorId;
+      },
+      onClick: () => {
+        void this._onUnsetGuide();
+      }
+    });
+
+    try {
+      new ContextMenuClass(
+        root,
+        ".party-member-card[data-actor-id]",
+        [setGuideEntry, unsetGuideEntry],
+        { fixed: true, jQuery: false }
+      );
+    } catch (err) {
+      console.warn("Tenebre | Could not register member ContextMenu:", err);
+    }
+  }
+
+  async _onSetGuide(actorId) {
+    if (!this.isEditable || !actorId) return;
+    const guideActor = this._resolveActor(actorId);
+    if (!guideActor) return;
+
+    await this.actor.update({
+      "system.expedition.guideId": actorId
+    });
+
+    const msg = globalThis.game?.i18n?.format
+      ? globalThis.game.i18n.format("TENEBRE.Party.GuideSetNotice", { name: guideActor.name })
+      : `${guideActor.name} foi definido(a) como guia da expedição.`;
+    globalThis.ui?.notifications?.info?.(msg);
+  }
+
+  async _onUnsetGuide() {
+    if (!this.isEditable) return;
+    await this.actor.update({
+      "system.expedition.guideId": ""
+    });
+
+    const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.GuideUnsetNotice")
+      || "Guia da expedição removido.";
+    globalThis.ui?.notifications?.info?.(msg);
+  }
+
+  async _onSelectGuide() {
+    if (!this.isEditable) return;
+
+    const memberIds = Array.isArray(this.actor?.system?.members) ? this.actor.system.members : [];
+    const companionIds = Array.isArray(this.actor?.system?.companions) ? this.actor.system.companions : [];
+    const candidates = [];
+
+    for (const mId of memberIds) {
+      const a = this._resolveActor(mId);
+      if (a) candidates.push({ id: a.id, name: a.name, type: "member" });
+    }
+    for (const cId of companionIds) {
+      const a = this._resolveActor(cId);
+      if (a) candidates.push({ id: a.id, name: a.name, type: "companion" });
+    }
+
+    if (candidates.length === 0) {
+      globalThis.ui?.notifications?.warn?.(
+        globalThis.game?.i18n?.localize?.("TENEBRE.Party.NoCandidatesForGuide") ||
+        "Não há personagens ou companheiros no grupo para definir como guia."
+      );
+      return;
+    }
+
+    const currentGuideId = this.actor?.system?.expedition?.guideId || "";
+    const memberLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.MembersSectionTitle") || "Personagens";
+    const companionLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.CompanionsSectionTitle") || "Companheiros";
+
+    const membersGroup = candidates.filter(c => c.type === "member");
+    const companionsGroup = candidates.filter(c => c.type === "companion");
+
+    let optionsHtml = "";
+    if (membersGroup.length > 0) {
+      optionsHtml += `<optgroup label="${memberLabel}">` +
+        membersGroup.map(c => `<option value="${c.id}" ${c.id === currentGuideId ? "selected" : ""}>${c.name}</option>`).join("") +
+        `</optgroup>`;
+    }
+    if (companionsGroup.length > 0) {
+      optionsHtml += `<optgroup label="${companionLabel}">` +
+        companionsGroup.map(c => `<option value="${c.id}" ${c.id === currentGuideId ? "selected" : ""}>${c.name}</option>`).join("") +
+        `</optgroup>`;
+    }
+
+    const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.SelectGuideDialogTitle") || "Definir Guia do Grupo";
+    const prompt = globalThis.game?.i18n?.localize?.("TENEBRE.Party.SelectGuidePrompt") || "Selecione o personagem responsável por orientar a expedição em Davokar:";
+
+    const content = `
+      <form class="guide-selection-dialog-form" style="display:flex; flex-direction:column; gap:10px;">
+        <p style="margin:0 0 5px; font-size:0.9em; opacity:0.85;">${prompt}</p>
+        <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
+          <label style="font-weight:bold; font-size:0.9em;">${globalThis.game?.i18n?.localize?.("TENEBRE.Party.GuideLabel") || "Guia"}:</label>
+          <select id="guide-select-choice" style="width:100%; height:28px;">
+            ${optionsHtml}
+          </select>
+        </div>
+      </form>
+    `;
+
+    if (!globalThis.Dialog) return;
+
+    new globalThis.Dialog({
+      title: title,
+      content: content,
+      buttons: {
+        confirm: {
+          icon: '<i class="fas fa-compass"></i>',
+          label: globalThis.game?.i18n?.localize?.("DIALOG.OK") || "Confirmar",
+          callback: async (html) => {
+            const root = html?.[0] ?? html;
+            const chosenId = root.querySelector("#guide-select-choice")?.value;
+            if (chosenId) {
+              await this._onSetGuide(chosenId);
+            }
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: globalThis.game?.i18n?.localize?.("DIALOG.CANCEL") || "Cancelar"
+        }
+      },
+      default: "confirm"
+    }).render(true);
+  }
+
+  async _onDropGuide(event, data) {
+    if (!this.isEditable) return false;
+    let actorDoc = null;
+    if (globalThis.Actor?.implementation?.fromDropData) {
+      try { actorDoc = await globalThis.Actor.implementation.fromDropData(data); } catch {}
+    }
+    if (!actorDoc && data?.uuid && globalThis.fromUuid) {
+      try { actorDoc = await globalThis.fromUuid(data.uuid); } catch {}
+    }
+    if (!actorDoc && data?.id) {
+      actorDoc = this._resolveActor(data.id);
+    }
+    if (!actorDoc) return false;
+    await this._onSetGuide(actorDoc.id);
+    return true;
   }
 
   _onDragStart(event) {
@@ -814,6 +1074,11 @@ export class PartyActorSheet extends BaseActorSheet {
       }
     }
     if (!data) return false;
+
+    const isGuideDrop = Boolean(event.target?.closest?.(".party-guide-box, [data-drop-zone='expedition-guide']"));
+    if (isGuideDrop) {
+      return this._onDropGuide(event, data);
+    }
 
     const isStorageDrop = Boolean(event.target?.closest?.(".party-storage-location-box, [data-drop-zone='storage-location'], [data-drop-zone='draft-animal']"));
     if (isStorageDrop) {

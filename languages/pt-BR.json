@@ -929,5 +929,22 @@
   "TENEBRE.Party.RegionDark": "Davokar Escura (+5)",
   "TENEBRE.Party.LocationNameLabel": "Local",
   "TENEBRE.Party.LocationNamePlaceholder": "Ex.: Forte do Cardo, Ruínas...",
-  "TENEBRE.Party.LocationNameTooltip": "Local específico ou ponto de referência onde os personagens se encontram."
+  "TENEBRE.Party.LocationNameTooltip": "Local específico ou ponto de referência onde os personagens se encontram.",
+  "TENEBRE.Party.SetGuideContextMenu": "Definir como guia do grupo",
+  "TENEBRE.Party.UnsetGuideContextMenu": "Remover como guia do grupo",
+  "TENEBRE.Party.GuideTag": "Guia",
+  "TENEBRE.Party.GuideLabel": "Guia",
+  "TENEBRE.Party.ExpeditionGuideBadge": "Guia da Expedição",
+  "TENEBRE.Party.OpenGuideSheet": "Abrir ficha do guia",
+  "TENEBRE.Party.ChangeGuide": "Trocar guia da expedição",
+  "TENEBRE.Party.UnlinkGuide": "Remover guia da expedição",
+  "TENEBRE.Party.OrientationAttributes": "Atributos para Orientação",
+  "TENEBRE.Party.ExpeditionNoGuideTitle": "Nenhum guia definido",
+  "TENEBRE.Party.ExpeditionNoGuideHint": "Clique com o botão direito em um personagem na aba de Personagens ou clique abaixo para definir o guia.",
+  "TENEBRE.Party.SelectGuideBtn": "Definir Guia da Expedição",
+  "TENEBRE.Party.SelectGuideDialogTitle": "Definir Guia do Grupo",
+  "TENEBRE.Party.SelectGuidePrompt": "Selecione o personagem responsável por orientar o grupo em Davokar:",
+  "TENEBRE.Party.NoCandidatesForGuide": "Não há personagens ou companheiros no grupo para definir como guia.",
+  "TENEBRE.Party.GuideSetNotice": "{name} foi definido(a) como guia da expedição.",
+  "TENEBRE.Party.GuideUnsetNotice": "Guia da expedição removido."
 }

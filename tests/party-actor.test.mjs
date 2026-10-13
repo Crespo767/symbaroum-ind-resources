@@ -37,6 +37,7 @@ test("PartyActorSheet._prepareMemberCardData formats toughness and corruption co
   globalThis.foundry = globalThis.foundry ?? { utils: { deepClone: (x) => JSON.parse(JSON.stringify(x)) } };
   globalThis.ActorSheet = class {
     constructor(actor) { this.actor = actor; }
+    get isEditable() { return true; }
   };
 
   const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
@@ -219,11 +220,102 @@ test("PartyActorSheet formats location regions and modifiers correctly in getDat
   assert.equal(PartyActorSheet.getRegionModifier("dark"), 5);
 });
 
-test("Party sheet template includes expedition tab navigation and container", () => {
+test("Party sheet template includes expedition tab with guide card and actions", () => {
   assert.match(templateSource, /data-tab="expedition"/);
   assert.match(templateSource, /class="party-expedition-tab-content"/);
-  assert.match(templateSource, /TENEBRE\.Party\.TabExpedition/);
-  assert.match(templateSource, /TENEBRE\.Party\.ExpeditionEmptyTitle/);
+  assert.match(templateSource, /class="party-storage-location-box party-guide-box/);
+  assert.match(templateSource, /data-drop-zone="expedition-guide"/);
+  assert.match(templateSource, /data-action="open-guide-sheet"/);
+  assert.match(templateSource, /data-action="select-guide"/);
+  assert.match(templateSource, /data-action="unlink-guide"/);
+  assert.match(templateSource, /TENEBRE\.Party\.ExpeditionGuideBadge/);
+  assert.match(templateSource, /TENEBRE\.Party\.ExpeditionNoGuideTitle/);
+  assert.match(templateSource, /class="member-guide-tag"/);
 });
+
+test("PartyActorSheet formats expedition guide and members isGuide correctly", async () => {
+  globalThis.Hooks = globalThis.Hooks ?? { once() {}, on() {}, callAll() {} };
+  globalThis.foundry = globalThis.foundry ?? { utils: { deepClone: (x) => JSON.parse(JSON.stringify(x)) } };
+  globalThis.ActorSheet = class {
+    constructor(actor) { this.actor = actor; }
+    get isEditable() { return true; }
+  };
+
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+
+  const guideMember = {
+    id: "guide-1",
+    uuid: "Actor.guide-1",
+    name: "Arokh o Mateiro",
+    img: "icons/svg/mystery-man.svg",
+    type: "player",
+    isOwner: true,
+    system: {
+      bio: { occupation: "Mateiro" },
+      attributes: {
+        vigilant: { total: 15 },
+        cunning: { total: 13 }
+      }
+    }
+  };
+
+  const partyWithGuide = {
+    id: "party-guide-test",
+    isOwner: true,
+    system: {
+      members: ["guide-1"],
+      expedition: {
+        guideId: "guide-1"
+      }
+    },
+    items: new Map()
+  };
+
+  const sheet = new PartyActorSheet(partyWithGuide);
+  sheet._resolveActor = (id) => (id === "guide-1" ? guideMember : null);
+
+  const cardData = sheet._prepareMemberCardData(guideMember, false);
+  assert.equal(cardData.isGuide, true);
+
+  const data = await sheet.getData();
+  assert.equal(data.expedition.guideId, "guide-1");
+  assert.equal(data.expedition.guide.hasGuide, true);
+  assert.equal(data.expedition.guide.name, "Arokh o Mateiro");
+  assert.equal(data.expedition.guide.occupation, "Mateiro");
+  assert.equal(data.expedition.guide.vigilant, 15);
+  assert.equal(data.expedition.guide.cunning, 13);
+  assert.equal(data.expedition.guide.canOpenSheet, true);
+
+  // Sem guia definido
+  const partyNoGuide = {
+    id: "party-no-guide",
+    system: { expedition: {} },
+    items: new Map()
+  };
+  const sheet2 = new PartyActorSheet(partyNoGuide);
+  const data2 = await sheet2.getData();
+  assert.equal(data2.expedition.guide.hasGuide, false);
+});
+
+test("PartyActorSheet._onSetGuide and _onUnsetGuide update party actor", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  const updates = [];
+  const mockPartyActor = {
+    id: "party-doc",
+    system: { expedition: {} },
+    update: async (data) => updates.push(data)
+  };
+
+  const sheet = new PartyActorSheet(mockPartyActor);
+  Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });
+  sheet._resolveActor = (id) => ({ id, name: "Guia Teste" });
+
+  await sheet._onSetGuide("guide-1");
+  assert.deepEqual(updates[0], { "system.expedition.guideId": "guide-1" });
+
+  await sheet._onUnsetGuide();
+  assert.deepEqual(updates[1], { "system.expedition.guideId": "" });
+});
+
 
 

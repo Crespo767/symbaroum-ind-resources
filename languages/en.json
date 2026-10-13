@@ -929,5 +929,22 @@
   "TENEBRE.Party.RegionDark": "Dark Davokar (+5)",
   "TENEBRE.Party.LocationNameLabel": "Location",
   "TENEBRE.Party.LocationNamePlaceholder": "E.g.: Thistle Hold, Ruins...",
-  "TENEBRE.Party.LocationNameTooltip": "Specific site or landmark where characters currently are."
+  "TENEBRE.Party.LocationNameTooltip": "Specific site or landmark where characters currently are.",
+  "TENEBRE.Party.SetGuideContextMenu": "Set as party guide",
+  "TENEBRE.Party.UnsetGuideContextMenu": "Remove as party guide",
+  "TENEBRE.Party.GuideTag": "Guide",
+  "TENEBRE.Party.GuideLabel": "Guide",
+  "TENEBRE.Party.ExpeditionGuideBadge": "Expedition Guide",
+  "TENEBRE.Party.OpenGuideSheet": "Open guide sheet",
+  "TENEBRE.Party.ChangeGuide": "Change expedition guide",
+  "TENEBRE.Party.UnlinkGuide": "Remove expedition guide",
+  "TENEBRE.Party.OrientationAttributes": "Orientation Attributes",
+  "TENEBRE.Party.ExpeditionNoGuideTitle": "No guide assigned",
+  "TENEBRE.Party.ExpeditionNoGuideHint": "Right-click a character in the Characters tab or click below to assign the party guide.",
+  "TENEBRE.Party.SelectGuideBtn": "Assign Expedition Guide",
+  "TENEBRE.Party.SelectGuideDialogTitle": "Assign Party Guide",
+  "TENEBRE.Party.SelectGuidePrompt": "Select the character responsible for guiding the party in Davokar:",
+  "TENEBRE.Party.NoCandidatesForGuide": "There are no characters or companions in the party to assign as guide.",
+  "TENEBRE.Party.GuideSetNotice": "{name} was assigned as expedition guide.",
+  "TENEBRE.Party.GuideUnsetNotice": "Expedition guide removed."
 }
