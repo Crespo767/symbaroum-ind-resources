@@ -237,12 +237,13 @@ export function buildOrientationChatHtml({
   evalResult
 }) {
   const regionNames = {
-    ambria: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionAmbria") || "Ambria",
-    bright: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionBright") || "Davokar Iluminada",
-    wild: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionWild") || "Davokar Selvagem",
-    dark: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionDark") || "Davokar Escura"
+    ambria: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameAmbria") || "Ambria",
+    bright: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameBright") || "Davokar Iluminada",
+    wild: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameWild") || "Davokar Selvagem",
+    dark: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameDark") || "Davokar Escura"
   };
-  const regionName = regionNames[regionKey] || regionKey;
+  const rawRegion = regionNames[regionKey] || regionKey;
+  const regionName = String(rawRegion).replace(/\s*\([±+\-]\d+\)/, "").trim();
 
   const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationCardTitle")
     || "Teste de Orientação em Davokar";
