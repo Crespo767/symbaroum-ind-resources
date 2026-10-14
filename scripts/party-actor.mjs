@@ -2,12 +2,235 @@ import { MODULE_ID } from "./constants.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
+import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs";
+import { escapeHtml } from "./utils.mjs";
 
 /** Tipo de ator declarado em module.json (documentTypes.Actor.party); o core o registra sozinho. */
 export const PARTY_ACTOR_TYPE = `${MODULE_ID}.party`;
 
 export function isPartyActor(actor) {
   return actor?.type === PARTY_ACTOR_TYPE;
+}
+
+/**
+ * Calcula a penalidade de orientação de acordo com o nível da dádiva Mateiro e a região atual
+ * Regras oficiais do Guia do Mestre (Capítulo 12, p. 115):
+ * - Ambria: Penalidade 0 (sem exigência de Mateiro).
+ * - Davokar Iluminada: Exige Mateiro I. 1 nível abaixo (sem Mateiro) -> penalidade -3.
+ * - Davokar Selvagem: Exige Mateiro II. 1 nível abaixo -> penalidade -3; 2 níveis abaixo (sem Mateiro) -> penalidade -5.
+ * - Davokar Escura: Exige Mateiro III. 1 nível abaixo -> penalidade -3; 2+ níveis abaixo -> penalidade -5.
+ */
+export function calculateBushcraftPenalty(bushcraftLevel = 0, regionKey = "ambria") {
+  const requiredLevels = {
+    ambria: 0,
+    bright: 1,
+    wild: 2,
+    dark: 3
+  };
+  const requiredLevel = requiredLevels[regionKey] ?? 0;
+  if (requiredLevel === 0) return 0;
+  const level = Number(bushcraftLevel) || 0;
+  const diff = Math.max(0, requiredLevel - level);
+  if (diff === 0) return 0;
+  if (diff === 1) return -3;
+  return -5;
+}
+
+/**
+ * Detecta se um ator possui a dádiva Mateiro (Bushcraft) e seu nível (1, 2 ou 3)
+ */
+export function detectBushcraftTier(actor) {
+  if (!actor) return { hasBushcraft: false, level: 0, item: null };
+  const items = actor.items ? Array.from(actor.items) : [];
+  let bushcraftItem = null;
+
+  for (const item of items) {
+    if (item.type !== "boon" && item.type !== "trait" && item.type !== "ability") continue;
+    const nameLower = (item.name || "").toLowerCase().trim();
+    const ref = (item.system?.reference || "").toLowerCase().trim();
+    if (ref === "bushcraft" || ref === "mateiro" || nameLower.includes("mateiro") || nameLower.includes("bushcraft")) {
+      bushcraftItem = item;
+      break;
+    }
+  }
+
+  if (!bushcraftItem) {
+    return { hasBushcraft: false, level: 0, item: null };
+  }
+
+  let level = Number(bushcraftItem.system?.level);
+  if (!level || isNaN(level) || level < 1) {
+    const nameLower = (bushcraftItem.name || "").toLowerCase();
+    if (nameLower.includes("iii") || nameLower.includes(" 3") || nameLower.includes("mestre") || nameLower.includes("master")) {
+      level = 3;
+    } else if (nameLower.includes("ii") || nameLower.includes(" 2") || nameLower.includes("adepto") || nameLower.includes("adept")) {
+      level = 2;
+    } else {
+      level = 1;
+    }
+  }
+
+  return {
+    hasBushcraft: true,
+    level: Math.max(1, Math.min(3, level)),
+    item: bushcraftItem
+  };
+}
+
+/**
+ * Calcula o alvo final do teste de Orientação com base no Vigilante do Guia, Mateiro e Região
+ */
+export function calculateOrientationTarget(vigilant = 10, bushcraftLevel = 0, regionKey = "ambria") {
+  const penalty = calculateBushcraftPenalty(bushcraftLevel, regionKey);
+  const baseVigilant = Number(vigilant) || 0;
+  const target = Math.max(1, baseVigilant + penalty);
+  return {
+    baseVigilant,
+    penalty,
+    target
+  };
+}
+
+/**
+ * Avalia o resultado da rolagem de 1d20 contra o alvo de Orientação
+ */
+export function evaluateOrientationRoll(rollTotal, target) {
+  const rollVal = Number(rollTotal) || 0;
+  const targetVal = Number(target) || 0;
+  const success = rollVal <= targetVal;
+  const greatSuccess = success && ((targetVal - rollVal >= 5) || rollVal === 1);
+  const failure = !success;
+
+  let verdict = "failure";
+  let ruinsMod = 0;
+  let enemiesMod = 0;
+  let terrainMod = 0;
+  let neutralDetection = false;
+  let mishap = true;
+
+  if (greatSuccess) {
+    verdict = "greatSuccess";
+    ruinsMod = 2;
+    enemiesMod = -2;
+    terrainMod = -2;
+    neutralDetection = true;
+    mishap = false;
+  } else if (success) {
+    verdict = "success";
+    ruinsMod = 2;
+    enemiesMod = -1;
+    terrainMod = -1;
+    neutralDetection = true;
+    mishap = false;
+  }
+
+  return {
+    verdict,
+    success,
+    greatSuccess,
+    failure,
+    rollTotal: rollVal,
+    target: targetVal,
+    margin: targetVal - rollVal,
+    ruinsMod,
+    enemiesMod,
+    terrainMod,
+    neutralDetection,
+    mishap
+  };
+}
+
+/**
+ * Monta o HTML do Card de Chat do Teste de Orientação
+ */
+export function buildOrientationChatHtml({
+  guideActor,
+  regionKey = "ambria",
+  bushcraft,
+  rollVal,
+  target,
+  evalResult
+}) {
+  const regionNames = {
+    ambria: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionAmbria") || "Ambria",
+    bright: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionBright") || "Davokar Iluminada",
+    wild: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionWild") || "Davokar Selvagem",
+    dark: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionDark") || "Davokar Escura"
+  };
+  const regionName = regionNames[regionKey] || regionKey;
+
+  const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationCardTitle")
+    || "Teste de Orientação em Davokar";
+
+  let verdictTitle = "";
+  let verdictDesc = "";
+  if (evalResult.verdict === "greatSuccess") {
+    verdictTitle = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationGreatSuccess") || "Grande Sucesso!";
+    verdictDesc = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationGreatSuccessDesc")
+      || "O guia encontra o caminho com maestria. Concede +2 Ruínas, -2 Inimigos, -2 Terreno e Detecção Antecipada.";
+  } else if (evalResult.verdict === "success") {
+    verdictTitle = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationSuccess") || "Sucesso";
+    verdictDesc = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationSuccessDesc")
+      || "O guia mantém o rumo correto. Concede +2 Ruínas, -1 Inimigos, -1 Terreno e Detecção Antecipada.";
+  } else {
+    verdictTitle = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationFailure") || "Desorientado (Falha)";
+    verdictDesc = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationFailureDesc")
+      || "O grupo se desorienta nos ermos! Nenhum bônus é concedido e ocorre um Infortúnio na floresta.";
+  }
+
+  const bushcraftText = bushcraft.hasBushcraft
+    ? `${globalThis.game?.i18n?.localize?.("TENEBRE.Party.BushcraftLabel") || "Mateiro"} ${bushcraft.levelRoman}`
+    : (globalThis.game?.i18n?.localize?.("TENEBRE.Party.NoBushcraft") || "Sem Mateiro");
+
+  const guideImg = guideActor?.img || "icons/svg/mystery-man.svg";
+  const guideName = guideActor?.name || "Guia";
+
+  let bonusesList = "";
+  if (evalResult.success) {
+    bonusesList = `
+      <div class="tenebre-orientation-bonuses">
+        <span class="bonus-tag is-positive"><i class="fas fa-monument"></i> ${globalThis.game?.i18n?.localize?.("TENEBRE.Party.RuinsBonus") || "Ruínas"}: +${evalResult.ruinsMod}</span>
+        <span class="bonus-tag is-positive"><i class="fas fa-skull"></i> ${globalThis.game?.i18n?.localize?.("TENEBRE.Party.EnemiesBonus") || "Inimigos"}: ${evalResult.enemiesMod}</span>
+        <span class="bonus-tag is-positive"><i class="fas fa-mountain"></i> ${globalThis.game?.i18n?.localize?.("TENEBRE.Party.TerrainBonus") || "Terreno"}: ${evalResult.terrainMod}</span>
+        <span class="bonus-tag is-info"><i class="fas fa-binoculars"></i> ${globalThis.game?.i18n?.localize?.("TENEBRE.Party.EarlyDetection") || "Detecção Antecipada"}</span>
+      </div>
+    `;
+  } else {
+    bonusesList = `
+      <div class="tenebre-orientation-bonuses is-mishap">
+        <span class="bonus-tag is-negative"><i class="fas fa-exclamation-triangle"></i> Infortúnio na Davokar (Tabela de Infortúnios)</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="tenebre-chat-card tenebre-orientation-card orientation-${evalResult.verdict}">
+      <header class="tenebre-card-header">
+        <i class="fas fa-compass"></i>
+        <h3>${escapeHtml(title)}</h3>
+      </header>
+      <div class="tenebre-card-guide">
+        <img src="${escapeHtml(guideImg)}" alt="${escapeHtml(guideName)}" />
+        <div class="guide-meta">
+          <strong>${escapeHtml(guideName)}</strong>
+          <span>${escapeHtml(regionName)} • ${escapeHtml(bushcraftText)}</span>
+        </div>
+      </div>
+      <div class="tenebre-roll-math">
+        <span>Vigilante: <strong>${bushcraft.baseVigilant}</strong></span>
+        ${bushcraft.penalty ? `<span>Penalidade: <strong>${bushcraft.penaltyText}</strong></span>` : ""}
+        <span class="roll-target-badge">Alvo: <strong>${target}</strong></span>
+      </div>
+      <div class="tenebre-roll-result-box ${evalResult.verdict}">
+        <div class="roll-score-row">
+          <span class="roll-die"><i class="fas fa-dice-d20"></i> ${rollVal}</span>
+          <span class="roll-verdict">${escapeHtml(verdictTitle)}</span>
+        </div>
+        <p class="roll-desc">${escapeHtml(verdictDesc)}</p>
+      </div>
+      ${bonusesList}
+    </div>
+  `;
 }
 
 /** Presets oficiais de locais de armazenamento (veículos, animais, recipientes) */
@@ -112,7 +335,8 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
       });
       schema.expedition = new fields.SchemaField({
         guideId: fields.StringField ? new fields.StringField({ initial: "" }) : "",
-        guideUuid: fields.StringField ? new fields.StringField({ initial: "" }) : ""
+        guideUuid: fields.StringField ? new fields.StringField({ initial: "" }) : "",
+        dayState: fields.ObjectField ? new fields.ObjectField({ initial: {} }) : {}
       });
     }
     return schema;
@@ -140,8 +364,10 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
     if (!this.location.region) this.location.region = "ambria";
     this.expedition ??= {
       guideId: "",
-      guideUuid: ""
+      guideUuid: "",
+      dayState: {}
     };
+    this.expedition.dayState ??= {};
     this.experience ??= { total: 0, artifactrr: 0, spent: 0, available: 0 };
     const exp = this.experience;
     exp.available = (Number(exp.total) || 0) - (Number(exp.artifactrr) || 0) - (Number(exp.spent) || 0);
@@ -507,6 +733,19 @@ export class PartyActorSheet extends BaseActorSheet {
       const vigilantVal = getAttrVal(attrs.vigilant);
       const cunningVal = getAttrVal(attrs.cunning);
 
+      const bushcraftData = detectBushcraftTier(guideActor);
+      const orientationTargetData = calculateOrientationTarget(vigilantVal, bushcraftData.level, regionKey);
+      const romanLevels = ["—", "I", "II", "III"];
+      const bushcraftView = {
+        hasBushcraft: bushcraftData.hasBushcraft,
+        level: bushcraftData.level,
+        levelRoman: romanLevels[bushcraftData.level] || `${bushcraftData.level}`,
+        penalty: orientationTargetData.penalty,
+        penaltyText: orientationTargetData.penalty === 0 ? "±0" : `${orientationTargetData.penalty}`,
+        target: orientationTargetData.target,
+        baseVigilant: orientationTargetData.baseVigilant
+      };
+
       guideData = {
         hasGuide: true,
         id: guideActor.id,
@@ -517,7 +756,8 @@ export class PartyActorSheet extends BaseActorSheet {
         vigilant: vigilantVal,
         cunning: cunningVal,
         canOpenSheet: true,
-        actor: guideActor
+        actor: guideActor,
+        bushcraft: bushcraftView
       };
     } else {
       guideData = {
@@ -525,9 +765,48 @@ export class PartyActorSheet extends BaseActorSheet {
       };
     }
 
+    const dayStateRaw = rawExpedition.dayState || this.actor?.flags?.[MODULE_ID]?.expedition?.dayState || {};
+    const orientationState = dayStateRaw.orientation || null;
+    let orientationDayView = { rolled: false };
+
+    if (orientationState && orientationState.rolled) {
+      const verdict = orientationState.verdict || "success";
+      const verdictLabels = {
+        greatSuccess: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationGreatSuccess") || "Grande Sucesso!",
+        success: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationSuccess") || "Sucesso",
+        failure: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationFailure") || "Desorientado"
+      };
+      const icons = {
+        greatSuccess: "fas fa-star",
+        success: "fas fa-check-circle",
+        failure: "fas fa-exclamation-triangle"
+      };
+      let summaryTooltip = "";
+      if (verdict === "greatSuccess") {
+        summaryTooltip = "+2 Ruínas | -2 Inimigos | -2 Terreno | Detecção Antecipada";
+      } else if (verdict === "success") {
+        summaryTooltip = "+2 Ruínas | -1 Inimigos | -1 Terreno | Detecção Antecipada";
+      } else {
+        summaryTooltip = "Infortúnio na Davokar! Sem bônus nas tabelas.";
+      }
+
+      orientationDayView = {
+        rolled: true,
+        verdict,
+        verdictLabel: verdictLabels[verdict] || verdict,
+        icon: icons[verdict] || "fas fa-compass",
+        rollTotal: orientationState.rollTotal,
+        target: orientationState.target,
+        summaryTooltip
+      };
+    }
+
     data.expedition = {
       guideId: guideId,
-      guide: guideData
+      guide: guideData,
+      dayState: {
+        orientation: orientationDayView
+      }
     };
 
     return data;
@@ -866,6 +1145,22 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
+    root.querySelectorAll('[data-action="roll-orientation"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onRollOrientation();
+      });
+    });
+
+    root.querySelectorAll('[data-action="reset-orientation"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onResetOrientation();
+      });
+    });
+
     root.querySelectorAll('[data-action="toggle-guide"]').forEach(el => {
       el.addEventListener("click", async (ev) => {
         ev.preventDefault();
@@ -976,6 +1271,110 @@ export class PartyActorSheet extends BaseActorSheet {
     const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.GuideUnsetNotice")
       || "Guia da expedição removido.";
     globalThis.ui?.notifications?.info?.(msg);
+  }
+
+  async _onRollOrientation() {
+    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const guideId = rawExpedition.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
+    const guideUuid = rawExpedition.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
+    let guideActor = null;
+    if (guideUuid) guideActor = this._resolveActor(guideUuid);
+    if (!guideActor && guideId) guideActor = this._resolveActor(guideId);
+
+    if (!guideActor) {
+      globalThis.ui?.notifications?.warn?.(
+        globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionNoGuideTitle") ||
+        "Nenhum guia definido para a expedição."
+      );
+      return;
+    }
+
+    const canRoll = Boolean(this.isEditable || guideActor.isOwner || globalThis.game?.user?.isGM);
+    if (!canRoll) {
+      globalThis.ui?.notifications?.warn?.(
+        globalThis.game?.i18n?.localize?.("TENEBRE.Party.RollNotAllowed") ||
+        "Você só pode rolar testes do seu próprio personagem."
+      );
+      return;
+    }
+
+    const regionKey = this.actor?.system?.location?.region || "ambria";
+    const bushcraftData = detectBushcraftTier(guideActor);
+    const attrs = guideActor.system?.attributes ?? {};
+    const getAttrVal = (attrObj) => {
+      if (!attrObj) return 0;
+      return typeof attrObj === "object" ? Number(attrObj.total ?? attrObj.value ?? 0) : Number(attrObj);
+    };
+    const vigilantVal = getAttrVal(attrs.vigilant);
+    const orientationTargetData = calculateOrientationTarget(vigilantVal, bushcraftData.level, regionKey);
+    const target = orientationTargetData.target;
+
+    const roll = await evaluateRoll("1d20");
+    const rollVal = rollTotal(roll);
+    const evalResult = evaluateOrientationRoll(rollVal, target);
+
+    const romanLevels = ["—", "I", "II", "III"];
+    const bushcraftView = {
+      hasBushcraft: bushcraftData.hasBushcraft,
+      level: bushcraftData.level,
+      levelRoman: romanLevels[bushcraftData.level] || `${bushcraftData.level}`,
+      penalty: orientationTargetData.penalty,
+      penaltyText: orientationTargetData.penalty === 0 ? "±0" : `${orientationTargetData.penalty}`,
+      target: target,
+      baseVigilant: orientationTargetData.baseVigilant
+    };
+
+    const chatContent = buildOrientationChatHtml({
+      guideActor,
+      regionKey,
+      bushcraft: bushcraftView,
+      rollVal,
+      target,
+      evalResult
+    });
+
+    const orientationUpdate = {
+      rolled: true,
+      rollTotal: rollVal,
+      target,
+      baseVigilant: orientationTargetData.baseVigilant,
+      penalty: orientationTargetData.penalty,
+      verdict: evalResult.verdict,
+      margin: evalResult.margin,
+      ruinsMod: evalResult.ruinsMod,
+      enemiesMod: evalResult.enemiesMod,
+      terrainMod: evalResult.terrainMod,
+      neutralDetection: evalResult.neutralDetection,
+      mishap: evalResult.mishap,
+      timestamp: Date.now()
+    };
+
+    await this.actor.update({
+      "system.expedition.dayState.orientation": orientationUpdate,
+      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: orientationUpdate
+    });
+
+    const speaker = globalThis.ChatMessage?.getSpeaker
+      ? globalThis.ChatMessage.getSpeaker({ actor: guideActor })
+      : { alias: guideActor.name };
+
+    await createChatMessageAfterDice({
+      speaker,
+      content: chatContent,
+      rolls: [roll],
+      flags: { [MODULE_ID]: { orientationCheck: true } }
+    });
+
+    this.render(false);
+  }
+
+  async _onResetOrientation() {
+    if (!this.isEditable && !globalThis.game?.user?.isGM) return;
+    await this.actor.update({
+      "system.expedition.dayState.orientation": null,
+      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null
+    });
+    this.render(false);
   }
 
   async _onSelectGuide() {

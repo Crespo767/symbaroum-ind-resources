@@ -5019,3 +5019,325 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   flex: 0 0 auto;
   align-self: center;
 }
+
+/* Painel de Orientação do Guia na Aba Expedição */
+.tenebre-party-sheet .guide-orientation-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  background: rgba(35, 27, 18, 0.05);
+  border: 1px dashed rgba(106, 74, 40, 0.4);
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.tenebre-party-sheet .guide-bushcraft-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-title, serif);
+  font-size: 0.76em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+.tenebre-party-sheet .guide-bushcraft-badge.has-bushcraft {
+  background: #253820;
+  color: #a8df9e;
+  border: 1px solid #4d7a42;
+}
+
+.tenebre-party-sheet .guide-bushcraft-badge.no-bushcraft {
+  background: #3d1e1c;
+  color: #df9e9e;
+  border: 1px solid #7a3a36;
+}
+
+.tenebre-party-sheet .guide-bushcraft-badge .bushcraft-penalty {
+  color: #ff8080;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+.tenebre-party-sheet .btn-orientation-roll {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(180deg, #3d2f1f 0%, #20170d 100%);
+  border: 1px solid #8b6232;
+  color: #ecd7ba;
+  font-family: var(--font-title, serif);
+  font-size: 0.84em;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tenebre-party-sheet .btn-orientation-roll:hover {
+  background: linear-gradient(180deg, #4f3d29 0%, #2c2013 100%);
+  border-color: #dfb743;
+  color: #ffffff;
+  box-shadow: 0 0 5px rgba(223, 183, 67, 0.4);
+}
+
+.tenebre-party-sheet .orientation-result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-title, serif);
+  font-size: 0.82em;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+
+.tenebre-party-sheet .orientation-result-badge.is-greatSuccess {
+  background: #3b2f15;
+  color: #f7d568;
+  border: 1px solid #dfb743;
+}
+
+.tenebre-party-sheet .orientation-result-badge.is-success {
+  background: #1f361a;
+  color: #8be17b;
+  border: 1px solid #4a803f;
+}
+
+.tenebre-party-sheet .orientation-result-badge.is-failure {
+  background: #3d1818;
+  color: #ff8585;
+  border: 1px solid #8a3333;
+}
+
+.tenebre-party-sheet .orientation-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tenebre-party-sheet .btn-orientation-roll.is-reroll {
+  font-size: 0.78em;
+  padding: 3px 8px;
+}
+
+.tenebre-party-sheet .btn-orientation-reset {
+  background: rgba(40, 30, 20, 0.2);
+  border: 1px solid rgba(80, 60, 40, 0.4);
+  color: #554433;
+  border-radius: 3px;
+  padding: 3px 7px;
+  cursor: pointer;
+  font-size: 0.75em;
+  transition: all 0.15s ease;
+}
+
+.tenebre-party-sheet .btn-orientation-reset:hover {
+  background: #6b2222;
+  border-color: #a83838;
+  color: #ffffff;
+}
+
+/* Chat Card: Teste de Orientação */
+.tenebre-chat-card.tenebre-orientation-card {
+  border: 1px solid #3c3022;
+  border-radius: 4px;
+  background: #1c1712 url('/systems/symbaroum/asset/image/background/editable.webp') repeat;
+  color: #f0ebe1;
+  padding: 8px 10px;
+  margin: 4px 0;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.7), 0 2px 4px rgba(0, 0, 0, 0.35);
+  font-family: var(--font-text, sans-serif);
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-card-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-bottom: 1px solid rgba(223, 183, 67, 0.4);
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-card-header i {
+  color: #dfb743;
+  font-size: 1.1em;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-card-header h3 {
+  margin: 0;
+  font-family: var(--font-title, serif);
+  font-size: 1.05em;
+  font-weight: bold;
+  color: #f2e3c6;
+  line-height: 1.2;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide img {
+  width: 36px;
+  height: 36px;
+  border-radius: 3px;
+  object-fit: cover;
+  border: 1px solid #4a3825;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide .guide-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide .guide-meta strong {
+  font-family: var(--font-title, serif);
+  font-size: 0.95em;
+  color: #f5eedf;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide .guide-meta span {
+  font-size: 0.8em;
+  color: #baaa95;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-math {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(120, 95, 65, 0.3);
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-size: 0.82em;
+  margin-bottom: 6px;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-math strong {
+  color: #f2e3c6;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .roll-target-badge strong {
+  color: #dfb743;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-result-box {
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-result-box.greatSuccess {
+  background: rgba(223, 183, 67, 0.15);
+  border: 1px solid #dfb743;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-result-box.success {
+  background: rgba(50, 110, 45, 0.2);
+  border: 1px solid #4a803f;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-result-box.failure {
+  background: rgba(140, 30, 30, 0.25);
+  border: 1px solid #8a3333;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .roll-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 3px;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .roll-die {
+  font-family: var(--font-title, serif);
+  font-size: 1.15em;
+  font-weight: bold;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .roll-verdict {
+  font-family: var(--font-title, serif);
+  font-size: 1.05em;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .greatSuccess .roll-verdict,
+.tenebre-chat-card.tenebre-orientation-card .greatSuccess .roll-die {
+  color: #f7d568;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .success .roll-verdict,
+.tenebre-chat-card.tenebre-orientation-card .success .roll-die {
+  color: #8be17b;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .failure .roll-verdict,
+.tenebre-chat-card.tenebre-orientation-card .failure .roll-die {
+  color: #ff8585;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .roll-desc {
+  margin: 0;
+  font-size: 0.82em;
+  font-style: italic;
+  opacity: 0.9;
+  line-height: 1.25;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-orientation-bonuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .bonus-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .bonus-tag.is-positive {
+  background: rgba(45, 90, 39, 0.4);
+  border: 1px solid rgba(80, 160, 70, 0.6);
+  color: #9ee690;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .bonus-tag.is-info {
+  background: rgba(40, 75, 115, 0.4);
+  border: 1px solid rgba(70, 125, 190, 0.6);
+  color: #9ed2ff;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .bonus-tag.is-negative {
+  background: rgba(120, 25, 25, 0.4);
+  border: 1px solid rgba(190, 50, 50, 0.6);
+  color: #ff9999;
+}

@@ -70,6 +70,51 @@ function createItem({ id, name, img, description, reference, cost, folder }) {
   };
 }
 
+function createBoon({ id, name, img, description, reference = 'bushcraft', level = 1, folder }) {
+  validateDocumentId(id, `Boon ${name}`);
+  return {
+    _id: id,
+    name,
+    type: 'boon',
+    img: img || 'systems/symbaroum/asset/image/boon.png',
+    folder: folder || null,
+    sort: 0,
+    effects: [],
+    flags: { core: {} },
+    system: {
+      bonus: {
+        defense: 0,
+        accurate: 0,
+        cunning: 0,
+        discreet: 0,
+        persuasive: 0,
+        quick: 0,
+        resolute: 0,
+        strong: 0,
+        vigilant: 0,
+        toughness: { max: 0, threshold: 0 },
+        corruption: { max: 0, threshold: 0 },
+        experience: { value: 0, cost: 0 }
+      },
+      description,
+      reference,
+      level: Number(level) || 1
+    },
+    ownership: { default: 0 },
+    _stats: {
+      systemId: 'symbaroum',
+      systemVersion: '6.1.6',
+      coreVersion: '13.350',
+      createdTime: Date.now(),
+      modifiedTime: Date.now(),
+      lastModifiedBy: null,
+      compendiumSource: null,
+      duplicateSource: null,
+      exportSource: null
+    }
+  };
+}
+
 function createTrait({ id, name, img, description, reference, noviceDesc, adeptDesc, masterDesc, noviceActive = true, adeptActive = false, masterActive = false }) {
   validateDocumentId(id, `Trait ${name}`);
   return {
@@ -471,6 +516,25 @@ async function run() {
 <ul>
   <li>No cais bem guardado do Porto de Yndaros, a própria Rainha Korinthia mantém uma imponente galé com doze pares de remos ao lado de botes e navios proeminentes.</li>
 </ul>`
+    }),
+    createBoon({
+      id: makeId('bnBushc', 1), // bnBushc000000001
+      name: 'Mateiro',
+      img: 'systems/symbaroum/asset/image/boon.png',
+      reference: 'bushcraft',
+      level: 1,
+      folder: itemFolderId,
+      description: `<p>O personagem pode sobreviver com recursos escassos e está acostumado a encontrar comida e abrigo em terrenos árduos.</p>
+<p>Com um Teste bem-sucedido de <strong>Vigilante</strong>, o personagem pode encontrar comida e água o suficiente (1d6 rações) para se alimentar enquanto se move em locais selvagens ou pelas ruínas da Davokar. Se o grupo permanecer parado dedicando o dia à coleta, encontra 1d10 rações.</p>
+<hr />
+<h3>Expedições na Floresta de Davokar (Guia do Mestre, p. 115)</h3>
+<p>Para guiar expedições e navegar através da mata, o nível de Mateiro determina a adaptação do guia à profundidade da floresta:</p>
+<ul>
+  <li><strong>Nível I (Davokar Iluminada):</strong> Eficaz nas bordas da floresta, montanhas e planícies. Testes de Orientação e Forrageamento são realizados sem penalidade na Davokar Iluminada.</li>
+  <li><strong>Nível II (Davokar Selvagem):</strong> Eficaz nos vales profundos e na Davokar Selvagem. Permite guiar com segurança e forragear na floresta selvagem sem penalidade.</li>
+  <li><strong>Nível III (Davokar Escura):</strong> Eficaz na Davokar Escura e no Submundo. O guia domina os caminhos tenebrosos e perigos ancestrais onde a luz solar nunca penetra.</li>
+</ul>
+<p><strong>Penalidade por Patamar:</strong> Se o nível de Mateiro do guia for <strong>1 nível inferior</strong> à região atual, o guia sofre <strong>–3 de penalidade</strong> em todos os testes de Orientação e Forrageamento. Se for <strong>2 níveis inferior</strong> (ou se não possuir Mateiro em regiões profundas), a penalidade é de <strong>–5</strong>.</p>`
     })
   ];
 

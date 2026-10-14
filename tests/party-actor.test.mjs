@@ -382,3 +382,204 @@ test("PartyActorSheet._bindMemberContextMenu registers ContextMenu with fixed: t
   assert.equal(capturedArgs.options?.jQuery, false, "ContextMenu must have jQuery: false to avoid deprecation warnings");
   assert.equal(capturedArgs.entries.length, 2, "Must register Set and Unset guide entries");
 });
+
+test("calculateBushcraftPenalty respects official rules per region and tier", async () => {
+  const { calculateBushcraftPenalty } = await import("../scripts/party-actor.mjs");
+
+  // Ambria: no penalty regardless of Bushcraft level
+  assert.equal(calculateBushcraftPenalty(0, "ambria"), 0);
+  assert.equal(calculateBushcraftPenalty(1, "ambria"), 0);
+  assert.equal(calculateBushcraftPenalty(3, "ambria"), 0);
+
+  // Bright Davokar (requires tier 1)
+  assert.equal(calculateBushcraftPenalty(1, "bright"), 0);
+  assert.equal(calculateBushcraftPenalty(2, "bright"), 0);
+  assert.equal(calculateBushcraftPenalty(0, "bright"), -3); // 1 tier below
+
+  // Wild Davokar (requires tier 2)
+  assert.equal(calculateBushcraftPenalty(2, "wild"), 0);
+  assert.equal(calculateBushcraftPenalty(3, "wild"), 0);
+  assert.equal(calculateBushcraftPenalty(1, "wild"), -3); // 1 tier below
+  assert.equal(calculateBushcraftPenalty(0, "wild"), -5); // 2 tiers below
+
+  // Dark Davokar (requires tier 3)
+  assert.equal(calculateBushcraftPenalty(3, "dark"), 0);
+  assert.equal(calculateBushcraftPenalty(2, "dark"), -3); // 1 tier below
+  assert.equal(calculateBushcraftPenalty(1, "dark"), -5); // 2 tiers below
+  assert.equal(calculateBushcraftPenalty(0, "dark"), -5); // 3 tiers below
+});
+
+test("detectBushcraftTier extracts level from system.level or name", async () => {
+  const { detectBushcraftTier } = await import("../scripts/party-actor.mjs");
+
+  // Actor without bushcraft
+  const noBoonActor = { items: [] };
+  assert.deepEqual(detectBushcraftTier(noBoonActor), { hasBushcraft: false, level: 0, item: null });
+
+  // Actor with standard system.level = 2
+  const boonLevel2 = {
+    items: [
+      { type: "boon", name: "Mateiro", system: { reference: "bushcraft", level: 2 } }
+    ]
+  };
+  const res2 = detectBushcraftTier(boonLevel2);
+  assert.equal(res2.hasBushcraft, true);
+  assert.equal(res2.level, 2);
+
+  // Actor with Mateiro III in name
+  const boonNamed3 = {
+    items: [
+      { type: "boon", name: "Mateiro (Mestre III)", system: { reference: "bushcraft" } }
+    ]
+  };
+  const res3 = detectBushcraftTier(boonNamed3);
+  assert.equal(res3.hasBushcraft, true);
+  assert.equal(res3.level, 3);
+
+  // Actor with English name Bushcraft
+  const boonEnglish = {
+    items: [
+      { type: "boon", name: "Bushcraft", system: { reference: "bushcraft", level: 1 } }
+    ]
+  };
+  const resEng = detectBushcraftTier(boonEnglish);
+  assert.equal(resEng.hasBushcraft, true);
+  assert.equal(resEng.level, 1);
+});
+
+test("calculateOrientationTarget calculates target and bounds to minimum 1", async () => {
+  const { calculateOrientationTarget } = await import("../scripts/party-actor.mjs");
+
+  // Vigilant 15 in Bright Davokar with Mateiro 1 -> target 15
+  assert.deepEqual(calculateOrientationTarget(15, 1, "bright"), {
+    baseVigilant: 15,
+    penalty: 0,
+    target: 15
+  });
+
+  // Vigilant 13 in Wild Davokar without Mateiro (penalty -5) -> target 8
+  assert.deepEqual(calculateOrientationTarget(13, 0, "wild"), {
+    baseVigilant: 13,
+    penalty: -5,
+    target: 8
+  });
+
+  // Vigilant 5 in Dark Davokar without Mateiro (penalty -5) -> target 1
+  assert.deepEqual(calculateOrientationTarget(5, 0, "dark"), {
+    baseVigilant: 5,
+    penalty: -5,
+    target: 1
+  });
+});
+
+test("evaluateOrientationRoll classifies Great Success, Normal Success and Failure correctly", async () => {
+  const { evaluateOrientationRoll } = await import("../scripts/party-actor.mjs");
+
+  // Great Success by margin >= 5 (target 15, roll 10 -> margin 5)
+  const great = evaluateOrientationRoll(10, 15);
+  assert.equal(great.verdict, "greatSuccess");
+  assert.equal(great.success, true);
+  assert.equal(great.greatSuccess, true);
+  assert.equal(great.ruinsMod, 2);
+  assert.equal(great.enemiesMod, -2);
+  assert.equal(great.terrainMod, -2);
+  assert.equal(great.neutralDetection, true);
+  assert.equal(great.mishap, false);
+
+  // Great Success on natural 1 (target 4, roll 1 -> margin 3, but roll 1)
+  const nat1 = evaluateOrientationRoll(1, 4);
+  assert.equal(nat1.verdict, "greatSuccess");
+  assert.equal(nat1.greatSuccess, true);
+
+  // Normal Success (target 15, roll 13 -> margin 2)
+  const normal = evaluateOrientationRoll(13, 15);
+  assert.equal(normal.verdict, "success");
+  assert.equal(normal.success, true);
+  assert.equal(normal.greatSuccess, false);
+  assert.equal(normal.ruinsMod, 2);
+  assert.equal(normal.enemiesMod, -1);
+  assert.equal(normal.terrainMod, -1);
+  assert.equal(normal.neutralDetection, true);
+  assert.equal(normal.mishap, false);
+
+  // Failure (target 12, roll 13)
+  const fail = evaluateOrientationRoll(13, 12);
+  assert.equal(fail.verdict, "failure");
+  assert.equal(fail.success, false);
+  assert.equal(fail.failure, true);
+  assert.equal(fail.ruinsMod, 0);
+  assert.equal(fail.enemiesMod, 0);
+  assert.equal(fail.terrainMod, 0);
+  assert.equal(fail.neutralDetection, false);
+  assert.equal(fail.mishap, true);
+});
+
+test("Template and Stylesheet include orientation panel, buttons and chat card styles", () => {
+  assert.match(templateSource, /class="guide-orientation-panel"/);
+  assert.match(templateSource, /class="guide-bushcraft-badge/);
+  assert.match(templateSource, /data-action="roll-orientation"/);
+  assert.match(templateSource, /data-action="reset-orientation"/);
+
+  assert.match(cssSource, /\.tenebre-party-sheet \.guide-orientation-panel/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.guide-bushcraft-badge/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.btn-orientation-roll/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.orientation-result-badge/);
+  assert.match(cssSource, /\.tenebre-chat-card\.tenebre-orientation-card/);
+});
+
+test("PartyActorSheet._onRollOrientation updates dayState and posts chat card", async () => {
+  globalThis.game = globalThis.game ?? {};
+  globalThis.game.user = globalThis.game.user ?? { isGM: true, id: "u1" };
+  globalThis.game.settings = globalThis.game.settings ?? { get: () => false };
+  globalThis.game.i18n = globalThis.game.i18n ?? { localize: (k) => k, format: (k, d) => k };
+  globalThis.ChatMessage = globalThis.ChatMessage ?? { getSpeaker: () => ({ alias: "Guia" }), create: async (d) => d };
+
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  const updates = [];
+  const mockPartyActor = {
+    id: "p1",
+    uuid: "Actor.p1",
+    system: {
+      location: { region: "bright" },
+      expedition: { guideId: "guide-1" }
+    },
+    update: async (data) => {
+      updates.push(data);
+      return data;
+    }
+  };
+
+  const sheet = new PartyActorSheet(mockPartyActor);
+  sheet.render = () => {};
+  Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });
+
+  const mockGuide = {
+    id: "guide-1",
+    name: "Guia Bardo",
+    img: "icons/svg/mystery-man.svg",
+    system: {
+      attributes: {
+        vigilant: { total: 15 }
+      }
+    },
+    items: [
+      { type: "boon", name: "Mateiro", system: { reference: "bushcraft", level: 1 } }
+    ]
+  };
+  sheet._resolveActor = (id) => (id === "guide-1" ? mockGuide : null);
+
+  await sheet._onRollOrientation();
+
+  assert.equal(updates.length, 1);
+  const orientData = updates[0]["system.expedition.dayState.orientation"];
+  assert.ok(orientData);
+  assert.equal(orientData.rolled, true);
+  assert.equal(orientData.target, 15);
+  assert.equal(orientData.baseVigilant, 15);
+  assert.equal(orientData.penalty, 0);
+  assert.ok(["greatSuccess", "success", "failure"].includes(orientData.verdict));
+
+  await sheet._onResetOrientation();
+  assert.equal(updates.length, 2);
+  assert.equal(updates[1]["system.expedition.dayState.orientation"], null);
+});
