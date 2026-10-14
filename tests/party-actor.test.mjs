@@ -223,7 +223,7 @@ test("PartyActorSheet formats location regions and modifiers correctly in getDat
 test("Party sheet template includes expedition tab with guide card and actions", () => {
   assert.match(templateSource, /data-tab="expedition"/);
   assert.match(templateSource, /class="party-expedition-tab-content"/);
-  assert.match(templateSource, /class="party-storage-location-box party-guide-box/);
+  assert.match(templateSource, /class="party-guide-box/);
   assert.match(templateSource, /data-drop-zone="expedition-guide"/);
   assert.match(templateSource, /data-action="open-guide-sheet"/);
   assert.match(templateSource, /data-action="select-guide"/);
@@ -252,6 +252,7 @@ test("Party sheet template includes expedition tab with guide card and actions",
   assert.match(cssSource, /\.tenebre-party-sheet \.expedition-step-line/);
   assert.match(cssSource, /\.tenebre-party-sheet \.tab\[data-tab="expedition"\]\.active/);
   assert.match(cssSource, /\.tenebre-party-sheet \.party-expedition-tab-content/);
+  assert.match(cssSource, /overflow-y:\s*auto;/);
   assert.match(cssSource, /\.tenebre-party-sheet \.party-guide-box/);
   assert.match(cssSource, /\.tenebre-party-sheet \.party-guide-box\.is-linked/);
   assert.match(cssSource, /\.tenebre-party-sheet \.party-guide-box\.is-unlinked/);
@@ -853,4 +854,199 @@ test("PartyActorSheet._onPrevExpeditionDay decrements day down to 1", async () =
   assert.equal(updatedData, null);
 });
 
+test("Party sheet template includes Step 2 daily sustenance box and roster", () => {
+  const tpl = fs.readFileSync(path.join(root, "templates/party-sheet.hbs"), "utf8");
+  assert.match(tpl, /class="party-rations-box/);
+  assert.match(tpl, /data-action="feed-member-group"/);
+  assert.match(tpl, /data-action="feed-member-personal"/);
+  assert.match(tpl, /data-action="feed-all-group"/);
+  assert.match(tpl, /data-action="toggle-feed-member"/);
+  assert.match(tpl, /class="party-rations-roster"/);
+  assert.match(tpl, /class="group-provisions-badge"/);
+});
 
+test("Party stylesheet contains styles for party-rations-box and sustenance roster", () => {
+  const css = fs.readFileSync(path.join(root, "styles/symbaroum-ind-resources.css"), "utf8");
+  assert.match(css, /\.tenebre-party-sheet \.party-rations-box/);
+  assert.match(css, /\.tenebre-party-sheet \.party-ration-member-row/);
+  assert.match(css, /\.tenebre-party-sheet \.btn-feed-action\.is-group/);
+  assert.match(css, /\.tenebre-party-sheet \.btn-feed-action\.is-personal/);
+  assert.match(css, /\.tenebre-party-sheet \.btn-feed-all-group/);
+  assert.match(css, /\.tenebre-party-sheet \.ration-status-badge\.is-fed/);
+});
+
+test("PartyActorSheet getData formats expedition.rations correctly", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  const mockActor = {
+    system: {
+      members: ["m1", "m2"],
+      expedition: {
+        active: true,
+        day: 1,
+        dayState: {
+          rations: {
+            m1: { fed: true, source: "group" }
+          }
+        }
+      }
+    },
+    flags: {},
+    items: new Map([
+      ["item-ration", {
+        type: "equipment",
+        name: "Pão de Viagem",
+        system: { number: 5 }
+      }]
+    ])
+  };
+
+  const sheet = new PartyActorSheet(mockActor);
+  sheet._resolveActor = (id) => {
+    if (id === "m1") {
+      return {
+        id: "m1",
+        name: "Arokh",
+        img: "icons/svg/mystery-man.svg",
+        items: new Map()
+      };
+    }
+    if (id === "m2") {
+      return {
+        id: "m2",
+        name: "Karan",
+        img: "icons/svg/mystery-man.svg",
+        items: new Map([
+          ["karan-bread", {
+            type: "equipment",
+            name: "Pão de Viagem",
+            system: { number: 2 }
+          }]
+        ])
+      };
+    }
+    return null;
+  };
+
+  const data = await sheet.getData();
+  assert.ok(data.expedition.rations);
+  assert.equal(data.expedition.rations.hasMembers, true);
+  assert.equal(data.expedition.rations.members.length, 2);
+
+  const m1 = data.expedition.rations.members.find(m => m.id === "m1");
+  assert.equal(m1.isFed, true);
+  assert.equal(m1.fedSource, "group");
+
+  const m2 = data.expedition.rations.members.find(m => m.id === "m2");
+  assert.equal(m2.isFed, false);
+});
+
+test("PartyActorSheet feeding methods update dayState.rations", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  const { RationService } = await import("../scripts/rations.mjs");
+
+  // Stub RationService.consumeDay
+  const originalConsumeDay = RationService.consumeDay;
+  const originalGetState = RationService.getState;
+  RationService.consumeDay = async () => true;
+  RationService.getState = () => ({ totalUsesRemaining: 10, name: "Pão de Viagem" });
+
+  try {
+    let updatedData = null;
+    const mockActor = {
+      system: {
+        members: ["m1"],
+        expedition: { active: true, day: 1, dayState: { rations: {} } }
+      },
+      flags: {},
+      update: async (data) => {
+        updatedData = data;
+      }
+    };
+
+    const sheet = new PartyActorSheet(mockActor);
+    sheet._resolveActor = () => ({ id: "m1", name: "Arokh" });
+
+    // Feed member from group
+    await sheet._onFeedMemberGroup("m1");
+    assert.equal(updatedData["system.expedition.dayState.rations.m1"].fed, true);
+    assert.equal(updatedData["system.expedition.dayState.rations.m1"].source, "group");
+
+    // Feed member personal
+    updatedData = null;
+    await sheet._onFeedMemberPersonal("m1");
+    assert.equal(updatedData["system.expedition.dayState.rations.m1"].fed, true);
+    assert.equal(updatedData["system.expedition.dayState.rations.m1"].source, "personal");
+
+    // Toggle feed member
+    updatedData = null;
+    mockActor.system.expedition.dayState.rations.m1 = { fed: true, source: "group" };
+    await sheet._onToggleFeedMember("m1");
+    assert.equal(updatedData["system.expedition.dayState.rations.m1"], null);
+  } finally {
+    RationService.consumeDay = originalConsumeDay;
+    RationService.getState = originalGetState;
+  }
+});
+
+test("RationService.consumeDay marks character as fed in active party expedition", async () => {
+  const { RationService } = await import("../scripts/rations.mjs");
+  const { TenebreSettings } = await import("../scripts/settings.mjs");
+
+  let partyUpdated = null;
+  const mockParty = {
+    type: "symbaroum-ind-resources.party",
+    system: {
+      members: ["char-1"],
+      expedition: { active: true, day: 1, dayState: { rations: {} } }
+    },
+    getFlag: () => ({ active: true }),
+    update: async (data) => {
+      partyUpdated = data;
+    },
+    sheet: { render: () => {} }
+  };
+
+  const mockItem = {
+    id: "item-1",
+    type: "equipment",
+    name: "Pão de Viagem",
+    system: { number: 3 },
+    getFlag: () => false,
+    update: async () => {}
+  };
+
+  const mockActor = {
+    id: "char-1",
+    uuid: "Actor.char-1",
+    name: "Arokh",
+    items: new Map([["item-1", mockItem]]),
+    getFlag: () => ({}),
+    setFlag: async () => {}
+  };
+
+  globalThis.game = {
+    actors: [mockParty, mockActor],
+    i18n: {
+      localize: (k) => k,
+      format: (k) => k
+    }
+  };
+  globalThis.ui = { notifications: { info() {}, warn() {} } };
+  globalThis.ChatMessage = {
+    getSpeaker: () => ({}),
+    create: async () => {}
+  };
+
+  const origGet = TenebreSettings.get;
+  TenebreSettings.get = (key) => key === "enableRations" ? true : origGet?.(key);
+
+  try {
+    const res = await RationService.consumeDay(mockActor, mockItem);
+    assert.equal(res, true);
+    assert.ok(partyUpdated);
+    assert.equal(partyUpdated["system.expedition.dayState.rations.char-1"].fed, true);
+    assert.equal(partyUpdated["system.expedition.dayState.rations.char-1"].source, "personal");
+  } finally {
+    TenebreSettings.get = origGet;
+  }
+});

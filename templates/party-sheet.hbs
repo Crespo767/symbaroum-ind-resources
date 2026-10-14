@@ -480,8 +480,8 @@
                         </div>
                     </div>
 
-                    <!-- Box do Guia da Expedição (estilo idêntico ao de armazenamento) -->
-                    <div class="party-storage-location-box party-guide-box foreground {{#if expedition.guide.hasGuide}}is-linked{{else}}is-unlinked{{/if}}" data-drop-zone="expedition-guide">
+                    <!-- Box do Guia da Expedição (Passo 1) -->
+                    <div class="party-guide-box foreground {{#if expedition.guide.hasGuide}}is-linked{{else}}is-unlinked{{/if}}" data-drop-zone="expedition-guide">
                         <!-- Separação de contagem de passo: Passo 1: Teste de Orientação -->
                         <div class="expedition-step-header">
                             <span class="expedition-step-label">{{localize "TENEBRE.Party.ExpeditionStep1Title"}}</span>
@@ -599,6 +599,83 @@
                             {{/if}}
                         </div>
                         {{/if}}
+                    </div>
+
+                    <!-- Box do Passo 2: Alimentação & Provisões -->
+                    <div class="party-rations-box party-storage-location-box foreground is-linked">
+                        <!-- Separação de contagem de passo: Passo 2: Alimentação Diária -->
+                        <div class="expedition-step-header">
+                            <span class="expedition-step-label"><i class="fas fa-utensils"></i> {{localize "TENEBRE.Party.ExpeditionStep2Title"}}</span>
+                            <span class="expedition-step-line"></span>
+                            <div class="rations-header-actions">
+                                <span class="group-provisions-badge" data-tooltip="{{localize "TENEBRE.Party.GroupRationsTooltip"}}">
+                                    <i class="fas fa-boxes"></i> {{localize "TENEBRE.Party.GroupRationsLabel"}}: <strong>{{expedition.rations.groupTotal}}</strong>
+                                </span>
+                                {{#if editable}}
+                                <button type="button" class="btn-feed-all-group" data-action="feed-all-group" {{#if expedition.rations.allFed}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.FeedAllGroupTooltip"}}">
+                                    <i class="fas fa-concierge-bell"></i> {{localize "TENEBRE.Party.FeedAllGroupBtn"}}
+                                </button>
+                                {{/if}}
+                            </div>
+                        </div>
+
+                        <!-- Quadro de Alimentação dos Membros -->
+                        <div class="party-rations-roster">
+                            {{#if expedition.rations.hasMembers}}
+                                {{#each expedition.rations.members as |m|}}
+                                <div class="party-ration-member-row {{#if m.isFed}}is-fed{{else}}is-hungry{{/if}}">
+                                    <div class="ration-member-identity">
+                                        <img class="ration-member-avatar" src="{{m.img}}" alt="{{m.name}}" />
+                                        <div class="ration-member-names">
+                                            <span class="ration-member-name" title="{{m.name}}">{{m.name}}</span>
+                                            {{#if m.isCompanion}}
+                                                <span class="ration-companion-tag">{{localize "TENEBRE.Party.CompanionsSectionTitle"}}</span>
+                                            {{/if}}
+                                        </div>
+                                    </div>
+
+                                    <div class="ration-member-backpack" data-tooltip="{{localize "TENEBRE.Party.PersonalRationsTooltip"}}">
+                                        <i class="fas fa-backpack"></i> <span class="backpack-qty">{{m.personalRations}}</span>
+                                    </div>
+
+                                    <div class="ration-member-status">
+                                        {{#if m.isFed}}
+                                            <span class="ration-status-badge is-fed" data-tooltip="{{m.fedSourceLabel}}">
+                                                <i class="fas fa-check-circle"></i> {{localize "TENEBRE.Party.FedStatus"}}
+                                            </span>
+                                            {{#if ../editable}}
+                                            <button type="button" class="btn-ration-undo" data-action="toggle-feed-member" data-member-id="{{m.id}}" data-tooltip="{{localize "TENEBRE.Party.ToggleFedTooltip"}}">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                            {{/if}}
+                                        {{else}}
+                                            <span class="ration-status-badge is-hungry">
+                                                <i class="fas fa-exclamation-circle"></i> {{localize "TENEBRE.Party.HungryStatus"}}
+                                            </span>
+                                        {{/if}}
+                                    </div>
+
+                                    <div class="ration-member-actions">
+                                        {{#if ../editable}}
+                                            {{#unless m.isFed}}
+                                            <button type="button" class="btn-feed-action is-group" data-action="feed-member-group" data-member-id="{{m.id}}" data-tooltip="{{localize "TENEBRE.Party.FeedMemberGroupTooltip"}}" {{#unless m.canFeedFromGroup}}disabled{{/unless}}>
+                                                <i class="fas fa-utensils"></i> {{localize "TENEBRE.Party.FeedMemberGroupBtn"}}
+                                            </button>
+                                            <button type="button" class="btn-feed-action is-personal" data-action="feed-member-personal" data-member-id="{{m.id}}" data-tooltip="{{localize "TENEBRE.Party.FeedMemberPersonalTooltip"}}" {{#unless m.canFeedFromPersonal}}disabled{{/unless}}>
+                                                <i class="fas fa-bread-slice"></i> {{localize "TENEBRE.Party.FeedMemberPersonalBtn"}}
+                                            </button>
+                                            {{/unless}}
+                                        {{/if}}
+                                    </div>
+                                </div>
+                                {{/each}}
+                            {{else}}
+                                <div class="party-rations-empty">
+                                    <i class="fas fa-users-slash"></i>
+                                    <p>{{localize "TENEBRE.Party.NoMembersToFeed"}}</p>
+                                </div>
+                            {{/if}}
+                        </div>
                     </div>
                 </div>
             </div>

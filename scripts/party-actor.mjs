@@ -5,6 +5,7 @@ import { CompatibilityService } from "./compatibility.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs";
 import { escapeHtml } from "./utils.mjs";
 import { getDavokarMishapsTableData } from "./expedition-data.mjs";
+import { RationService } from "./rations.mjs";
 
 /** Tipo de ator declarado em module.json (documentTypes.Actor.party); o core o registra sozinho. */
 export const PARTY_ACTOR_TYPE = `${MODULE_ID}.party`;
@@ -952,6 +953,83 @@ export class PartyActorSheet extends BaseActorSheet {
     const isExpeditionActive = Boolean(rawExpedition.active ?? false);
     const expeditionDay = Math.max(1, Number(rawExpedition.day) || 1);
 
+    // Provisões do Grupo
+    let groupRationState = null;
+    try {
+      groupRationState = RationService?.getState?.(this.actor);
+    } catch {}
+    const groupTotalRations = groupRationState?.totalUsesRemaining ?? 0;
+
+    // Estado da Alimentação dos Membros no Dia
+    const dayRationsState = dayStateRaw.rations || this.actor?.flags?.[MODULE_ID]?.expedition?.dayState?.rations || {};
+
+    const expeditionRationMembers = [];
+    // Processa membros jogadores
+    for (const member of members) {
+      const memberActor = this._resolveActor(member.id);
+      let personalRationState = null;
+      try {
+        personalRationState = memberActor ? RationService?.getState?.(memberActor) : null;
+      } catch {}
+      const personalRations = personalRationState?.totalUsesRemaining ?? 0;
+      const memberFedInfo = dayRationsState[member.id] || null;
+      const isFed = Boolean(memberFedInfo?.fed);
+      const fedSource = memberFedInfo?.source || "";
+
+      let fedSourceLabel = "";
+      if (fedSource === "group") fedSourceLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.FedSourceGroup") || "Alimentado com Provisões do Grupo";
+      else if (fedSource === "personal") fedSourceLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.FedSourcePersonal") || "Alimentado com a Própria Mochila";
+      else if (fedSource === "manual") fedSourceLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.FedSourceManual") || "Marcado Manualmente";
+
+      expeditionRationMembers.push({
+        id: member.id,
+        name: member.name,
+        img: member.img || "icons/svg/mystery-man.svg",
+        isCompanion: false,
+        isFed: isFed,
+        fedSource: fedSource,
+        fedSourceLabel: fedSourceLabel,
+        personalRations: personalRations,
+        canFeedFromGroup: !isFed && groupTotalRations > 0,
+        canFeedFromPersonal: !isFed && personalRations > 0
+      });
+    }
+
+    // Processa companheiros não monstros/animais
+    for (const comp of companions) {
+      if (comp.isMonster || comp.occupation === "Animal" || comp.occupation === "Animal de Carga") continue;
+      const compActor = this._resolveActor(comp.id);
+      let personalRationState = null;
+      try {
+        personalRationState = compActor ? RationService?.getState?.(compActor) : null;
+      } catch {}
+      const personalRations = personalRationState?.totalUsesRemaining ?? 0;
+      const compFedInfo = dayRationsState[comp.id] || null;
+      const isFed = Boolean(compFedInfo?.fed);
+      const fedSource = compFedInfo?.source || "";
+
+      let fedSourceLabel = "";
+      if (fedSource === "group") fedSourceLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.FedSourceGroup") || "Alimentado com Provisões do Grupo";
+      else if (fedSource === "personal") fedSourceLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.FedSourcePersonal") || "Alimentado com a Própria Mochila";
+      else if (fedSource === "manual") fedSourceLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.FedSourceManual") || "Marcado Manualmente";
+
+      expeditionRationMembers.push({
+        id: comp.id,
+        name: comp.name,
+        img: comp.img || "icons/svg/mystery-man.svg",
+        isCompanion: true,
+        isFed: isFed,
+        fedSource: fedSource,
+        fedSourceLabel: fedSourceLabel,
+        personalRations: personalRations,
+        canFeedFromGroup: !isFed && groupTotalRations > 0,
+        canFeedFromPersonal: !isFed && personalRations > 0
+      });
+    }
+
+    const allMembersFed = expeditionRationMembers.length > 0 && expeditionRationMembers.every(m => m.isFed);
+    const hungryCount = expeditionRationMembers.filter(m => !m.isFed).length;
+
     data.expedition = {
       active: isExpeditionActive,
       day: isExpeditionActive ? expeditionDay : 0,
@@ -959,7 +1037,16 @@ export class PartyActorSheet extends BaseActorSheet {
       guideId: guideId,
       guide: guideData,
       dayState: {
-        orientation: orientationDayView
+        orientation: orientationDayView,
+        rations: dayRationsState
+      },
+      rations: {
+        groupTotal: groupTotalRations,
+        groupItemName: groupRationState?.name || "Pão de Viagem",
+        members: expeditionRationMembers,
+        allFed: allMembersFed,
+        hungryCount: hungryCount,
+        hasMembers: expeditionRationMembers.length > 0
       }
     };
 
@@ -1364,6 +1451,44 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
+    root.querySelectorAll('[data-action="feed-member-group"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const memberId = el.dataset.memberId;
+        if (!memberId) return;
+        await this._onFeedMemberGroup(memberId);
+      });
+    });
+
+    root.querySelectorAll('[data-action="feed-member-personal"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const memberId = el.dataset.memberId;
+        if (!memberId) return;
+        await this._onFeedMemberPersonal(memberId);
+      });
+    });
+
+    root.querySelectorAll('[data-action="feed-all-group"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onFeedAllGroup();
+      });
+    });
+
+    root.querySelectorAll('[data-action="toggle-feed-member"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const memberId = el.dataset.memberId;
+        if (!memberId) return;
+        await this._onToggleFeedMember(memberId);
+      });
+    });
+
     this._bindMemberContextMenu(root);
   }
 
@@ -1623,9 +1748,11 @@ export class PartyActorSheet extends BaseActorSheet {
       "system.expedition.active": true,
       "system.expedition.day": 1,
       "system.expedition.dayState.orientation": null,
+      "system.expedition.dayState.rations": {},
       [`flags.${MODULE_ID}.expedition.active`]: true,
       [`flags.${MODULE_ID}.expedition.day`]: 1,
-      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null
+      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null,
+      [`flags.${MODULE_ID}.expedition.dayState.rations`]: {}
     });
     const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionStartedNotice") || "Expedição iniciada! Dia 1 em Davokar.";
     globalThis.ui?.notifications?.info?.(msg);
@@ -1641,9 +1768,11 @@ export class PartyActorSheet extends BaseActorSheet {
         "system.expedition.active": false,
         "system.expedition.day": 0,
         "system.expedition.dayState.orientation": null,
+        "system.expedition.dayState.rations": {},
         [`flags.${MODULE_ID}.expedition.active`]: false,
         [`flags.${MODULE_ID}.expedition.day`]: 0,
-        [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null
+        [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null,
+        [`flags.${MODULE_ID}.expedition.dayState.rations`]: {}
       });
       const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionEndedNotice") || "Expedição encerrada.";
       globalThis.ui?.notifications?.info?.(msg);
@@ -1681,9 +1810,11 @@ export class PartyActorSheet extends BaseActorSheet {
       "system.expedition.active": true,
       "system.expedition.day": nextDay,
       "system.expedition.dayState.orientation": null,
+      "system.expedition.dayState.rations": {},
       [`flags.${MODULE_ID}.expedition.active`]: true,
       [`flags.${MODULE_ID}.expedition.day`]: nextDay,
-      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null
+      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null,
+      [`flags.${MODULE_ID}.expedition.dayState.rations`]: {}
     });
 
     const msg = globalThis.game?.i18n?.format
@@ -1703,6 +1834,133 @@ export class PartyActorSheet extends BaseActorSheet {
       "system.expedition.day": prevDay,
       [`flags.${MODULE_ID}.expedition.day`]: prevDay
     });
+  }
+
+  async _onFeedMemberGroup(memberId) {
+    if (!this.isEditable || !memberId) return;
+    const memberActor = this._resolveActor(memberId);
+    if (!memberActor) return;
+
+    const groupRationState = RationService?.getState?.(this.actor);
+    if (!groupRationState || groupRationState.totalUsesRemaining <= 0) {
+      const warnMsg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.NoGroupRationsWarn") ||
+        "Não há rações ou pão de viagem no inventário do grupo.";
+      globalThis.ui?.notifications?.warn?.(warnMsg);
+      return;
+    }
+
+    const consumed = await RationService.consumeDay(this.actor, null, { days: 1 });
+    if (consumed) {
+      const rationUpdate = {
+        fed: true,
+        source: "group",
+        timestamp: Date.now()
+      };
+      await this.actor.update({
+        [`system.expedition.dayState.rations.${memberId}`]: rationUpdate,
+        [`flags.${MODULE_ID}.expedition.dayState.rations.${memberId}`]: rationUpdate
+      });
+
+      const notice = globalThis.game?.i18n?.format
+        ? globalThis.game.i18n.format("TENEBRE.Party.MemberFedGroupNotice", { name: memberActor.name })
+        : `${memberActor.name} se alimentou usando provisões do grupo.`;
+      globalThis.ui?.notifications?.info?.(notice);
+      this.render?.(false);
+    }
+  }
+
+  async _onFeedMemberPersonal(memberId) {
+    if (!this.isEditable || !memberId) return;
+    const memberActor = this._resolveActor(memberId);
+    if (!memberActor) return;
+
+    const personalState = RationService?.getState?.(memberActor);
+    if (!personalState || personalState.totalUsesRemaining <= 0) {
+      const warnMsg = globalThis.game?.i18n?.format
+        ? globalThis.game.i18n.format("TENEBRE.Party.NoPersonalRationsWarn", { name: memberActor.name })
+        : `${memberActor.name} não possui rações ou pão de viagem na mochila.`;
+      globalThis.ui?.notifications?.warn?.(warnMsg);
+      return;
+    }
+
+    const consumed = await RationService.consumeDay(memberActor, null, { days: 1 });
+    if (consumed) {
+      const rationUpdate = {
+        fed: true,
+        source: "personal",
+        timestamp: Date.now()
+      };
+      await this.actor.update({
+        [`system.expedition.dayState.rations.${memberId}`]: rationUpdate,
+        [`flags.${MODULE_ID}.expedition.dayState.rations.${memberId}`]: rationUpdate
+      });
+
+      const notice = globalThis.game?.i18n?.format
+        ? globalThis.game.i18n.format("TENEBRE.Party.MemberFedPersonalNotice", { name: memberActor.name })
+        : `${memberActor.name} se alimentou usando pão de viagem de sua mochila.`;
+      globalThis.ui?.notifications?.info?.(notice);
+      this.render?.(false);
+    }
+  }
+
+  async _onFeedAllGroup() {
+    if (!this.isEditable) return;
+    const data = await this.getData();
+    const unfed = (data.expedition?.rations?.members ?? []).filter(m => !m.isFed);
+    if (unfed.length === 0) {
+      const infoMsg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.AllAlreadyFedNotice") ||
+        "Todos os membros já se alimentaram hoje.";
+      globalThis.ui?.notifications?.info?.(infoMsg);
+      return;
+    }
+
+    const groupRationState = RationService?.getState?.(this.actor);
+    const available = groupRationState?.totalUsesRemaining ?? 0;
+    if (available < unfed.length) {
+      const warnMsg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.NoGroupRationsWarn") ||
+        `Provisões insuficientes no grupo (necessário: ${unfed.length}, disponível: ${available}).`;
+      globalThis.ui?.notifications?.warn?.(warnMsg);
+      return;
+    }
+
+    const consumed = await RationService.consumeDay(this.actor, null, { days: unfed.length });
+    if (consumed) {
+      const updates = {};
+      const now = Date.now();
+      for (const m of unfed) {
+        updates[`system.expedition.dayState.rations.${m.id}`] = {
+          fed: true,
+          source: "group",
+          timestamp: now
+        };
+        updates[`flags.${MODULE_ID}.expedition.dayState.rations.${m.id}`] = {
+          fed: true,
+          source: "group",
+          timestamp: now
+        };
+      }
+      await this.actor.update(updates);
+
+      const notice = globalThis.game?.i18n?.format
+        ? globalThis.game.i18n.format("TENEBRE.Party.AllMembersFedNotice", { count: unfed.length })
+        : `${unfed.length} membro(s) foram alimentados com provisões do grupo.`;
+      globalThis.ui?.notifications?.info?.(notice);
+      this.render?.(false);
+    }
+  }
+
+  async _onToggleFeedMember(memberId) {
+    if (!this.isEditable || !memberId) return;
+    const dayRations = this.actor?.system?.expedition?.dayState?.rations ??
+      this.actor?.flags?.[MODULE_ID]?.expedition?.dayState?.rations ?? {};
+    const isCurrentlyFed = Boolean(dayRations[memberId]?.fed);
+    const newStatus = isCurrentlyFed ? null : { fed: true, source: "manual", timestamp: Date.now() };
+
+    await this.actor.update({
+      [`system.expedition.dayState.rations.${memberId}`]: newStatus,
+      [`flags.${MODULE_ID}.expedition.dayState.rations.${memberId}`]: newStatus
+    });
+    this.render?.(false);
   }
 
   async _onSelectGuide() {

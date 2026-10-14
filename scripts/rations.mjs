@@ -127,7 +127,39 @@ export class RationService {
       totalUsesRemaining: nextTotalUses,
       totalUsesCapacity: nextQuantity * state.usesPerUnit
     });
+
+    await this.#syncExpeditionRation(actor);
     return true;
+  }
+
+  static async #syncExpeditionRation(actor) {
+    if (!actor) return;
+    try {
+      const partyActors = globalThis.game?.actors?.filter?.((a) => a.type === `${FLAG_SCOPE}.party`) ?? [];
+      for (const party of partyActors) {
+        const sysExp = party.system?.expedition ?? party.getFlag?.(FLAG_SCOPE, "expedition") ?? {};
+        if (!sysExp.active) continue;
+        const members = Array.isArray(party.system?.members) ? party.system.members : [];
+        const companions = Array.isArray(party.system?.companions) ? party.system.companions : [];
+        const matches = members.includes(actor.id) || companions.includes(actor.id) ||
+          (actor.uuid && (members.includes(actor.uuid) || companions.includes(actor.uuid)));
+        if (!matches) continue;
+
+        const rationUpdate = {
+          fed: true,
+          source: "personal",
+          timestamp: Date.now()
+        };
+
+        await party.update({
+          [`system.expedition.dayState.rations.${actor.id}`]: rationUpdate,
+          [`flags.${FLAG_SCOPE}.expedition.dayState.rations.${actor.id}`]: rationUpdate
+        });
+        party.sheet?.render(false);
+      }
+    } catch (err) {
+      console.warn("[Tenebre] Falha ao sincronizar ração com expedição:", err);
+    }
   }
 
   static async #postRationChat(actor, newState) {
