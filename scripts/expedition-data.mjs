@@ -206,3 +206,143 @@ export function getDavokarMishapsTableData() {
     results
   };
 }
+
+/** Tabela 26: Ruínas na Davokar (Guia do Mestre, p. 95) */
+export const OFFICIAL_DAVOKAR_RUINS = [
+  { range: [1, 7], name: "Nenhuma ruína encontrada", desc: "Nenhuma ruína ou vestígio evidente foi avistado hoje.", img: "icons/environment/wilderness/forest-dense.webp" },
+  { range: [8, 10], name: "Completamente em ruínas ou já saqueada", desc: "A ruína está desabada em escombros estéreis ou já foi completamente esvaziada por exploradores anteriores.", img: "icons/environment/settlement/rubble.webp" },
+  { range: [11, 12], name: "Pequena, muito danificada", desc: "Uma estrutura modesta e em ruínas severas. Cota máxima de achados: 1d4 + 2.", img: "icons/environment/structures/arch-stone-damaged.webp" },
+  { range: [13, 14], name: "Pequena, em mau estado", desc: "Pequena ruína danificada pelo tempo. Cota máxima de achados: 1d6 + 2.", img: "icons/environment/structures/ruins-stone-moss.webp" },
+  { range: [15, 16], name: "Pequena, bem preservada", desc: "Pequena construção symbariana notavelmente preservada. Cota máxima de achados: 1d6 + 2.", img: "icons/environment/structures/crypt-entrance.webp" },
+  { range: [17, 18], name: "Média, muito danificada", desc: "Complexo médio com paredes desabadas e corredores bloqueados. Cota máxima de achados: 2d6 + 2.", img: "icons/environment/structures/fort-ruins.webp" },
+  { range: [19, 19], name: "Média, em mau estado", desc: "Edificação média parcialmente intacta. Cota máxima de achados: 2d8 + 2.", img: "icons/environment/structures/temple-ruins.webp" },
+  { range: [20, 20], name: "Média, bem preservada", desc: "Complexo médio com salas e câmaras protegidas da floresta. Cota máxima de achados: 2d10 + 2.", img: "icons/environment/structures/ziggurat-stone.webp" },
+  { range: [21, 21], name: "Grande, muito danificada", desc: "Fortaleza ou santuário colossal em ruínas avançadas. Cota máxima de achados: 3d8 + 2.", img: "icons/environment/structures/castle-ruins.webp" },
+  { range: [22, 22], name: "Grande, em mau estado", desc: "Grande fortaleza ou palácio em estado deteriorado. Cota máxima de achados: 3d10 + 2.", img: "icons/environment/structures/fortress-decayed.webp" },
+  { range: [23, 35], name: "Grande, bem preservada", desc: "Monumento, templo ou fortaleza monumental quase intocada pelos séculos. Cota máxima de achados: 3d12 + 2.", img: "icons/environment/structures/pyramid-ancient.webp" }
+];
+
+export function getDavokarRuinsTableData() {
+  const results = OFFICIAL_DAVOKAR_RUINS.map(r => ({
+    type: "text",
+    text: `<strong>${r.name}:</strong> ${r.desc}`,
+    description: `<p><strong>${r.name}</strong></p><p>${r.desc}</p>`,
+    img: r.img,
+    weight: 1,
+    range: r.range,
+    drawn: false
+  }));
+  return {
+    name: "Tabela 26 - Ruínas na Davokar",
+    img: "icons/environment/structures/arch-stone-damaged.webp",
+    description: "<p>Tabela oficial de Ruínas na floresta de Davokar (Guia do Mestre, p. 95).</p>",
+    formula: "1d20",
+    replacement: true,
+    displayRoll: true,
+    results
+  };
+}
+
+/** Tabela 27: Encontros Neutros na Davokar (Guia do Mestre, p. 97) */
+export const OFFICIAL_DAVOKAR_ENCOUNTERS = [
+  { range: [1, 1], name: "Grupo de caça bárbara", desc: "1d6 + 2 caçadores bárbaros. Modificador para Detecção Antecipada: ±0.", img: "icons/skills/targeting/crosshair-arrowhead-blue.webp" },
+  { range: [2, 2], name: "Missionários do Sol", desc: "[PJs + 1d6] sacerdotes ou fiéis de Prios nos ermos. Modificador para Detecção Antecipada: +3.", img: "icons/magic/light/sun-beam-rays-yellow.webp" },
+  { range: [3, 3], name: "Caçadores de tesouros rivais", desc: "[PJs + 1d6] exploradores ambrianos em busca de fortunas. Modificador para Detecção Antecipada: +1.", img: "icons/commodities/treasure/chest-gold.webp" },
+  { range: [4, 4], name: "Assentamento local", desc: "Aldeia bárbara com 1d20 + 20 habitantes locais. Modificador para Detecção Antecipada: +5.", img: "icons/environment/settlement/village-huts.webp" },
+  { range: [5, 5], name: "Patrulheiros da Rainha", desc: "[PJs + 2] patrulheiros fardados da Coroa patrulhando as fronteiras. Modificador para Detecção Antecipada: ±0.", img: "icons/skills/ranged/shield-bow-arrow-green.webp" },
+  { range: [6, 6], name: "Grande expedição financiada", desc: "[PJs + 1d6] membros sob a bandeira de nobres ou da Ordo Magica. Modificador para Detecção Antecipada: +3.", img: "icons/tools/navigation/banner-flag-gold.webp" },
+  { range: [7, 7], name: "Goblins nômades", desc: "Tribo nômade de 1d20 + 20 goblins errantes. Modificador para Detecção Antecipada: –1.", img: "icons/creatures/humanoids/goblin-spear-green.webp" },
+  { range: [8, 8], name: "Elfos do Pacto de Ferro, Trolls civis ou Bestiaais", desc: "[PJs + 1d10] guardiões civilizados ou diplomatas antigos. Modificador para Detecção Antecipada: –5.", img: "icons/magic/nature/leaf-sprout-glowing-green.webp" },
+  { range: [9, 35], name: "Nenhum encontro pacífico", desc: "Nenhum viajante ou grupo amigável cruzou o caminho da expedição hoje.", img: "icons/environment/wilderness/forest-fog.webp" }
+];
+
+export function getDavokarEncountersTableData() {
+  const results = OFFICIAL_DAVOKAR_ENCOUNTERS.map(r => ({
+    type: "text",
+    text: `<strong>${r.name}:</strong> ${r.desc}`,
+    description: `<p><strong>${r.name}</strong></p><p>${r.desc}</p>`,
+    img: r.img,
+    weight: 1,
+    range: r.range,
+    drawn: false
+  }));
+  return {
+    name: "Tabela 27 - Encontros Neutros na Davokar",
+    img: "icons/environment/settlement/village-huts.webp",
+    description: "<p>Tabela oficial de Encontros Neutros e Pacíficos na floresta de Davokar (Guia do Mestre, p. 97).</p>",
+    formula: "1d20",
+    replacement: true,
+    displayRoll: true,
+    results
+  };
+}
+
+/** Tabela 28: Inimigos & Predadores na Davokar (Guia do Mestre, p. 99) */
+export const OFFICIAL_DAVOKAR_ENEMIES = [
+  { range: [1, 8], name: "Nenhum inimigo", desc: "Nenhuma criatura agressiva ou predador atacou a expedição hoje.", img: "icons/environment/wilderness/path-forest-green.webp" },
+  { range: [9, 10], name: "[PJs] Inimigos Fracos", desc: "Exemplos: Caçadores de Fortuna hostis, Jakaars famintos ou Luzes Gélidas.", img: "icons/creatures/mammals/dog-coyote-snarl-brown.webp" },
+  { range: [11, 12], name: "[PJs] Inimigos Fracos com líder Ordinário", desc: "Exemplos: Ladrões liderados por um Ladrão Chefe.", img: "icons/skills/melee/weapons-crossed-swords-yellow.webp" },
+  { range: [13, 14], name: "[PJs] Inimigos Ordinários", desc: "Exemplos: Kotkas predadoras, Guerreiros bárbaros hostis ou Humanos Nascidos da Mácula.", img: "icons/creatures/mammals/feline-cat-prowling-black.webp" },
+  { range: [15, 16], name: "[PJs] Inimigos Ordinários com líder Desafiador", desc: "Exemplos: Dragouls liderados por um Necromago.", img: "icons/magic/death/skeleton-skull-bone-teal.webp" },
+  { range: [17, 18], name: "[PJs] Inimigos Desafiadores", desc: "Exemplos: Trolls Enfurecidos, Fervers famintos ou Moitas Matadoras.", img: "icons/creatures/humanoids/giant-ogre-brute-grey.webp" },
+  { range: [19, 20], name: "[PJs] Inimigos Desafiadores com líder Forte", desc: "Exemplos: Gigavalis liderados por um Linnorme menor.", img: "icons/creatures/reptiles/serpent-horned-coiled-red.webp" },
+  { range: [21, 22], name: "[PJs] Inimigos Fortes", desc: "Exemplos: Lobos Famintos gigantescos, Colossi ou Javalis de Pedra.", img: "icons/creatures/mammals/wolf-dire-grey.webp" },
+  { range: [23, 23], name: "[PJs] Inimigos Fortes com líder Poderoso", desc: "Exemplos: Esmagadores Mordecrânio liderados pela Rainha Mordecrânio.", img: "icons/creatures/invertebrates/spider-fanged-green.webp" },
+  { range: [24, 24], name: "[PJs] Inimigos Poderosos ou [PJs × 2] Fortes", desc: "Exemplos: Salgueiro Voraz ancestral, Bestas Maculadas Primitivas ou Trolls Soberanos.", img: "icons/magic/nature/tree-spirit-screaming-orange.webp" },
+  { range: [25, 35], name: "[PJs] Inimigos Poderosos com líder Lendário", desc: "Exemplos: Serpentes do Mundo chafurdadoras lideradas por uma Grande Serpente de Davokar.", img: "icons/creatures/reptiles/dragon-horned-fire-orange.webp" }
+];
+
+export function getDavokarEnemiesTableData() {
+  const results = OFFICIAL_DAVOKAR_ENEMIES.map(r => ({
+    type: "text",
+    text: `<strong>${r.name}:</strong> ${r.desc}`,
+    description: `<p><strong>${r.name}</strong></p><p>${r.desc}</p>`,
+    img: r.img,
+    weight: 1,
+    range: r.range,
+    drawn: false
+  }));
+  return {
+    name: "Tabela 28 - Inimigos na Davokar",
+    img: "icons/creatures/mammals/wolf-dire-grey.webp",
+    description: "<p>Tabela oficial de Inimigos e Predadores na floresta de Davokar (Guia do Mestre, p. 99).</p>",
+    formula: "1d20",
+    replacement: true,
+    displayRoll: true,
+    results
+  };
+}
+
+/** Tabela 29: Terreno & Perigos na Davokar (Guia do Mestre, p. 100) */
+export const OFFICIAL_DAVOKAR_TERRAIN = [
+  { range: [1, 10], name: "Nada especial", desc: "Terreno comum da floresta, sem obstáculos anormais.", img: "icons/environment/wilderness/forest-trees-green.webp" },
+  { range: [11, 12], name: "Facilmente atravessável", desc: "Trilha aberta ou terreno limpo: a expedição avança +10 km hoje.", img: "icons/environment/wilderness/path-sun-forest.webp" },
+  { range: [13, 14], name: "Pântano / Charco denso", desc: "Lamaçal profundo e raízes entrelaçadas: a velocidade é reduzida em –5 km hoje.", img: "icons/environment/wilderness/swamp-bog-green.webp" },
+  { range: [15, 16], name: "Sumidouro", desc: "O chão cede sob os pés do grupo. Todos testam Vigilante; cada falha sofre 1d8 de dano de queda.", img: "icons/environment/wilderness/chasm-abyss.webp" },
+  { range: [17, 18], name: "Esporos venenosos", desc: "Cogumelos rompem em nuvens venenosas. Todos testam Vigoroso; cada falha sofre 3 de dano por 3 turnos.", img: "icons/magic/nature/mushrooms-cluster-glow-teal.webp" },
+  { range: [19, 20], name: "Terreno vingativo", desc: "[PJs] criaturas agressivas adequadas à fauna/flora local atacam em defesa do território.", img: "icons/magic/nature/vines-thorn-grasping-red.webp" },
+  { range: [21, 21], name: "Natureza levemente corrompida", desc: "A mácula se manifesta: 1 rolagem na Tabela de Perigos da Natureza Corrompida.", img: "icons/magic/unholy/silhouette-evil-horned-face.webp" },
+  { range: [22, 22], name: "Natureza corrompida", desc: "Gavinhas negras e miasma: 3 rolagens na Tabela de Perigos da Natureza Corrompida.", img: "icons/magic/unholy/miasma-fog-swirling-purple.webp" },
+  { range: [23, 35], name: "Natureza severamente corrompida", desc: "Pesadelo vivo de mácula: 5 rolagens na Tabela de Perigos da Natureza Corrompida.", img: "icons/magic/unholy/corruption-tendrils-black.webp" }
+];
+
+export function getDavokarTerrainTableData() {
+  const results = OFFICIAL_DAVOKAR_TERRAIN.map(r => ({
+    type: "text",
+    text: `<strong>${r.name}:</strong> ${r.desc}`,
+    description: `<p><strong>${r.name}</strong></p><p>${r.desc}</p>`,
+    img: r.img,
+    weight: 1,
+    range: r.range,
+    drawn: false
+  }));
+  return {
+    name: "Tabela 29 - Terreno na Davokar",
+    img: "icons/environment/wilderness/swamp-bog-green.webp",
+    description: "<p>Tabela oficial de Terreno e Perigos Naturais na floresta de Davokar (Guia do Mestre, p. 100).</p>",
+    formula: "1d20",
+    replacement: true,
+    displayRoll: true,
+    results
+  };
+}

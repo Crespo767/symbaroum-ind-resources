@@ -4,7 +4,13 @@ import { EncumbranceService } from "./encumbrance.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs";
 import { escapeHtml } from "./utils.mjs";
-import { getDavokarMishapsTableData } from "./expedition-data.mjs";
+import {
+  getDavokarMishapsTableData,
+  getDavokarRuinsTableData,
+  getDavokarEncountersTableData,
+  getDavokarEnemiesTableData,
+  getDavokarTerrainTableData
+} from "./expedition-data.mjs";
 import { RationService } from "./rations.mjs";
 
 /** Tipo de ator declarado em module.json (documentTypes.Actor.party); o core o registra sozinho. */
@@ -263,6 +269,326 @@ export async function drawMishapTable(table, roll) {
     }
   }
 }
+
+/**
+ * Detecta se uma RollTable corresponde à Tabela 26 de Ruínas na Davokar
+ */
+export function isDavokarRuinsTable(target = "") {
+  const name = typeof target === "string" ? target : (target?.name || "");
+  const n = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (n.includes("tabela 26") || n.includes("tabela26") || n.includes("table 26")) return true;
+  if (n.includes("ruina") || n.includes("ruin")) {
+    if (n.includes("davokar") || n.includes("symbaroum") || n.includes("floresta") || n.includes("erm") || n.includes("tabela")) return true;
+  }
+  return false;
+}
+
+/**
+ * Detecta se uma RollTable corresponde à Tabela 27 de Encontros Neutros na Davokar
+ */
+export function isDavokarEncountersTable(target = "") {
+  const name = typeof target === "string" ? target : (target?.name || "");
+  const n = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (n.includes("tabela 27") || n.includes("tabela27") || n.includes("table 27")) return true;
+  if ((n.includes("encontro") || n.includes("encounter")) && (n.includes("davokar") || n.includes("neutro") || n.includes("pacifico") || n.includes("symbaroum"))) return true;
+  return false;
+}
+
+/**
+ * Detecta se uma RollTable corresponde à Tabela 28 de Inimigos & Predadores na Davokar
+ */
+export function isDavokarEnemiesTable(target = "") {
+  const name = typeof target === "string" ? target : (target?.name || "");
+  const n = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (n.includes("tabela 28") || n.includes("tabela28") || n.includes("table 28")) return true;
+  if ((n.includes("inimigo") && n.includes("predador")) || (n.includes("enemy") && n.includes("predator"))) return true;
+  if ((n.includes("inimigo") || n.includes("predador") || n.includes("enemy") || n.includes("enemies")) && (n.includes("davokar") || n.includes("symbaroum"))) return true;
+  return false;
+}
+
+/**
+ * Detecta se uma RollTable corresponde à Tabela 29 de Terreno & Perigos na Davokar
+ */
+export function isDavokarTerrainTable(target = "") {
+  const name = typeof target === "string" ? target : (target?.name || "");
+  const n = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (n.includes("tabela 29") || n.includes("tabela29") || n.includes("table 29")) return true;
+  if ((n.includes("terreno") && n.includes("perigo")) || (n.includes("terrain") && (n.includes("hazard") || n.includes("danger")))) return true;
+  if ((n.includes("terreno") || n.includes("terrain") || n.includes("perigo")) && (n.includes("davokar") || n.includes("natureza") || n.includes("symbaroum"))) return true;
+  return false;
+}
+
+/**
+ * Lista todas as RollTables disponíveis no mundo e nos compêndios carregados
+ */
+export function getAvailableRollTables() {
+  const game = globalThis.game;
+  if (!game) return [];
+  const list = [];
+
+  for (const table of (game.tables ?? [])) {
+    list.push({
+      id: table.id,
+      uuid: table.uuid || `RollTable.${table.id}`,
+      name: table.name,
+      source: "world"
+    });
+  }
+
+  for (const pack of (game.packs ?? [])) {
+    if (pack.documentName !== "RollTable") continue;
+    const packLabel = pack.title || pack.metadata?.label || pack.metadata?.name || pack.name;
+    const index = pack.index ? (Array.isArray(pack.index) ? pack.index : Array.from(pack.index.values ? pack.index.values() : pack.index)) : [];
+    for (const entry of index) {
+      list.push({
+        id: entry._id,
+        uuid: `Compendium.${pack.metadata?.id || pack.collection}.${entry._id}`,
+        name: `${entry.name} [${packLabel}]`,
+        source: "compendium"
+      });
+    }
+  }
+
+  return list.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+/**
+ * Localiza a RollTable adequada para um dos 4 slots de eventos da Davokar
+ */
+export async function resolveDavokarEventTable(slot, configuredUuidOrId) {
+  const game = globalThis.game;
+  if (!game) return null;
+
+  if (configuredUuidOrId) {
+    if (configuredUuidOrId.startsWith("Compendium.") && globalThis.fromUuid) {
+      try {
+        const doc = await globalThis.fromUuid(configuredUuidOrId);
+        if (doc) return doc;
+      } catch {}
+    }
+    const worldTable = game.tables?.get?.(configuredUuidOrId)
+      || Array.from(game.tables ?? []).find(t => t.uuid === configuredUuidOrId || t.name === configuredUuidOrId || t.id === configuredUuidOrId);
+    if (worldTable) return worldTable;
+  }
+
+  let isMatch = null;
+  let defaultDataGetter = null;
+  if (slot === "ruins") {
+    isMatch = isDavokarRuinsTable;
+    defaultDataGetter = getDavokarRuinsTableData;
+  } else if (slot === "encounters") {
+    isMatch = isDavokarEncountersTable;
+    defaultDataGetter = getDavokarEncountersTableData;
+  } else if (slot === "enemies") {
+    isMatch = isDavokarEnemiesTable;
+    defaultDataGetter = getDavokarEnemiesTableData;
+  } else if (slot === "terrain") {
+    isMatch = isDavokarTerrainTable;
+    defaultDataGetter = getDavokarTerrainTableData;
+  }
+  if (!isMatch) return null;
+
+  const worldTable = Array.from(game.tables ?? []).find(t => isMatch(t.name));
+  if (worldTable) return worldTable;
+
+  const modPack = typeof game.packs?.get === "function"
+    ? game.packs.get(`${MODULE_ID}.expedition-tables`)
+    : (Array.isArray(game.packs) ? game.packs.find(p => p.metadata?.id === `${MODULE_ID}.expedition-tables` || p.name === "expedition-tables") : null);
+  if (modPack) {
+    try {
+      if (!modPack.indexed) await modPack.getIndex();
+      const entry = modPack.index.find(e => isMatch(e.name));
+      if (entry) return await modPack.getDocument(entry._id);
+    } catch {}
+  }
+
+  for (const pack of (game.packs ?? [])) {
+    if (pack.documentName !== "RollTable") continue;
+    try {
+      if (!pack.indexed) await pack.getIndex();
+      const entry = pack.index.find(e => isMatch(e.name));
+      if (entry) return await pack.getDocument(entry._id);
+    } catch {}
+  }
+
+  if (defaultDataGetter && globalThis.RollTable?.create && (game.user?.isGM || game.user?.can?.("TABLE_CREATE"))) {
+    try {
+      const data = defaultDataGetter();
+      const created = await globalThis.RollTable.create(data);
+      if (created) return created;
+    } catch {}
+  }
+
+  return null;
+}
+
+/**
+ * Calcula os modificadores numéricos e as fórmulas das 4 tabelas de eventos da Davokar
+ */
+export function calculateDavokarEventModifiers({ regionKey = "bright", orientationVerdict = "failure", activeSearch = true }) {
+  const regionModifiers = {
+    ambria: 0,
+    bright: 0,
+    wild: 2,
+    dark: 5
+  };
+  const regionMod = regionModifiers[regionKey] ?? 0;
+  const isOrientationSuccess = orientationVerdict === "success" || orientationVerdict === "greatSuccess";
+  const isOrientationGreat = orientationVerdict === "greatSuccess";
+
+  let ruinsOrientationBonus = 0;
+  let ruinsSearchPenalty = 0;
+  if (activeSearch) {
+    if (isOrientationSuccess) ruinsOrientationBonus = 2;
+  } else {
+    ruinsSearchPenalty = -5;
+  }
+  const ruinsTotalMod = regionMod + ruinsSearchPenalty + ruinsOrientationBonus;
+  const encountersTotalMod = regionMod;
+
+  let enemiesOrientationMod = 0;
+  if (isOrientationGreat) enemiesOrientationMod = -2;
+  else if (isOrientationSuccess) enemiesOrientationMod = -1;
+  const enemiesTotalMod = regionMod + enemiesOrientationMod;
+
+  let terrainOrientationMod = 0;
+  if (isOrientationGreat) terrainOrientationMod = -2;
+  else if (isOrientationSuccess) terrainOrientationMod = -1;
+  const terrainTotalMod = regionMod + terrainOrientationMod;
+
+  const formatFormula = (mod) => {
+    if (mod > 0) return `1d20 + ${mod}`;
+    if (mod < 0) return `1d20 - ${Math.abs(mod)}`;
+    return "1d20";
+  };
+
+  return {
+    regionMod,
+    activeSearch,
+    ruins: {
+      totalMod: ruinsTotalMod,
+      formula: formatFormula(ruinsTotalMod),
+      regionMod,
+      searchMod: ruinsSearchPenalty,
+      orientationMod: ruinsOrientationBonus
+    },
+    encounters: {
+      totalMod: encountersTotalMod,
+      formula: formatFormula(encountersTotalMod),
+      regionMod,
+      earlyDetection: isOrientationSuccess
+    },
+    enemies: {
+      totalMod: enemiesTotalMod,
+      formula: formatFormula(enemiesTotalMod),
+      regionMod,
+      orientationMod: enemiesOrientationMod
+    },
+    terrain: {
+      totalMod: terrainTotalMod,
+      formula: formatFormula(terrainTotalMod),
+      regionMod,
+      orientationMod: terrainOrientationMod
+    }
+  };
+}
+
+/**
+ * Executa o sorteio de resultado de uma RollTable e extrai o texto e imagem
+ */
+export async function drawTableResult(table, roll) {
+  if (!table) return { results: [], text: "Tabela não encontrada", img: "icons/svg/d20-grey.svg" };
+  let results = [];
+  try {
+    const rollResult = await table.roll({ roll });
+    results = rollResult.results || [];
+  } catch (err) {
+    try {
+      const drawResult = await table.draw({ roll, displayChat: false });
+      results = drawResult?.results || [];
+    } catch (e2) {
+      console.error("symbaroum-ind-resources | Falha ao rolar tabela:", e2);
+      return { results: [], text: "Erro ao rolar tabela", img: "icons/svg/d20-grey.svg" };
+    }
+  }
+
+  const textPieces = [];
+  let resultImg = table.img || "icons/svg/d20-grey.svg";
+  for (const r of results) {
+    const txt = (typeof r.getChatText === "function" ? r.getChatText() : (r.text || r.name || "")).trim();
+    if (txt) textPieces.push(txt);
+    if (r.img && !r.img.includes("/d20") && !r.img.endsWith("mystery-man.svg")) {
+      resultImg = r.img;
+    }
+  }
+
+  return {
+    results,
+    text: textPieces.join("; ") || "Sem resultado",
+    img: resultImg
+  };
+}
+
+/**
+ * Monta o HTML do Card de Chat dos Eventos Diários na Davokar
+ */
+export function buildEventsChatHtml({
+  day = 1,
+  regionKey = "bright",
+  activeSearch = true,
+  guideName = "Guia",
+  results = []
+}) {
+  const regionNames = {
+    ambria: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameAmbria") || "Ambria",
+    bright: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameBright") || "Davokar Iluminada",
+    wild: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameWild") || "Davokar Selvagem",
+    dark: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameDark") || "Davokar Escura"
+  };
+  const rawRegion = regionNames[regionKey] || regionKey;
+  const regionName = String(rawRegion).replace(/\s*\([±+\-]\d+\)/, "").trim();
+
+  const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventsCardTitle") || "Eventos Diários na Davokar";
+  const searchStatus = activeSearch
+    ? (globalThis.game?.i18n?.localize?.("TENEBRE.Party.ActiveSearchActive") || "Busca Ativa de Ruínas: Sim")
+    : (globalThis.game?.i18n?.localize?.("TENEBRE.Party.ActiveSearchInactive") || "Busca Ativa de Ruínas: Não (-5)");
+
+  let itemsHtml = "";
+  for (const r of results) {
+    itemsHtml += `
+      <div class="tenebre-event-result-item slot-${escapeHtml(r.slotKey)}">
+        <div class="event-item-header">
+          <i class="${escapeHtml(r.icon)}"></i>
+          <span class="event-item-title">${escapeHtml(r.title)}</span>
+          <span class="event-item-score">[${r.rollTotal}]</span>
+          <span class="event-item-formula">(${escapeHtml(r.formula)})</span>
+        </div>
+        <div class="event-item-body">
+          <p class="event-item-text">${r.resultText}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="symbaroum chat ability tenebre-events-chat">
+      <div class="foreground">
+        <div class="tenebre-events-card">
+          <h3 class="tenebre-events-title">${escapeHtml(title)}</h3>
+          <p class="tenebre-events-subtitle">Dia ${day} • ${escapeHtml(regionName)} • Guia: ${escapeHtml(guideName)}</p>
+          <div class="tenebre-events-meta-badge">
+            <span class="meta-tag"><i class="fas fa-search-location"></i> ${escapeHtml(searchStatus)}</span>
+          </div>
+
+          <div class="tenebre-events-results-container">
+            ${itemsHtml}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 
 /**
  * Monta o HTML do Card de Chat do Teste de Orientação
@@ -1030,15 +1356,114 @@ export class PartyActorSheet extends BaseActorSheet {
     const allMembersFed = expeditionRationMembers.length > 0 && expeditionRationMembers.every(m => m.isFed);
     const hungryCount = expeditionRationMembers.filter(m => !m.isFed).length;
 
+    // Passo 3: Eventos Diários na Davokar
+    const isActivelySearching = rawExpedition.activeSearch !== undefined
+      ? Boolean(rawExpedition.activeSearch)
+      : (this.actor?.flags?.[MODULE_ID]?.expedition?.activeSearch !== undefined
+        ? Boolean(this.actor?.flags?.[MODULE_ID]?.expedition?.activeSearch)
+        : true);
+
+    const configuredTables = rawExpedition.tables || this.actor?.flags?.[MODULE_ID]?.expedition?.tables || {};
+    const dayEventsState = dayStateRaw.events || this.actor?.flags?.[MODULE_ID]?.expedition?.dayState?.events || {};
+
+    const availableTables = getAvailableRollTables();
+    const eventModifiers = calculateDavokarEventModifiers({
+      regionKey,
+      orientationVerdict: orientationDayView.rolled ? orientationDayView.verdict : "failure",
+      activeSearch: isActivelySearching
+    });
+
+    const slotsConfig = [
+      {
+        key: "ruins",
+        title: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventRuinsTitle") || "Ruínas na Davokar",
+        icon: "fas fa-landmark",
+        defaultName: "Tabela 26 - Ruínas na Davokar",
+        mods: eventModifiers.ruins
+      },
+      {
+        key: "encounters",
+        title: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventEncountersTitle") || "Encontros Neutros",
+        icon: "fas fa-users",
+        defaultName: "Tabela 27 - Encontros Neutros na Davokar",
+        mods: eventModifiers.encounters
+      },
+      {
+        key: "enemies",
+        title: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventEnemiesTitle") || "Inimigos & Predadores",
+        icon: "fas fa-skull-crossbones",
+        defaultName: "Tabela 28 - Inimigos na Davokar",
+        mods: eventModifiers.enemies
+      },
+      {
+        key: "terrain",
+        title: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventTerrainTitle") || "Terreno & Perigos",
+        icon: "fas fa-mountain",
+        defaultName: "Tabela 29 - Terreno na Davokar",
+        mods: eventModifiers.terrain
+      }
+    ];
+
+    const eventSlotsView = [];
+    for (const s of slotsConfig) {
+      const selectedUuid = configuredTables[s.key] || "";
+      let resolvedTableName = s.defaultName;
+      if (selectedUuid) {
+        const found = availableTables.find(t => t.uuid === selectedUuid || t.id === selectedUuid);
+        if (found) resolvedTableName = found.name;
+      }
+
+      const slotResult = dayEventsState[s.key] || null;
+      const hasResult = Boolean(slotResult?.rolled);
+
+      const breakdownParts = [];
+      breakdownParts.push(`Região: ${eventModifiers.regionMod >= 0 ? `+${eventModifiers.regionMod}` : eventModifiers.regionMod}`);
+      if (s.key === "ruins") {
+        if (!isActivelySearching) breakdownParts.push("Sem Busca Ativa: -5");
+        if (s.mods.orientationMod > 0) breakdownParts.push(`Orientação: +${s.mods.orientationMod}`);
+      } else if (s.key === "enemies" || s.key === "terrain") {
+        if (s.mods.orientationMod !== 0) breakdownParts.push(`Orientação: ${s.mods.orientationMod}`);
+      }
+      const formulaBreakdown = breakdownParts.join(" | ");
+
+      const tableOptions = availableTables.map(tbl => ({
+        ...tbl,
+        selected: selectedUuid === tbl.uuid || selectedUuid === tbl.id
+      }));
+
+      eventSlotsView.push({
+        key: s.key,
+        title: s.title,
+        icon: s.icon,
+        formula: s.mods.formula,
+        formulaBreakdown,
+        totalMod: s.mods.totalMod,
+        selectedTableUuid: selectedUuid,
+        resolvedTableName,
+        tableOptions,
+        hasResult,
+        result: slotResult
+      });
+    }
+
+    const hasAnyEventRolled = eventSlotsView.some(s => s.hasResult);
+    const allEventsRolled = eventSlotsView.every(s => s.hasResult);
+
     data.expedition = {
       active: isExpeditionActive,
       day: isExpeditionActive ? expeditionDay : 0,
       isFirstDay: expeditionDay <= 1,
       guideId: guideId,
       guide: guideData,
+      activeSearch: isActivelySearching,
+      availableTables,
+      eventSlots: eventSlotsView,
+      hasAnyEventRolled,
+      allEventsRolled,
       dayState: {
         orientation: orientationDayView,
-        rations: dayRationsState
+        rations: dayRationsState,
+        events: dayEventsState
       },
       rations: {
         groupTotal: groupTotalRations,
@@ -1489,6 +1914,49 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
+    root.querySelectorAll('[data-action="toggle-active-search"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onToggleActiveSearch();
+      });
+    });
+
+    root.querySelectorAll('select[data-action="change-event-table"]').forEach(el => {
+      el.addEventListener("change", async (ev) => {
+        ev.preventDefault();
+        const slot = el.dataset.eventSlot;
+        const uuid = el.value;
+        await this._onChangeEventTable(slot, uuid);
+      });
+    });
+
+    root.querySelectorAll('[data-action="roll-single-event"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const slot = el.dataset.eventSlot;
+        await this._onRollSingleEvent(slot);
+      });
+    });
+
+    root.querySelectorAll('[data-action="reset-single-event"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const slot = el.dataset.eventSlot;
+        await this._onResetSingleEvent(slot);
+      });
+    });
+
+    root.querySelectorAll('[data-action="roll-all-events"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onRollAllEvents();
+      });
+    });
+
     this._bindMemberContextMenu(root);
   }
 
@@ -1749,10 +2217,12 @@ export class PartyActorSheet extends BaseActorSheet {
       "system.expedition.day": 1,
       "system.expedition.dayState.orientation": null,
       "system.expedition.dayState.rations": {},
+      "system.expedition.dayState.events": {},
       [`flags.${MODULE_ID}.expedition.active`]: true,
       [`flags.${MODULE_ID}.expedition.day`]: 1,
       [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null,
-      [`flags.${MODULE_ID}.expedition.dayState.rations`]: {}
+      [`flags.${MODULE_ID}.expedition.dayState.rations`]: {},
+      [`flags.${MODULE_ID}.expedition.dayState.events`]: {}
     });
     const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionStartedNotice") || "Expedição iniciada! Dia 1 em Davokar.";
     globalThis.ui?.notifications?.info?.(msg);
@@ -1769,10 +2239,12 @@ export class PartyActorSheet extends BaseActorSheet {
         "system.expedition.day": 0,
         "system.expedition.dayState.orientation": null,
         "system.expedition.dayState.rations": {},
+        "system.expedition.dayState.events": {},
         [`flags.${MODULE_ID}.expedition.active`]: false,
         [`flags.${MODULE_ID}.expedition.day`]: 0,
         [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null,
-        [`flags.${MODULE_ID}.expedition.dayState.rations`]: {}
+        [`flags.${MODULE_ID}.expedition.dayState.rations`]: {},
+        [`flags.${MODULE_ID}.expedition.dayState.events`]: {}
       });
       const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionEndedNotice") || "Expedição encerrada.";
       globalThis.ui?.notifications?.info?.(msg);
@@ -1811,10 +2283,12 @@ export class PartyActorSheet extends BaseActorSheet {
       "system.expedition.day": nextDay,
       "system.expedition.dayState.orientation": null,
       "system.expedition.dayState.rations": {},
+      "system.expedition.dayState.events": {},
       [`flags.${MODULE_ID}.expedition.active`]: true,
       [`flags.${MODULE_ID}.expedition.day`]: nextDay,
       [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null,
-      [`flags.${MODULE_ID}.expedition.dayState.rations`]: {}
+      [`flags.${MODULE_ID}.expedition.dayState.rations`]: {},
+      [`flags.${MODULE_ID}.expedition.dayState.events`]: {}
     });
 
     const msg = globalThis.game?.i18n?.format
@@ -1961,6 +2435,219 @@ export class PartyActorSheet extends BaseActorSheet {
       [`flags.${MODULE_ID}.expedition.dayState.rations.${memberId}`]: newStatus
     });
     this.render?.(false);
+  }
+
+  async _onToggleActiveSearch() {
+    if (!this.isEditable) return;
+    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const current = rawExpedition.activeSearch !== undefined
+      ? Boolean(rawExpedition.activeSearch)
+      : (this.actor?.flags?.[MODULE_ID]?.expedition?.activeSearch !== undefined
+        ? Boolean(this.actor?.flags?.[MODULE_ID]?.expedition?.activeSearch)
+        : true);
+    const updated = !current;
+    await this.actor.update({
+      "system.expedition.activeSearch": updated,
+      [`flags.${MODULE_ID}.expedition.activeSearch`]: updated
+    });
+    this.render(false);
+  }
+
+  async _onChangeEventTable(slot, uuid) {
+    if (!this.isEditable || !slot) return;
+    const currentTables = {
+      ...(this.actor?.system?.expedition?.tables ?? this.actor?.flags?.[MODULE_ID]?.expedition?.tables ?? {})
+    };
+    currentTables[slot] = uuid || "";
+    await this.actor.update({
+      "system.expedition.tables": currentTables,
+      [`flags.${MODULE_ID}.expedition.tables`]: currentTables
+    });
+    this.render(false);
+  }
+
+  async _onRollSingleEvent(slotKey) {
+    if (!this.isEditable && !globalThis.game?.user?.isGM) return;
+    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const regionKey = this.actor?.system?.location?.region || "ambria";
+    const day = Math.max(1, Number(rawExpedition.day) || 1);
+    const activeSearch = rawExpedition.activeSearch !== undefined ? Boolean(rawExpedition.activeSearch) : true;
+    const orientationVerdict = rawExpedition.dayState?.orientation?.verdict || "failure";
+    const configuredTables = rawExpedition.tables || {};
+
+    const mods = calculateDavokarEventModifiers({
+      regionKey,
+      orientationVerdict,
+      activeSearch
+    });
+    const slotMods = mods[slotKey];
+    if (!slotMods) return;
+
+    const roll = await evaluateRoll(slotMods.formula);
+    const total = rollTotal(roll);
+
+    const configuredUuid = configuredTables[slotKey] || "";
+    const table = await resolveDavokarEventTable(slotKey, configuredUuid);
+    const drawn = await drawTableResult(table, roll);
+
+    const slotTitles = {
+      ruins: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventRuinsTitle") || "Ruínas na Davokar",
+      encounters: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventEncountersTitle") || "Encontros Neutros",
+      enemies: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventEnemiesTitle") || "Inimigos & Predadores",
+      terrain: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventTerrainTitle") || "Terreno & Perigos"
+    };
+    const slotIcons = {
+      ruins: "fas fa-landmark",
+      encounters: "fas fa-users",
+      enemies: "fas fa-skull-crossbones",
+      terrain: "fas fa-mountain"
+    };
+
+    const currentEvents = {
+      ...(rawExpedition.dayState?.events ?? {})
+    };
+    currentEvents[slotKey] = {
+      rolled: true,
+      rollTotal: total,
+      formula: slotMods.formula,
+      resultText: drawn.text,
+      resultImg: drawn.img,
+      tableName: table?.name || "Tabela"
+    };
+
+    await this.actor.update({
+      "system.expedition.dayState.events": currentEvents,
+      [`flags.${MODULE_ID}.expedition.dayState.events`]: currentEvents
+    });
+
+    const guideActor = this._resolveActor(rawExpedition.guideId || rawExpedition.guideUuid);
+    const chatHtml = buildEventsChatHtml({
+      day,
+      regionKey,
+      activeSearch,
+      guideName: guideActor?.name || "Guia",
+      results: [
+        {
+          slotKey,
+          title: slotTitles[slotKey] || slotKey,
+          icon: slotIcons[slotKey] || "fas fa-dice",
+          rollTotal: total,
+          formula: slotMods.formula,
+          resultText: drawn.text
+        }
+      ]
+    });
+
+    await createChatMessageAfterDice({
+      roll,
+      messageData: {
+        speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
+        content: chatHtml
+      }
+    });
+
+    this.render(false);
+  }
+
+  async _onResetSingleEvent(slotKey) {
+    if (!this.isEditable && !globalThis.game?.user?.isGM) return;
+    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const currentEvents = { ...(rawExpedition.dayState?.events ?? {}) };
+    delete currentEvents[slotKey];
+    await this.actor.update({
+      "system.expedition.dayState.events": currentEvents,
+      [`flags.${MODULE_ID}.expedition.dayState.events`]: currentEvents
+    });
+    this.render(false);
+  }
+
+  async _onRollAllEvents() {
+    if (!this.isEditable && !globalThis.game?.user?.isGM) return;
+    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const regionKey = this.actor?.system?.location?.region || "ambria";
+    const day = Math.max(1, Number(rawExpedition.day) || 1);
+    const activeSearch = rawExpedition.activeSearch !== undefined ? Boolean(rawExpedition.activeSearch) : true;
+    const orientationVerdict = rawExpedition.dayState?.orientation?.verdict || "failure";
+    const configuredTables = rawExpedition.tables || {};
+
+    const mods = calculateDavokarEventModifiers({
+      regionKey,
+      orientationVerdict,
+      activeSearch
+    });
+
+    const slots = ["ruins", "encounters", "enemies", "terrain"];
+    const slotTitles = {
+      ruins: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventRuinsTitle") || "Ruínas na Davokar",
+      encounters: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventEncountersTitle") || "Encontros Neutros",
+      enemies: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventEnemiesTitle") || "Inimigos & Predadores",
+      terrain: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventTerrainTitle") || "Terreno & Perigos"
+    };
+    const slotIcons = {
+      ruins: "fas fa-landmark",
+      encounters: "fas fa-users",
+      enemies: "fas fa-skull-crossbones",
+      terrain: "fas fa-mountain"
+    };
+
+    const currentEvents = {
+      ...(rawExpedition.dayState?.events ?? {})
+    };
+    const chatResults = [];
+    let lastRoll = null;
+
+    for (const slotKey of slots) {
+      const slotMods = mods[slotKey];
+      const roll = await evaluateRoll(slotMods.formula);
+      lastRoll = roll;
+      const total = rollTotal(roll);
+
+      const configuredUuid = configuredTables[slotKey] || "";
+      const table = await resolveDavokarEventTable(slotKey, configuredUuid);
+      const drawn = await drawTableResult(table, roll);
+
+      currentEvents[slotKey] = {
+        rolled: true,
+        rollTotal: total,
+        formula: slotMods.formula,
+        resultText: drawn.text,
+        resultImg: drawn.img,
+        tableName: table?.name || "Tabela"
+      };
+
+      chatResults.push({
+        slotKey,
+        title: slotTitles[slotKey] || slotKey,
+        icon: slotIcons[slotKey] || "fas fa-dice",
+        rollTotal: total,
+        formula: slotMods.formula,
+        resultText: drawn.text
+      });
+    }
+
+    await this.actor.update({
+      "system.expedition.dayState.events": currentEvents,
+      [`flags.${MODULE_ID}.expedition.dayState.events`]: currentEvents
+    });
+
+    const guideActor = this._resolveActor(rawExpedition.guideId || rawExpedition.guideUuid);
+    const chatHtml = buildEventsChatHtml({
+      day,
+      regionKey,
+      activeSearch,
+      guideName: guideActor?.name || "Guia",
+      results: chatResults
+    });
+
+    await createChatMessageAfterDice({
+      roll: lastRoll,
+      messageData: {
+        speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
+        content: chatHtml
+      }
+    });
+
+    this.render(false);
   }
 
   async _onSelectGuide() {

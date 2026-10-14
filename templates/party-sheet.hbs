@@ -677,6 +677,95 @@
                             {{/if}}
                         </div>
                     </div>
+
+                    <!-- Box do Passo 3: Rolagens de Eventos Diários na Davokar -->
+                    <div class="party-events-box foreground is-linked">
+                        <!-- Separação de contagem de passo: Passo 3: Eventos da Floresta -->
+                        <div class="expedition-step-header">
+                            <span class="expedition-step-label"><i class="fas fa-dice-d20"></i> {{localize "TENEBRE.Party.ExpeditionStep3Title"}}</span>
+                            <span class="expedition-step-line"></span>
+                            <div class="events-header-actions">
+                                <!-- Botão de Alternância de Busca Ativa de Ruínas -->
+                                {{#if editable}}
+                                <button type="button" class="btn-toggle-active-search {{#if expedition.activeSearch}}is-active{{else}}is-inactive{{/if}}" data-action="toggle-active-search" data-tooltip="{{localize "TENEBRE.Party.ActiveSearchTooltip"}}">
+                                    <i class="fas {{#if expedition.activeSearch}}fa-search-location{{else}}fa-eye-slash{{/if}}"></i>
+                                    <span class="search-toggle-label">{{localize "TENEBRE.Party.ActiveSearchLabel"}}:</span>
+                                    <strong class="search-toggle-val">{{#if expedition.activeSearch}}{{localize "TENEBRE.Party.ActiveSearchYes"}}{{else}}{{localize "TENEBRE.Party.ActiveSearchNo"}}{{/if}}</strong>
+                                </button>
+                                {{else}}
+                                <span class="search-status-display {{#if expedition.activeSearch}}is-active{{else}}is-inactive{{/if}}">
+                                    <i class="fas {{#if expedition.activeSearch}}fa-search-location{{else}}fa-eye-slash{{/if}}"></i>
+                                    {{localize "TENEBRE.Party.ActiveSearchLabel"}}: {{#if expedition.activeSearch}}{{localize "TENEBRE.Party.ActiveSearchYes"}}{{else}}{{localize "TENEBRE.Party.ActiveSearchNo"}}{{/if}}
+                                </span>
+                                {{/if}}
+
+                                <!-- Botão Principal: Rolar Todos os Eventos -->
+                                {{#if editable}}
+                                <button type="button" class="btn-roll-all-events" data-action="roll-all-events" data-tooltip="{{localize "TENEBRE.Party.RollAllEventsTooltip"}}">
+                                    <i class="fas fa-dice-d20"></i> {{localize "TENEBRE.Party.RollAllEventsBtn"}}
+                                </button>
+                                {{/if}}
+                            </div>
+                        </div>
+
+                        <!-- Lista das 4 Tabelas de Eventos -->
+                        <div class="party-events-list">
+                            {{#each expedition.eventSlots as |slot|}}
+                            <div class="party-event-slot-row {{#if slot.hasResult}}has-result{{/if}}">
+                                <div class="event-slot-identity">
+                                    <div class="event-slot-icon is-{{slot.key}}">
+                                        <i class="{{slot.icon}}"></i>
+                                    </div>
+                                    <div class="event-slot-info">
+                                        <div class="event-slot-title-row">
+                                            <span class="event-slot-title">{{slot.title}}</span>
+                                            <span class="event-slot-formula-badge" data-tooltip="{{slot.formulaBreakdown}}">
+                                                {{slot.formula}}
+                                            </span>
+                                        </div>
+                                        <div class="event-slot-selector-row">
+                                            <label class="event-slot-label"><i class="fas fa-table"></i> {{localize "TENEBRE.Party.TableLabel"}}:</label>
+                                            {{#if ../editable}}
+                                            <select class="event-table-select" data-action="change-event-table" data-event-slot="{{slot.key}}">
+                                                <option value="" {{#unless slot.selectedTableUuid}}selected{{/unless}}>{{localize "TENEBRE.Party.TableAutoDefault"}}: {{slot.resolvedTableName}}</option>
+                                                {{#each slot.tableOptions as |tbl|}}
+                                                <option value="{{tbl.uuid}}" {{#if tbl.selected}}selected{{/if}}>{{tbl.name}}</option>
+                                                {{/each}}
+                                            </select>
+                                            {{else}}
+                                            <span class="event-table-name">{{slot.resolvedTableName}}</span>
+                                            {{/if}}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="event-slot-result-area">
+                                    {{#if slot.hasResult}}
+                                        <div class="event-slot-result-box" data-tooltip="{{localize "TENEBRE.Party.EventRollDetails"}}: {{slot.result.rollTotal}} ({{slot.result.formula}})">
+                                            <span class="event-result-score">[{{slot.result.rollTotal}}]</span>
+                                            <span class="event-result-text">{{slot.result.resultText}}</span>
+                                        </div>
+                                    {{else}}
+                                        <span class="event-slot-no-result">{{localize "TENEBRE.Party.EventNotRolled"}}</span>
+                                    {{/if}}
+                                </div>
+
+                                <div class="event-slot-actions">
+                                    {{#if ../editable}}
+                                    <button type="button" class="btn-roll-single-event" data-action="roll-single-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Party.RollSingleEventTooltip"}}">
+                                        <i class="fas fa-dice"></i>
+                                    </button>
+                                    {{#if slot.hasResult}}
+                                    <button type="button" class="btn-reset-single-event" data-action="reset-single-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Party.ResetSingleEventTooltip"}}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {{/if}}
+                                    {{/if}}
+                                </div>
+                            </div>
+                            {{/each}}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

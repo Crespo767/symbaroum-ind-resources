@@ -1050,3 +1050,183 @@ test("RationService.consumeDay marks character as fed in active party expedition
     TenebreSettings.get = origGet;
   }
 });
+
+test("calculateDavokarEventModifiers applies region, orientation and activeSearch rules correctly", async () => {
+  const { calculateDavokarEventModifiers } = await import("../scripts/party-actor.mjs");
+
+  // Bright Davokar (regionMod = 0)
+  // Active search (+0), Great orientation (+2 ruins, -2 enemies/terrain)
+  const brightGreatActive = calculateDavokarEventModifiers({
+    regionKey: "bright",
+    orientationVerdict: "greatSuccess",
+    activeSearch: true
+  });
+  assert.equal(brightGreatActive.ruins.totalMod, 2);
+  assert.equal(brightGreatActive.ruins.formula, "1d20 + 2");
+  assert.equal(brightGreatActive.encounters.totalMod, 0);
+  assert.equal(brightGreatActive.encounters.formula, "1d20");
+  assert.equal(brightGreatActive.enemies.totalMod, -2);
+  assert.equal(brightGreatActive.enemies.formula, "1d20 - 2");
+  assert.equal(brightGreatActive.terrain.totalMod, -2);
+  assert.equal(brightGreatActive.terrain.formula, "1d20 - 2");
+
+  // Bright Davokar, Inactive search (-5, no orientation bonus for ruins)
+  const brightGreatInactive = calculateDavokarEventModifiers({
+    regionKey: "bright",
+    orientationVerdict: "greatSuccess",
+    activeSearch: false
+  });
+  assert.equal(brightGreatInactive.ruins.totalMod, -5);
+  assert.equal(brightGreatInactive.ruins.formula, "1d20 - 5");
+  // Enemies & terrain still benefit from orientation (-2)
+  assert.equal(brightGreatInactive.enemies.totalMod, -2);
+  assert.equal(brightGreatInactive.terrain.totalMod, -2);
+
+  // Wild Davokar (+2 region), Active search, Normal orientation (+2 ruins, -1 enemies/terrain)
+  const wildNormalActive = calculateDavokarEventModifiers({
+    regionKey: "wild",
+    orientationVerdict: "success",
+    activeSearch: true
+  });
+  assert.equal(wildNormalActive.ruins.totalMod, 4); // +2 region + 2 orient
+  assert.equal(wildNormalActive.ruins.formula, "1d20 + 4");
+  assert.equal(wildNormalActive.encounters.totalMod, 2); // +2 region
+  assert.equal(wildNormalActive.enemies.totalMod, 1); // +2 region - 1 orient
+  assert.equal(wildNormalActive.enemies.formula, "1d20 + 1");
+  assert.equal(wildNormalActive.terrain.totalMod, 1); // +2 region - 1 orient
+
+  // Dark Davokar (+5 region), Active search, Failure (no orientation bonus)
+  const darkFailActive = calculateDavokarEventModifiers({
+    regionKey: "dark",
+    orientationVerdict: "failure",
+    activeSearch: true
+  });
+  assert.equal(darkFailActive.ruins.totalMod, 5);
+  assert.equal(darkFailActive.ruins.formula, "1d20 + 5");
+  assert.equal(darkFailActive.encounters.totalMod, 5);
+  assert.equal(darkFailActive.enemies.totalMod, 5);
+  assert.equal(darkFailActive.terrain.totalMod, 5);
+
+  // Dark Davokar, Inactive search (-5), Failure
+  const darkFailInactive = calculateDavokarEventModifiers({
+    regionKey: "dark",
+    orientationVerdict: "failure",
+    activeSearch: false
+  });
+  assert.equal(darkFailInactive.ruins.totalMod, 0); // +5 region - 5 search
+  assert.equal(darkFailInactive.ruins.formula, "1d20");
+});
+
+test("Davokar Event Table Matchers and fallback datasets are valid", async () => {
+  const {
+    isDavokarRuinsTable,
+    isDavokarEncountersTable,
+    isDavokarEnemiesTable,
+    isDavokarTerrainTable
+  } = await import("../scripts/party-actor.mjs");
+
+  const {
+    getDavokarRuinsTableData,
+    getDavokarEncountersTableData,
+    getDavokarEnemiesTableData,
+    getDavokarTerrainTableData
+  } = await import("../scripts/expedition-data.mjs");
+
+  // Matchers
+  assert.ok(isDavokarRuinsTable({ name: "Ruínas na Davokar" }));
+  assert.ok(isDavokarRuinsTable({ name: "Davokar Ruins" }));
+  assert.ok(!isDavokarRuinsTable({ name: "Encontros Neutros" }));
+
+  assert.ok(isDavokarEncountersTable({ name: "Encontros Neutros" }));
+  assert.ok(isDavokarEncountersTable({ name: "Davokar Neutral Encounters" }));
+
+  assert.ok(isDavokarEnemiesTable({ name: "Inimigos & Predadores" }));
+  assert.ok(isDavokarEnemiesTable({ name: "Davokar Enemies & Predators" }));
+
+  assert.ok(isDavokarTerrainTable({ name: "Terreno & Perigos" }));
+  assert.ok(isDavokarTerrainTable({ name: "Davokar Terrain & Hazards" }));
+
+  // Fallback data
+  const ruinsData = getDavokarRuinsTableData();
+  assert.ok(ruinsData.name.includes("Ruínas"));
+  assert.ok(ruinsData.results.length >= 8);
+
+  const encountersData = getDavokarEncountersTableData();
+  assert.ok(encountersData.name.includes("Encontros"));
+  assert.ok(encountersData.results.length >= 8);
+
+  const enemiesData = getDavokarEnemiesTableData();
+  assert.ok(enemiesData.name.includes("Inimigos"));
+  assert.ok(enemiesData.results.length >= 8);
+
+  const terrainData = getDavokarTerrainTableData();
+  assert.ok(terrainData.name.includes("Terreno"));
+  assert.ok(terrainData.results.length >= 8);
+});
+
+test("Party Sheet template and stylesheet contain Step 3 Event elements", () => {
+  assert.match(templateSource, /class="party-events-box/);
+  assert.match(templateSource, /data-action="toggle-active-search"/);
+  assert.match(templateSource, /data-action="roll-all-events"/);
+  assert.match(templateSource, /class="party-event-slot-row/);
+  assert.match(templateSource, /class="event-table-select"/);
+  assert.match(templateSource, /data-action="change-event-table"/);
+  assert.match(templateSource, /data-action="roll-single-event"/);
+  assert.match(templateSource, /data-action="reset-single-event"/);
+
+  assert.match(cssSource, /\.party-events-box/);
+  assert.match(cssSource, /\.btn-toggle-active-search/);
+  assert.match(cssSource, /\.btn-roll-all-events/);
+  assert.match(cssSource, /\.party-event-slot-row/);
+  assert.match(cssSource, /\.event-table-select/);
+});
+
+test("PartyActorSheet Step 3 actions: activeSearch toggle, table change, reset event", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+
+  let updatedData = null;
+  const mockPartyActor = {
+    id: "party-3",
+    uuid: "Actor.party-3",
+    type: "symbaroum-ind-resources.party",
+    system: {
+      location: { region: "bright" },
+      expedition: {
+        active: true,
+        day: 1,
+        activeSearch: true,
+        tables: {},
+        dayState: {
+          events: {
+            ruins: { rolled: true, rollTotal: 12, resultText: "Tesouro Antigo" }
+          }
+        }
+      }
+    },
+    flags: {
+      "symbaroum-ind-resources": {}
+    },
+    update: async (data) => {
+      updatedData = data;
+      return data;
+    }
+  };
+
+  const sheet = new PartyActorSheet(mockPartyActor);
+  sheet.render = () => {};
+  Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });
+
+  // Toggle active search from true to false
+  await sheet._onToggleActiveSearch();
+  assert.equal(updatedData["system.expedition.activeSearch"], false);
+
+  // Change event table
+  updatedData = null;
+  await sheet._onChangeEventTable("ruins", "RollTable.custom123");
+  assert.equal(updatedData["system.expedition.tables"]?.ruins, "RollTable.custom123");
+
+  // Reset single event
+  updatedData = null;
+  await sheet._onResetSingleEvent("ruins");
+  assert.deepEqual(updatedData["system.expedition.dayState.events"], {});
+});
