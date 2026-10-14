@@ -6091,12 +6091,13 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 .tenebre-party-sheet .party-event-slot-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 4px 10px;
   background: rgba(43, 32, 21, 0.04);
   border: 1px solid rgba(60, 48, 34, 0.18);
   border-radius: 4px;
   transition: all 0.2s ease;
+  min-height: 36px;
 }
 
 .tenebre-party-sheet .party-event-slot-row.has-result {
@@ -6107,64 +6108,17 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 .tenebre-party-sheet .event-slot-identity {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1 1 300px;
-  min-width: 240px;
-}
-
-.tenebre-party-sheet .event-slot-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 4px;
-  background: #2b2015;
-  color: #ecd7ba;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1em;
-  flex-shrink: 0;
-  border: 1px solid #634d32;
-}
-
-.tenebre-party-sheet .event-slot-icon.is-ruins {
-  color: #dfb743;
-  border-color: #dfb743;
-}
-
-.tenebre-party-sheet .event-slot-icon.is-encounters {
-  color: #64b5f6;
-  border-color: #3f7fa8;
-}
-
-.tenebre-party-sheet .event-slot-icon.is-enemies {
-  color: #e57373;
-  border-color: #b73e3e;
-}
-
-.tenebre-party-sheet .event-slot-icon.is-terrain {
-  color: #81c784;
-  border-color: #438f46;
-}
-
-.tenebre-party-sheet .event-slot-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow: hidden;
-  flex: 1 1 auto;
-}
-
-.tenebre-party-sheet .event-slot-title-row {
-  display: flex;
-  align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+  max-width: 48%;
 }
 
 .tenebre-party-sheet .event-slot-title {
   font-family: var(--font-title, serif);
-  font-size: 0.92em;
+  font-size: 0.9em;
   font-weight: 700;
   color: #2b2015;
+  white-space: nowrap;
 }
 
 .tenebre-party-sheet .event-slot-formula-badge {
@@ -6177,36 +6131,31 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   font-weight: 600;
   color: #4a3622;
   cursor: help;
-}
-
-.tenebre-party-sheet .event-slot-selector-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.78em;
-}
-
-.tenebre-party-sheet .event-slot-label {
-  color: #6e665d;
-  font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tenebre-party-sheet .event-table-select {
-  height: 22px;
-  font-size: 0.88em;
-  padding: 0 4px;
-  background: rgba(255, 255, 255, 0.8);
+  height: 24px;
+  font-size: 0.85em;
+  padding: 0 5px;
+  background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(60, 48, 34, 0.3);
   border-radius: 3px;
   color: #2b2015;
-  max-width: 220px;
+  max-width: 200px;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tenebre-party-sheet .event-table-name {
   font-style: italic;
+  font-size: 0.82em;
   color: #3c3022;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .tenebre-party-sheet .event-slot-result-area {

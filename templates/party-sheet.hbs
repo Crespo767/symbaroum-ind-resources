@@ -713,37 +713,25 @@
                             {{#each expedition.eventSlots as |slot|}}
                             <div class="party-event-slot-row {{#if slot.hasResult}}has-result{{/if}}">
                                 <div class="event-slot-identity">
-                                    <div class="event-slot-icon is-{{slot.key}}">
-                                        <i class="{{slot.icon}}"></i>
-                                    </div>
-                                    <div class="event-slot-info">
-                                        <div class="event-slot-title-row">
-                                            <span class="event-slot-title">{{slot.title}}</span>
-                                            <span class="event-slot-formula-badge" data-tooltip="{{slot.formulaBreakdown}}">
-                                                {{slot.formula}}
-                                            </span>
-                                        </div>
-                                        <div class="event-slot-selector-row">
-                                            <label class="event-slot-label"><i class="fas fa-table"></i> {{localize "TENEBRE.Party.TableLabel"}}:</label>
-                                            {{#if ../editable}}
-                                            <select class="event-table-select" data-action="change-event-table" data-event-slot="{{slot.key}}">
-                                                <option value="" {{#unless slot.selectedTableUuid}}selected{{/unless}}>{{localize "TENEBRE.Party.TableAutoDefault"}}: {{slot.resolvedTableName}}</option>
-                                                {{#each slot.tableOptions as |tbl|}}
-                                                <option value="{{tbl.uuid}}" {{#if tbl.selected}}selected{{/if}}>{{tbl.name}}</option>
-                                                {{/each}}
-                                            </select>
-                                            {{else}}
-                                            <span class="event-table-name">{{slot.resolvedTableName}}</span>
-                                            {{/if}}
-                                        </div>
-                                    </div>
+                                    <span class="event-slot-title">{{slot.title}}</span>
+                                    <span class="event-slot-formula-badge" data-tooltip="{{slot.formulaBreakdown}}">{{slot.formula}}</span>
+                                    {{#if ../editable}}
+                                    <select class="event-table-select" data-action="change-event-table" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Party.TableLabel"}}">
+                                        <option value="" {{#unless slot.selectedTableUuid}}selected{{/unless}}>{{localize "TENEBRE.Party.TableAutoDefault"}}: {{slot.resolvedTableName}}</option>
+                                        {{#each slot.tableOptions as |tbl|}}
+                                        <option value="{{tbl.uuid}}" {{#if tbl.selected}}selected{{/if}}>{{tbl.name}}</option>
+                                        {{/each}}
+                                    </select>
+                                    {{else}}
+                                    <span class="event-table-name" data-tooltip="{{localize "TENEBRE.Party.TableLabel"}}">({{slot.resolvedTableName}})</span>
+                                    {{/if}}
                                 </div>
 
                                 <div class="event-slot-result-area">
                                     {{#if slot.hasResult}}
                                         <div class="event-slot-result-box" data-tooltip="{{localize "TENEBRE.Party.EventRollDetails"}}: {{slot.result.rollTotal}} ({{slot.result.formula}})">
                                             <span class="event-result-score">[{{slot.result.rollTotal}}]</span>
-                                            <span class="event-result-text">{{slot.result.resultText}}</span>
+                                            <span class="event-result-text">{{{slot.result.resultText}}}</span>
                                         </div>
                                     {{else}}
                                         <span class="event-slot-no-result">{{localize "TENEBRE.Party.EventNotRolled"}}</span>
