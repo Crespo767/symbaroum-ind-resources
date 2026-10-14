@@ -7,31 +7,31 @@ export const OFFICIAL_DAVOKAR_MISHAPS = [
     num: 1,
     name: "O Local do Acampamento",
     desc: "Os personagens encontram um acampamento abandonado. Ele está abandonado de verdade? Há qualquer equipamento valioso ou algo perigoso deixado para trás?",
-    img: "icons/environment/wilderness/camp-makeshift-tan.webp"
+    img: "icons/environment/wilderness/camp-improvised.webp"
   },
   {
     num: 2,
     name: "O Cadáver",
     desc: "Os personagens encontram os restos de um caçador de fortunas morto que não estava preparado para os desafios da Davokar. O que o matou? Os personagens reconhecem o falecido?",
-    img: "icons/commodities/bones/bones-skull-decayed.webp"
+    img: "icons/magic/death/skeleton-worn-skull-tan.webp"
   },
   {
     num: 3,
     name: "Um Uivo Distante",
     desc: "Um uivo inumano é ouvido na mata; pouco depois é ouvido novamente, mais perto desta vez. Como reagem os membros da expedição?",
-    img: "icons/creatures/abilities/wolf-howl-moon.webp"
+    img: "icons/creatures/mammals/wolf-howl-moon-black.webp"
   },
   {
     num: 4,
     name: "Um Mau Presságio",
     desc: "Os personagens encontram sinais indicando um perigo claro e presente. Que tipo de sinais — pegadas, cadáveres, muco, sangue? E quão frescos eles estão?",
-    img: "icons/skills/sensory/eyeball-red-glowing.webp"
+    img: "icons/magic/perception/eye-ringed-glow-angry-red.webp"
   },
   {
     num: 5,
     name: "Silêncio súbito",
     desc: "Subitamente a floresta prende a respiração e um silêncio tenso recai sobre a expedição. Por que?",
-    img: "icons/magic/perception/silence-quiet-shadow.webp"
+    img: "icons/magic/perception/silhouette-stealth-shadow.webp"
   },
   {
     num: 6,
@@ -43,37 +43,37 @@ export const OFFICIAL_DAVOKAR_MISHAPS = [
     num: 7,
     name: "Seguidos",
     desc: "A expedição está sendo seguida, o que pode ser notado com um Teste contra Vigilante. Quem os está espionando e qual é o intento disso?",
-    img: "icons/skills/movement/feet-stealth-footprints-green.webp"
+    img: "icons/magic/nature/stealth-hide-eyes-green.webp"
   },
   {
     num: 8,
     name: "Espinhos",
     desc: "A expedição para na beirada de um vasto campo de densos arbustos espinhosos. Eles podem circular, embora isto reduza a distância viajada no dia pela metade. Caso tentem forçar caminho, todos os membros devem rolar dois Testes contra Discreto — cada falha causa 1d4 de dano (ignorando Armadura).",
-    img: "icons/magic/nature/root-vine-thorns-brown.webp"
+    img: "icons/magic/nature/root-vine-entwined-thorns.webp"
   },
   {
     num: 9,
     name: "A Patrulha",
     desc: "Uma unidade dos Patrulheiros da Rainha ordena que a expedição pare. Eles vasculham os pacotes e outras bolsas e demandam ver a Licença de Explorador do grupo. Eles são realmente patrulheiros da Rainha? Caso sejam, são corruptos?",
-    img: "icons/skills/targeting/crosshair-arrow-gold.webp"
+    img: "icons/skills/targeting/crosshair-arrowhead-blue.webp"
   },
   {
     num: 10,
     name: "Enxame de mosquitos",
     desc: "Durante a caminhada do dia, os personagens são assolados por um enxame de mosquitos. O que eles não sabem é que os insetos estão lhes expondo à uma doença. Veja as regras para Doenças em Symbaroum (página 169 no Códice de Monstros) e role 1d6 — 1–3 Doença Fraca; 4–5 Doença Moderada; 6 Doença Forte.",
-    img: "icons/creatures/invertebrates/wasp-swarm-yellow.webp"
+    img: "icons/creatures/invertebrates/fly-wasp-mosquito-green.webp"
   },
   {
     num: 11,
     name: "Chuvarada",
     desc: "Uma chuva estranha e gélida cai na floresta e a expedição fica ensopada. Os personagens podem escolher testar Vigoroso ou Resoluto; uma falha significa que a pessoa pega um resfriado e sofre –3 em todos os Testes de sucesso até que se aqueça ao sentar perto de uma fogueira.",
-    img: "icons/magic/water/rain-clouds-dark.webp"
+    img: "icons/magic/air/weather-clouds-rain.webp"
   },
   {
     num: 12,
     name: "Perdido",
     desc: "Os personagens têm que admitir que se perderam. Como sempre, o guia rola um Teste de Orientação por dia, mas com –5 de modificação. Caso falhe, o grupo vaga em círculos e não faz progresso algum; caso obtenha sucesso, eles progridem à metade da velocidade. São necessários três Testes bem-sucedidos com –5 de modificação antes de escapar da área problemática e, a partir daí, ficar livre da modificação negativa. O que torna o terreno tão difícil de navegar?",
-    img: "icons/tools/navigation/compass-brass.webp"
+    img: "icons/tools/navigation/compass-worn-copper.webp"
   },
   {
     num: 13,
@@ -91,13 +91,13 @@ export const OFFICIAL_DAVOKAR_MISHAPS = [
     num: 15,
     name: "Emboscada",
     desc: "Seres hostis na área estão planejando emboscar os personagens, o que pode ser notado com um Teste de [Vigilante –5]. Quem é o inimigo e qual é o objetivo dele?",
-    img: "icons/skills/targeting/crosshair-pointed-red.webp"
+    img: "icons/skills/targeting/crosshair-pointed-orange.webp"
   },
   {
     num: 16,
     name: "Comida Estragada",
     desc: "Os personagens descobrem que algo consumiu parte dos suprimentos deles enquanto estavam dormindo ou viajando, ou as provisões são atacadas por micróbios agressivos que fazem parte do estoque apodrecer. A expedição perde 1d20 rações.",
-    img: "icons/consumables/food/bowl-stew-bone-soup-red.webp"
+    img: "icons/consumables/food/bowl-stew-brown.webp"
   },
   {
     num: 17,
@@ -109,7 +109,7 @@ export const OFFICIAL_DAVOKAR_MISHAPS = [
     num: 18,
     name: "De Mal a Pior",
     desc: "Role duas vezes nesta tabela e use ambos os resultados.",
-    img: "icons/skills/melee/strike-blade-skull-red.webp"
+    img: "icons/skills/melee/strike-dagger-skull-white.webp"
   },
   {
     num: 19,
@@ -121,7 +121,7 @@ export const OFFICIAL_DAVOKAR_MISHAPS = [
     num: 20,
     name: "Solo Sagrado",
     desc: "O solo que os personagens estão atravessando é considerado tabu para estranhos pela população local — os invasores devem morrer! Quem vive na área? Por que é tabu?",
-    img: "icons/environment/settlement/totem-wood-antlers.webp"
+    img: "icons/commodities/treasure/totem-wood-face-brown.webp"
   },
   {
     num: 21,
@@ -133,13 +133,13 @@ export const OFFICIAL_DAVOKAR_MISHAPS = [
     num: 22,
     name: "Colina do Enforcado",
     desc: "Sem aviso, vocês os veem pendurados lá, em nós dos galhos mais baixos, estripados e mutilados: os membros de uma grande expedição. Os companheiros dos personagens devem ser convencidos [Persuasivo←Resoluto] a não voltar e irem embora. Quem fez isso e por que?",
-    img: "icons/environment/wilderness/gallows-hanged.webp"
+    img: "icons/magic/death/gallows-hanged-humanoid.webp"
   },
   {
     num: 23,
     name: "Sabotagem",
     desc: "Durante a noite, um sabotador solitário tenta ter acesso aos membros, provisões e/ou animais da expedição. Quem é o sabotador? Qual era o alvo? Os personagens podem impedir a tentativa?",
-    img: "icons/skills/melee/dagger-stab-heart-red.webp"
+    img: "icons/weapons/daggers/dagger-poisoned.webp"
   },
   {
     num: 24,
@@ -151,7 +151,7 @@ export const OFFICIAL_DAVOKAR_MISHAPS = [
     num: 25,
     name: "Covil do Mal",
     desc: "Algo nesta região atrai monstros e adversários agressivos — role mais uma vez na Tabela 28: Inimigos na Davokar (página 99). O que está atraindo estas criaturas para a área?",
-    img: "icons/creatures/magical/demon-gargoyle-stone-spiked.webp"
+    img: "icons/environment/creatures/gargoyle-grey-stone.webp"
   },
   {
     num: 26,
@@ -163,7 +163,7 @@ export const OFFICIAL_DAVOKAR_MISHAPS = [
     num: 27,
     name: "O Contágio Eterno",
     desc: "Tudo na área está morto ou distorcido além do reconhecimento. Este lugar está horrivelmente corrompido; mesmo se os personagens decidirem voltar e dar a volta (perdendo um dia), eles devem passar em um Teste de Vigoroso ou sofrem um ponto de corrupção permanente. Caso avancem e falhem no Teste de Vigoroso, eles sofrem 1d4 pontos de corrupção permanente; caso passem no Teste, em vez disso são assolados por 1d6 pontos de corrupção temporária que perdura pelo dia inteiro. Em ambos os casos, todas as provisões são automaticamente infectadas — cada ração consumida causa um ponto de corrupção temporária que não desaparece até que o afligido se alimente de comida pura por uma semana.",
-    img: "icons/magic/unholy/energy-smoke-tendrils-purple.webp"
+    img: "icons/magic/unholy/projectile-smoke-tendril-green.webp"
   },
   {
     num: 28,
@@ -190,7 +190,7 @@ export function getDavokarMishapsTableData() {
     type: "text",
     text: `<strong>${m.num}. ${m.name}:</strong> ${m.desc}`,
     description: `<p><strong>${m.name}</strong></p><p>${m.desc}</p>`,
-    img: m.img || "icons/environment/wilderness/tree-twisted.webp",
+    img: m.img || "icons/magic/nature/tree-twisted-glow-yellow.webp",
     weight: 1,
     range: [m.num, m.num],
     drawn: false
@@ -198,7 +198,7 @@ export function getDavokarMishapsTableData() {
 
   return {
     name: "Tabela 25 - Infortúnios na Davokar",
-    img: "icons/environment/wilderness/tree-twisted.webp",
+    img: "icons/magic/nature/tree-twisted-glow-yellow.webp",
     description: "<p>Tabela oficial de Infortúnios em expedições pela floresta de Davokar (Guia do Mestre, p. 91, 115).</p><p><strong>Rolagem:</strong> 1d20 + Modificador de Região (+0 Iluminada, +5 Selvagem, +10 Escura).</p>",
     formula: "1d20",
     replacement: true,

@@ -710,3 +710,16 @@ test("resolveMishapsTable ignores Tabela 18 do Exército and auto-creates Tabela
   assert.equal(createdTableData?.results?.length, 30);
 });
 
+test("OFFICIAL_DAVOKAR_MISHAPS contains all 30 entries with valid webp images", async () => {
+  const { OFFICIAL_DAVOKAR_MISHAPS, getDavokarMishapsTableData } = await import("../scripts/expedition-data.mjs");
+  assert.equal(OFFICIAL_DAVOKAR_MISHAPS.length, 30);
+  for (const m of OFFICIAL_DAVOKAR_MISHAPS) {
+    assert.ok(m.img, `Mishap ${m.num} must have an img`);
+    assert.match(m.img, /^icons\/.+\.webp$/, `Mishap ${m.num} img must be a webp core icon`);
+    assert.ok(m.name, `Mishap ${m.num} must have a name`);
+  }
+  const tableData = getDavokarMishapsTableData();
+  assert.equal(tableData.results.length, 30);
+  assert.match(tableData.img, /^icons\/.+\.webp$/);
+});
+

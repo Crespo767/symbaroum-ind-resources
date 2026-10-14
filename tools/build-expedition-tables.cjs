@@ -55,7 +55,7 @@ async function buildTablePack() {
   const tableDoc = {
     _id: tableId,
     name: 'Tabela 25 - Infortúnios na Davokar',
-    img: 'icons/environment/wilderness/tree-twisted.webp',
+    img: 'icons/magic/nature/tree-twisted-glow-yellow.webp',
     description: '<p>Tabela oficial de Infortúnios em expedições pela floresta de Davokar (Guia do Mestre, p. 91, 115).</p><p><strong>Rolagem:</strong> 1d20 + Modificador de Região (+0 Iluminada, +5 Selvagem, +10 Escura).</p>',
     results: resultIds,
     formula: '1d20',
