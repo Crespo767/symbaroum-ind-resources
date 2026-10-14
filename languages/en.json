@@ -949,6 +949,7 @@
   "TENEBRE.Party.GuideUnsetNotice": "Expedition guide removed.",
   "TENEBRE.Party.RollOrientationBtn": "Roll Orientation",
   "TENEBRE.Party.RerollOrientationBtn": "Reroll Orientation",
+  "TENEBRE.Party.OrientationRolling": "Rolling...",
   "TENEBRE.Party.RollOrientationTooltip": "Roll Orientation Test (1d20 against the Guide's Vigilant)",
   "TENEBRE.Party.RerollOrientationTooltip": "Reroll today's Orientation Test",
   "TENEBRE.Party.ResetOrientationTooltip": "Reset today's Orientation result",

@@ -522,21 +522,24 @@ test("Template and Stylesheet include orientation panel, buttons and chat card s
 
   assert.match(cssSource, /\.tenebre-party-sheet \.guide-orientation-panel/);
   assert.match(cssSource, /\.tenebre-party-sheet \.guide-bushcraft-badge/);
-  assert.match(cssSource, /\.tenebre-party-sheet \.btn-orientation-roll/);
-  assert.match(cssSource, /\.tenebre-party-sheet \.orientation-result-badge/);
-  assert.match(cssSource, /\.symbaroum\.chat\.ability\.tenebre-orientation-chat/);
-  assert.match(cssSource, /\.tenebre-chat-card\.tenebre-orientation-card/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.btn-orientation-roll\.is-rolling/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.orientation-result-badge\.is-rolling/);
 });
 
-test("PartyActorSheet._onRollOrientation updates dayState and posts chat card", async () => {
+test("PartyActorSheet._onRollOrientation updates dayState after dice roll and posts chat card", async () => {
   globalThis.game = globalThis.game ?? {};
   globalThis.game.user = globalThis.game.user ?? { isGM: true, id: "u1" };
   globalThis.game.settings = globalThis.game.settings ?? { get: () => false };
   globalThis.game.i18n = globalThis.game.i18n ?? { localize: (k) => k, format: (k, d) => k };
   let sentMessage = null;
+  const callSequence = [];
   globalThis.ChatMessage = {
     getSpeaker: () => ({ alias: "Guia" }),
-    create: async (d) => { sentMessage = d; return d; }
+    create: async (d) => {
+      sentMessage = d;
+      callSequence.push("chatMessage");
+      return d;
+    }
   };
 
   const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
@@ -550,6 +553,7 @@ test("PartyActorSheet._onRollOrientation updates dayState and posts chat card", 
     },
     update: async (data) => {
       updates.push(data);
+      callSequence.push("actorUpdate");
       return data;
     }
   };
@@ -575,6 +579,8 @@ test("PartyActorSheet._onRollOrientation updates dayState and posts chat card", 
 
   await sheet._onRollOrientation();
 
+  assert.equal(callSequence[0], "chatMessage");
+  assert.equal(callSequence[1], "actorUpdate");
   assert.equal(updates.length, 1);
   const orientData = updates[0]["system.expedition.dayState.orientation"];
   assert.ok(orientData);

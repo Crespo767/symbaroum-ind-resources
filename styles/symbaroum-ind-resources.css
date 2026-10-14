@@ -5093,6 +5093,20 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   box-shadow: 0 0 5px rgba(223, 183, 67, 0.4);
 }
 
+.tenebre-party-sheet .btn-orientation-roll.is-rolling {
+  opacity: 0.8;
+  cursor: wait;
+  pointer-events: none;
+  border-color: #dfb743;
+  color: #dfb743;
+}
+
+.tenebre-party-sheet .orientation-result-badge.is-rolling {
+  opacity: 0.35;
+  filter: grayscale(0.5);
+  transition: opacity 0.2s ease;
+}
+
 .tenebre-party-sheet .orientation-result-badge {
   display: inline-flex;
   align-items: center;

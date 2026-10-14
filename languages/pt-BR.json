@@ -949,6 +949,7 @@
   "TENEBRE.Party.GuideUnsetNotice": "Guia da expedição removido.",
   "TENEBRE.Party.RollOrientationBtn": "Rolar Orientação",
   "TENEBRE.Party.RerollOrientationBtn": "Rolar Novamente",
+  "TENEBRE.Party.OrientationRolling": "Rolando...",
   "TENEBRE.Party.RollOrientationTooltip": "Rolar Teste de Orientação (1d20 contra o Vigilante do Guia)",
   "TENEBRE.Party.RerollOrientationTooltip": "Rolar novamente o Teste de Orientação do dia",
   "TENEBRE.Party.ResetOrientationTooltip": "Limpar resultado da Orientação do dia",

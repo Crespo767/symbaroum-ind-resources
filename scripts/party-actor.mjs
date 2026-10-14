@@ -1377,115 +1377,152 @@ export class PartyActorSheet extends BaseActorSheet {
   }
 
   async _onRollOrientation() {
-    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
-    const guideId = rawExpedition.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
-    const guideUuid = rawExpedition.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
-    let guideActor = null;
-    if (guideUuid) guideActor = this._resolveActor(guideUuid);
-    if (!guideActor && guideId) guideActor = this._resolveActor(guideId);
+    if (this._rollingOrientation) return;
+    this._rollingOrientation = true;
 
-    if (!guideActor) {
-      globalThis.ui?.notifications?.warn?.(
-        globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionNoGuideTitle") ||
-        "Nenhum guia definido para a expedição."
-      );
-      return;
+    const rootEl = this.element?.[0] ?? this.element;
+    const rollBtn = rootEl?.querySelector?.('[data-action="roll-orientation"]');
+    const resetBtn = rootEl?.querySelector?.('[data-action="reset-orientation"]');
+    const resultBadge = rootEl?.querySelector?.('.orientation-result-badge');
+
+    if (rollBtn) {
+      rollBtn.disabled = true;
+      rollBtn.classList.add("is-rolling");
+      const rollingLabel = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationRolling") || "Rolando...";
+      rollBtn.innerHTML = `<i class="fas fa-dice-d20 fa-spin"></i> ${rollingLabel}`;
+    }
+    if (resetBtn) {
+      resetBtn.disabled = true;
+    }
+    if (resultBadge) {
+      resultBadge.classList.add("is-rolling");
     }
 
-    const canRoll = Boolean(this.isEditable || guideActor.isOwner || globalThis.game?.user?.isGM);
-    if (!canRoll) {
-      globalThis.ui?.notifications?.warn?.(
-        globalThis.game?.i18n?.localize?.("TENEBRE.Party.RollNotAllowed") ||
-        "Você só pode rolar testes do seu próprio personagem."
-      );
-      return;
-    }
+    try {
+      const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+      const guideId = rawExpedition.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
+      const guideUuid = rawExpedition.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
+      let guideActor = null;
+      if (guideUuid) guideActor = this._resolveActor(guideUuid);
+      if (!guideActor && guideId) guideActor = this._resolveActor(guideId);
 
-    const regionKey = this.actor?.system?.location?.region || "ambria";
-    const bushcraftData = detectBushcraftTier(guideActor);
-    const attrs = guideActor.system?.attributes ?? {};
-    const getAttrVal = (attrObj) => {
-      if (!attrObj) return 0;
-      return typeof attrObj === "object" ? Number(attrObj.total ?? attrObj.value ?? 0) : Number(attrObj);
-    };
-    const vigilantVal = getAttrVal(attrs.vigilant);
-    const orientationTargetData = calculateOrientationTarget(vigilantVal, bushcraftData.level, regionKey);
-    const target = orientationTargetData.target;
-
-    const roll = await evaluateRoll("1d20");
-    const rollVal = rollTotal(roll);
-    const evalResult = evaluateOrientationRoll(rollVal, target);
-
-    const romanLevels = ["—", "I", "II", "III"];
-    const bushcraftView = {
-      hasBushcraft: bushcraftData.hasBushcraft,
-      level: bushcraftData.level,
-      levelRoman: romanLevels[bushcraftData.level] || `${bushcraftData.level}`,
-      penalty: orientationTargetData.penalty,
-      penaltyText: orientationTargetData.penalty === 0 ? "±0" : `${orientationTargetData.penalty}`,
-      target: target,
-      baseVigilant: orientationTargetData.baseVigilant,
-      item: bushcraftData.item
-    };
-
-    const chatContent = buildOrientationChatHtml({
-      guideActor,
-      regionKey,
-      bushcraft: bushcraftView,
-      rollVal,
-      target,
-      evalResult
-    });
-
-    const orientationUpdate = {
-      rolled: true,
-      rollTotal: rollVal,
-      target,
-      baseVigilant: orientationTargetData.baseVigilant,
-      penalty: orientationTargetData.penalty,
-      verdict: evalResult.verdict,
-      margin: evalResult.margin,
-      ruinsMod: evalResult.ruinsMod,
-      enemiesMod: evalResult.enemiesMod,
-      terrainMod: evalResult.terrainMod,
-      neutralDetection: evalResult.neutralDetection,
-      mishap: evalResult.mishap,
-      timestamp: Date.now()
-    };
-
-    await this.actor.update({
-      "system.expedition.dayState.orientation": orientationUpdate,
-      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: orientationUpdate
-    });
-
-    const speaker = globalThis.ChatMessage?.getSpeaker
-      ? globalThis.ChatMessage.getSpeaker({ actor: guideActor })
-      : { alias: guideActor.name };
-
-    await createChatMessageAfterDice({
-      speaker,
-      content: chatContent,
-      rolls: [roll],
-      flags: { [MODULE_ID]: { orientationCheck: true } }
-    });
-
-    if (evalResult.verdict === "failure") {
-      const mishapMod = getMishapsModifier(regionKey);
-      const mishapFormula = mishapMod > 0 ? `1d20 + ${mishapMod}` : "1d20";
-      const mishapRoll = await evaluateRoll(mishapFormula);
-      const mishapTable = await resolveMishapsTable();
-
-      if (mishapTable) {
-        await drawMishapTable(mishapTable, mishapRoll);
-      } else {
+      if (!guideActor) {
         globalThis.ui?.notifications?.warn?.(
-          globalThis.game?.i18n?.localize?.("TENEBRE.Party.MishapsTableNotFound") ||
-          "Tabela de Infortúnios não encontrada no compêndio ou no mundo."
+          globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionNoGuideTitle") ||
+          "Nenhum guia definido para a expedição."
         );
+        return;
       }
-    }
 
-    this.render(false);
+      const canRoll = Boolean(this.isEditable || guideActor.isOwner || globalThis.game?.user?.isGM);
+      if (!canRoll) {
+        globalThis.ui?.notifications?.warn?.(
+          globalThis.game?.i18n?.localize?.("TENEBRE.Party.RollNotAllowed") ||
+          "Você só pode rolar testes do seu próprio personagem."
+        );
+        return;
+      }
+
+      const regionKey = this.actor?.system?.location?.region || "ambria";
+      const bushcraftData = detectBushcraftTier(guideActor);
+      const attrs = guideActor.system?.attributes ?? {};
+      const getAttrVal = (attrObj) => {
+        if (!attrObj) return 0;
+        return typeof attrObj === "object" ? Number(attrObj.total ?? attrObj.value ?? 0) : Number(attrObj);
+      };
+      const vigilantVal = getAttrVal(attrs.vigilant);
+      const orientationTargetData = calculateOrientationTarget(vigilantVal, bushcraftData.level, regionKey);
+      const target = orientationTargetData.target;
+
+      const roll = await evaluateRoll("1d20");
+      const rollVal = rollTotal(roll);
+      const evalResult = evaluateOrientationRoll(rollVal, target);
+
+      const romanLevels = ["—", "I", "II", "III"];
+      const bushcraftView = {
+        hasBushcraft: bushcraftData.hasBushcraft,
+        level: bushcraftData.level,
+        levelRoman: romanLevels[bushcraftData.level] || `${bushcraftData.level}`,
+        penalty: orientationTargetData.penalty,
+        penaltyText: orientationTargetData.penalty === 0 ? "±0" : `${orientationTargetData.penalty}`,
+        target: target,
+        baseVigilant: orientationTargetData.baseVigilant,
+        item: bushcraftData.item
+      };
+
+      const chatContent = buildOrientationChatHtml({
+        guideActor,
+        regionKey,
+        bushcraft: bushcraftView,
+        rollVal,
+        target,
+        evalResult
+      });
+
+      const orientationUpdate = {
+        rolled: true,
+        rollTotal: rollVal,
+        target,
+        baseVigilant: orientationTargetData.baseVigilant,
+        penalty: orientationTargetData.penalty,
+        verdict: evalResult.verdict,
+        margin: evalResult.margin,
+        ruinsMod: evalResult.ruinsMod,
+        enemiesMod: evalResult.enemiesMod,
+        terrainMod: evalResult.terrainMod,
+        neutralDetection: evalResult.neutralDetection,
+        mishap: evalResult.mishap,
+        timestamp: Date.now()
+      };
+
+      const speaker = globalThis.ChatMessage?.getSpeaker
+        ? globalThis.ChatMessage.getSpeaker({ actor: guideActor })
+        : { alias: guideActor.name };
+
+      // Executa animação 3D com Dice So Nice e cria mensagem no chat
+      await createChatMessageAfterDice({
+        speaker,
+        content: chatContent,
+        rolls: [roll],
+        flags: { [MODULE_ID]: { orientationCheck: true } }
+      });
+
+      // Aguarda a sincronização visual com o dado (DSN ou fallback com suspensa)
+      const isTest = Boolean(globalThis.process?.env?.NODE_TEST_CONTEXT || globalThis.process?.env?.ANTIGRAVITY_TEST);
+      if (!isTest) {
+        if (!globalThis.game?.dice3d) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 350));
+        }
+      }
+
+      // Persiste o resultado e atualiza a ficha apenas após o dado parar
+      await this.actor.update({
+        "system.expedition.dayState.orientation": orientationUpdate,
+        [`flags.${MODULE_ID}.expedition.dayState.orientation`]: orientationUpdate
+      });
+
+      if (evalResult.verdict === "failure") {
+        const mishapMod = getMishapsModifier(regionKey);
+        const mishapFormula = mishapMod > 0 ? `1d20 + ${mishapMod}` : "1d20";
+        const mishapRoll = await evaluateRoll(mishapFormula);
+        const mishapTable = await resolveMishapsTable();
+
+        if (mishapTable) {
+          await drawMishapTable(mishapTable, mishapRoll);
+        } else {
+          globalThis.ui?.notifications?.warn?.(
+            globalThis.game?.i18n?.localize?.("TENEBRE.Party.MishapsTableNotFound") ||
+            "Tabela de Infortúnios não encontrada no compêndio ou no mundo."
+          );
+        }
+      }
+
+      this.render(false);
+    } finally {
+      this._rollingOrientation = false;
+    }
   }
 
   async _onResetOrientation() {
