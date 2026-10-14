@@ -149,6 +149,39 @@ export function evaluateOrientationRoll(rollTotal, target) {
 }
 
 /**
+ * Retorna os dados normalizados da expedição combinando system e flags
+ */
+export function getActorExpeditionData(actor) {
+  const sysExp = actor?.system?.expedition || {};
+  const flagExp = actor?.flags?.[MODULE_ID]?.expedition || {};
+  const merged = { ...flagExp, ...sysExp };
+
+  if (flagExp.activeSearch !== undefined) {
+    merged.activeSearch = Boolean(flagExp.activeSearch);
+  } else if (sysExp.activeSearch !== undefined) {
+    merged.activeSearch = Boolean(sysExp.activeSearch);
+  } else {
+    merged.activeSearch = true;
+  }
+
+  merged.guideId = sysExp.guideId || flagExp.guideId || "";
+  merged.guideUuid = sysExp.guideUuid || flagExp.guideUuid || "";
+  merged.tables = { ...(flagExp.tables || {}), ...(sysExp.tables || {}) };
+  merged.day = sysExp.day !== undefined ? sysExp.day : (flagExp.day !== undefined ? flagExp.day : 1);
+  merged.active = sysExp.active !== undefined ? sysExp.active : (flagExp.active !== undefined ? flagExp.active : false);
+
+  const sysDay = sysExp.dayState || {};
+  const flagDay = flagExp.dayState || {};
+  merged.dayState = {
+    orientation: sysDay.orientation || flagDay.orientation || null,
+    rations: { ...(flagDay.rations || {}), ...(sysDay.rations || {}) },
+    events: { ...(flagDay.events || {}), ...(sysDay.events || {}) }
+  };
+
+  return merged;
+}
+
+/**
  * Retorna o modificador regional para a rolagem na Tabela de Infortúnios
  * Regras oficiais do Guia do Mestre (Capítulo 12, p. 115):
  * - Davokar Iluminada: +0
@@ -934,6 +967,10 @@ export class PartyActorSheet extends BaseActorSheet {
     return memberActor;
   }
 
+  _getExpeditionData() {
+    return getActorExpeditionData(this.actor);
+  }
+
   _prepareMemberCardData(memberActor, isCompanion = false) {
     const sys = memberActor.system ?? {};
     const bio = sys.bio ?? {};
@@ -1192,9 +1229,9 @@ export class PartyActorSheet extends BaseActorSheet {
       modifierText: currentRegion.modifier > 0 ? `+${currentRegion.modifier}` : (currentRegion.key === "ambria" ? "±0" : "+0")
     };
 
-    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
-    const guideId = rawExpedition.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
-    const guideUuid = rawExpedition.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
+    const rawExpedition = this._getExpeditionData();
+    const guideId = rawExpedition.guideId || "";
+    const guideUuid = rawExpedition.guideUuid || "";
     let guideActor = null;
     if (guideUuid) {
       guideActor = this._resolveActor(guideUuid);
@@ -1373,14 +1410,9 @@ export class PartyActorSheet extends BaseActorSheet {
     const hungryCount = expeditionRationMembers.filter(m => !m.isFed).length;
 
     // Passo 3: Eventos Diários na Davokar
-    const isActivelySearching = rawExpedition.activeSearch !== undefined
-      ? Boolean(rawExpedition.activeSearch)
-      : (this.actor?.flags?.[MODULE_ID]?.expedition?.activeSearch !== undefined
-        ? Boolean(this.actor?.flags?.[MODULE_ID]?.expedition?.activeSearch)
-        : true);
-
-    const configuredTables = rawExpedition.tables || this.actor?.flags?.[MODULE_ID]?.expedition?.tables || {};
-    const dayEventsState = dayStateRaw.events || this.actor?.flags?.[MODULE_ID]?.expedition?.dayState?.events || {};
+    const isActivelySearching = rawExpedition.activeSearch;
+    const configuredTables = rawExpedition.tables || {};
+    const dayEventsState = rawExpedition.dayState?.events || {};
 
     const availableTables = getAvailableRollTables();
     const eventModifiers = calculateDavokarEventModifiers({
@@ -2466,13 +2498,8 @@ export class PartyActorSheet extends BaseActorSheet {
 
   async _onToggleActiveSearch() {
     if (!this.isEditable) return;
-    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
-    const current = rawExpedition.activeSearch !== undefined
-      ? Boolean(rawExpedition.activeSearch)
-      : (this.actor?.flags?.[MODULE_ID]?.expedition?.activeSearch !== undefined
-        ? Boolean(this.actor?.flags?.[MODULE_ID]?.expedition?.activeSearch)
-        : true);
-    const updated = !current;
+    const expData = this._getExpeditionData();
+    const updated = !expData.activeSearch;
     await this.actor.update({
       "system.expedition.activeSearch": updated,
       [`flags.${MODULE_ID}.expedition.activeSearch`]: updated
@@ -2482,9 +2509,8 @@ export class PartyActorSheet extends BaseActorSheet {
 
   async _onChangeEventTable(slot, uuid) {
     if (!this.isEditable || !slot) return;
-    const currentTables = {
-      ...(this.actor?.system?.expedition?.tables ?? this.actor?.flags?.[MODULE_ID]?.expedition?.tables ?? {})
-    };
+    const expData = this._getExpeditionData();
+    const currentTables = { ...(expData.tables || {}) };
     currentTables[slot] = uuid || "";
     await this.actor.update({
       "system.expedition.tables": currentTables,
@@ -2495,12 +2521,12 @@ export class PartyActorSheet extends BaseActorSheet {
 
   async _onRollSingleEvent(slotKey) {
     if (!this.isEditable && !globalThis.game?.user?.isGM) return;
-    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const expData = this._getExpeditionData();
     const regionKey = this.actor?.system?.location?.region || "ambria";
-    const day = Math.max(1, Number(rawExpedition.day) || 1);
-    const activeSearch = rawExpedition.activeSearch !== undefined ? Boolean(rawExpedition.activeSearch) : true;
-    const orientationVerdict = rawExpedition.dayState?.orientation?.verdict || "failure";
-    const configuredTables = rawExpedition.tables || {};
+    const day = Math.max(1, Number(expData.day) || 1);
+    const activeSearch = expData.activeSearch;
+    const orientationVerdict = expData.dayState?.orientation?.verdict || "failure";
+    const configuredTables = expData.tables || {};
 
     const mods = calculateDavokarEventModifiers({
       regionKey,
@@ -2531,7 +2557,7 @@ export class PartyActorSheet extends BaseActorSheet {
     };
 
     const currentEvents = {
-      ...(rawExpedition.dayState?.events ?? {})
+      ...(expData.dayState?.events ?? {})
     };
     currentEvents[slotKey] = {
       rolled: true,
@@ -2547,7 +2573,7 @@ export class PartyActorSheet extends BaseActorSheet {
       [`flags.${MODULE_ID}.expedition.dayState.events`]: currentEvents
     });
 
-    const guideActor = this._resolveActor(rawExpedition.guideId || rawExpedition.guideUuid);
+    const guideActor = this._resolveActor(expData.guideId || expData.guideUuid);
     const chatHtml = buildEventsChatHtml({
       day,
       regionKey,
@@ -2577,8 +2603,8 @@ export class PartyActorSheet extends BaseActorSheet {
 
   async _onResetSingleEvent(slotKey) {
     if (!this.isEditable && !globalThis.game?.user?.isGM) return;
-    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
-    const currentEvents = { ...(rawExpedition.dayState?.events ?? {}) };
+    const expData = this._getExpeditionData();
+    const currentEvents = { ...(expData.dayState?.events ?? {}) };
     delete currentEvents[slotKey];
     await this.actor.update({
       "system.expedition.dayState.events": currentEvents,
@@ -2589,12 +2615,12 @@ export class PartyActorSheet extends BaseActorSheet {
 
   async _onRollAllEvents() {
     if (!this.isEditable && !globalThis.game?.user?.isGM) return;
-    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const expData = this._getExpeditionData();
     const regionKey = this.actor?.system?.location?.region || "ambria";
-    const day = Math.max(1, Number(rawExpedition.day) || 1);
-    const activeSearch = rawExpedition.activeSearch !== undefined ? Boolean(rawExpedition.activeSearch) : true;
-    const orientationVerdict = rawExpedition.dayState?.orientation?.verdict || "failure";
-    const configuredTables = rawExpedition.tables || {};
+    const day = Math.max(1, Number(expData.day) || 1);
+    const activeSearch = expData.activeSearch;
+    const orientationVerdict = expData.dayState?.orientation?.verdict || "failure";
+    const configuredTables = expData.tables || {};
 
     const mods = calculateDavokarEventModifiers({
       regionKey,
@@ -2617,15 +2643,15 @@ export class PartyActorSheet extends BaseActorSheet {
     };
 
     const currentEvents = {
-      ...(rawExpedition.dayState?.events ?? {})
+      ...(expData.dayState?.events ?? {})
     };
     const chatResults = [];
-    let lastRoll = null;
+    const rolls = [];
 
     for (const slotKey of slots) {
       const slotMods = mods[slotKey];
       const roll = await evaluateRoll(slotMods.formula);
-      lastRoll = roll;
+      rolls.push(roll);
       const total = rollTotal(roll);
 
       const configuredUuid = configuredTables[slotKey] || "";
@@ -2656,7 +2682,7 @@ export class PartyActorSheet extends BaseActorSheet {
       [`flags.${MODULE_ID}.expedition.dayState.events`]: currentEvents
     });
 
-    const guideActor = this._resolveActor(rawExpedition.guideId || rawExpedition.guideUuid);
+    const guideActor = this._resolveActor(expData.guideId || expData.guideUuid);
     const chatHtml = buildEventsChatHtml({
       day,
       regionKey,
@@ -2668,7 +2694,7 @@ export class PartyActorSheet extends BaseActorSheet {
     await createChatMessageAfterDice({
       speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
       content: chatHtml,
-      rolls: lastRoll ? [lastRoll] : [],
+      rolls,
       flags: { [MODULE_ID]: { eventsCheck: true } }
     });
 

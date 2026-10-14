@@ -1281,6 +1281,58 @@ test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event
   }
 });
 
+test("PartyActorSheet._onRollAllEvents respects inactive activeSearch from flags and applies -5 penalty in chat", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+
+  let createdMessage = null;
+  const originalChatMessage = globalThis.ChatMessage;
+  globalThis.ChatMessage = {
+    getSpeaker: () => ({ alias: "Grupo" }),
+    create: async (data) => {
+      createdMessage = data;
+      return data;
+    }
+  };
+
+  try {
+    const mockPartyActor = {
+      id: "party-roll-inactive",
+      uuid: "Actor.party-roll-inactive",
+      type: "symbaroum-ind-resources.party",
+      system: {
+        location: { region: "wild" },
+        expedition: {
+          active: true,
+          day: 3,
+          tables: {},
+          dayState: { events: {}, orientation: { verdict: "success" } }
+        }
+      },
+      flags: {
+        "symbaroum-ind-resources": {
+          expedition: {
+            activeSearch: false
+          }
+        }
+      },
+      update: async (data) => data
+    };
+
+    const sheet = new PartyActorSheet(mockPartyActor);
+    sheet.render = () => {};
+    Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });
+    sheet._resolveActor = () => ({ name: "Odan" });
+
+    await sheet._onRollAllEvents();
+
+    assert.ok(createdMessage, "Chat message should be created");
+    assert.match(createdMessage.content, /ActiveSearchInactive|Busca Ativa de Ruínas: Não/, "Chat message must reflect inactive search");
+    assert.match(createdMessage.content, /1d20 - 3/, "Ruins formula must be 1d20 - 3 in wild davokar when search is inactive");
+  } finally {
+    globalThis.ChatMessage = originalChatMessage;
+  }
+});
+
 test("drawTableResult sanitizes multiline HTML and CSS enforces compact single line", async () => {
   const { drawTableResult } = await import("../scripts/party-actor.mjs");
   const mockTable = {
