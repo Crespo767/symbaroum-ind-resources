@@ -416,8 +416,78 @@
             <!-- Aba de Expedição -->
             <div class="tab" data-group="primary" data-tab="expedition">
                 <div class="party-expedition-tab-content">
+                    <!-- Bloco de Controle e Status da Expedição -->
+                    <div class="party-storage-location-box party-expedition-control-box foreground {{#if expedition.active}}is-active{{else}}is-inactive{{/if}}">
+                        <div class="expedition-control-layout">
+                            <div class="expedition-control-info">
+                                <div class="expedition-icon-container">
+                                    <i class="fas {{#if expedition.active}}fa-campground{{else}}fa-map-marked-alt{{/if}}"></i>
+                                </div>
+                                <div class="expedition-text-container">
+                                    <div class="expedition-title-row">
+                                        <h4 class="expedition-title">{{localize "TENEBRE.Party.ExpeditionControlTitle"}}</h4>
+                                        {{#if expedition.active}}
+                                            <span class="expedition-status-badge is-active">
+                                                <span class="status-pulse"></span>
+                                                {{localize "TENEBRE.Party.ExpeditionStatusActive"}}
+                                            </span>
+                                        {{else}}
+                                            <span class="expedition-status-badge is-inactive">
+                                                {{localize "TENEBRE.Party.ExpeditionStatusInactive"}}
+                                            </span>
+                                        {{/if}}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="expedition-control-actions">
+                                {{#if expedition.active}}
+                                    <div class="expedition-day-counter">
+                                        {{#if editable}}
+                                        <button type="button" class="btn-expedition-day-step" data-action="prev-expedition-day" data-tooltip="{{localize "TENEBRE.Party.PreviousDayTooltip"}}" {{#if expedition.isFirstDay}}disabled{{/if}}>
+                                            <i class="fas fa-chevron-left"></i>
+                                        </button>
+                                        {{/if}}
+                                        <div class="day-counter-display">
+                                            <span class="day-counter-label">{{localize "TENEBRE.Party.DayCounterPrefix"}}</span>
+                                            <span class="day-counter-number">{{expedition.day}}</span>
+                                        </div>
+                                        {{#if editable}}
+                                        <button type="button" class="btn-expedition-day-step" data-action="next-expedition-day" data-tooltip="{{localize "TENEBRE.Party.NextDayTooltip"}}">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                        {{/if}}
+                                    </div>
+
+                                    {{#if editable}}
+                                    <div class="expedition-button-group">
+                                        <button type="button" class="btn-expedition-action is-advance" data-action="next-expedition-day" data-tooltip="{{localize "TENEBRE.Party.AdvanceDayTooltip"}}">
+                                            <i class="fas fa-sun"></i> {{localize "TENEBRE.Party.AdvanceDayBtn"}}
+                                        </button>
+                                        <button type="button" class="btn-expedition-action is-end" data-action="end-expedition" data-tooltip="{{localize "TENEBRE.Party.EndExpeditionTooltip"}}">
+                                            <i class="fas fa-flag-checkered"></i>
+                                        </button>
+                                    </div>
+                                    {{/if}}
+                                {{else}}
+                                    {{#if editable}}
+                                    <button type="button" class="btn-expedition-action is-start" data-action="start-expedition">
+                                        <i class="fas fa-hiking"></i> {{localize "TENEBRE.Party.StartExpeditionBtn"}}
+                                    </button>
+                                    {{/if}}
+                                {{/if}}
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Box do Guia da Expedição (estilo idêntico ao de armazenamento) -->
                     <div class="party-storage-location-box party-guide-box foreground {{#if expedition.guide.hasGuide}}is-linked{{else}}is-unlinked{{/if}}" data-drop-zone="expedition-guide">
+                        <!-- Separação de contagem de passo: Passo 1: Teste de Orientação -->
+                        <div class="expedition-step-header">
+                            <span class="expedition-step-label">{{localize "TENEBRE.Party.ExpeditionStep1Title"}}</span>
+                            <span class="expedition-step-line"></span>
+                        </div>
+
                         {{#if expedition.guide.hasGuide}}
                         <div class="guide-card-layout">
                             <!-- Retrato do Guia (tamanho expandido) -->

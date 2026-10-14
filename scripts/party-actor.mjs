@@ -476,6 +476,8 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
         name: fields.StringField ? new fields.StringField({ initial: "" }) : ""
       });
       schema.expedition = new fields.SchemaField({
+        active: fields.BooleanField ? new fields.BooleanField({ initial: false }) : false,
+        day: fields.NumberField ? new fields.NumberField({ initial: 0, integer: true, min: 0 }) : 0,
         guideId: fields.StringField ? new fields.StringField({ initial: "" }) : "",
         guideUuid: fields.StringField ? new fields.StringField({ initial: "" }) : "",
         dayState: fields.ObjectField ? new fields.ObjectField({ initial: {} }) : {}
@@ -505,10 +507,14 @@ export class PartyDataModel extends (globalThis.foundry?.abstract?.TypeDataModel
     };
     if (!this.location.region) this.location.region = "ambria";
     this.expedition ??= {
+      active: false,
+      day: 0,
       guideId: "",
       guideUuid: "",
       dayState: {}
     };
+    this.expedition.active ??= false;
+    this.expedition.day ??= 0;
     this.expedition.dayState ??= {};
     this.experience ??= { total: 0, artifactrr: 0, spent: 0, available: 0 };
     const exp = this.experience;
@@ -943,7 +949,13 @@ export class PartyActorSheet extends BaseActorSheet {
       };
     }
 
+    const isExpeditionActive = Boolean(rawExpedition.active ?? false);
+    const expeditionDay = Math.max(1, Number(rawExpedition.day) || 1);
+
     data.expedition = {
+      active: isExpeditionActive,
+      day: isExpeditionActive ? expeditionDay : 0,
+      isFirstDay: expeditionDay <= 1,
       guideId: guideId,
       guide: guideData,
       dayState: {
@@ -1320,6 +1332,38 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
+    root.querySelectorAll('[data-action="start-expedition"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onStartExpedition();
+      });
+    });
+
+    root.querySelectorAll('[data-action="end-expedition"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onEndExpedition();
+      });
+    });
+
+    root.querySelectorAll('[data-action="next-expedition-day"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onNextExpeditionDay();
+      });
+    });
+
+    root.querySelectorAll('[data-action="prev-expedition-day"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await this._onPrevExpeditionDay();
+      });
+    });
+
     this._bindMemberContextMenu(root);
   }
 
@@ -1571,6 +1615,94 @@ export class PartyActorSheet extends BaseActorSheet {
       [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null
     });
     this.render(false);
+  }
+
+  async _onStartExpedition() {
+    if (!this.isEditable) return;
+    await this.actor.update({
+      "system.expedition.active": true,
+      "system.expedition.day": 1,
+      "system.expedition.dayState.orientation": null,
+      [`flags.${MODULE_ID}.expedition.active`]: true,
+      [`flags.${MODULE_ID}.expedition.day`]: 1,
+      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null
+    });
+    const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionStartedNotice") || "Expedição iniciada! Dia 1 em Davokar.";
+    globalThis.ui?.notifications?.info?.(msg);
+  }
+
+  async _onEndExpedition() {
+    if (!this.isEditable) return;
+    const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.EndExpeditionDialogTitle") || "Encerrar Expedição";
+    const content = `<p>${globalThis.game?.i18n?.localize?.("TENEBRE.Party.EndExpeditionDialogContent") || "Deseja realmente encerrar a expedição atual? O contador de dias e o status da orientação serão reiniciados."}</p>`;
+
+    const doEnd = async () => {
+      await this.actor.update({
+        "system.expedition.active": false,
+        "system.expedition.day": 0,
+        "system.expedition.dayState.orientation": null,
+        [`flags.${MODULE_ID}.expedition.active`]: false,
+        [`flags.${MODULE_ID}.expedition.day`]: 0,
+        [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null
+      });
+      const msg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.ExpeditionEndedNotice") || "Expedição encerrada.";
+      globalThis.ui?.notifications?.info?.(msg);
+    };
+
+    if (globalThis.Dialog) {
+      new globalThis.Dialog({
+        title,
+        content,
+        buttons: {
+          yes: {
+            icon: '<i class="fas fa-check"></i>',
+            label: globalThis.game?.i18n?.localize?.("DIALOG.OK") || "Encerrar",
+            callback: doEnd
+          },
+          no: {
+            icon: '<i class="fas fa-times"></i>',
+            label: globalThis.game?.i18n?.localize?.("DIALOG.CANCEL") || "Cancelar"
+          }
+        },
+        default: "no"
+      }).render(true);
+    } else {
+      await doEnd();
+    }
+  }
+
+  async _onNextExpeditionDay() {
+    if (!this.isEditable) return;
+    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const currentDay = Math.max(1, Number(rawExpedition.day) || 1);
+    const nextDay = currentDay + 1;
+
+    await this.actor.update({
+      "system.expedition.active": true,
+      "system.expedition.day": nextDay,
+      "system.expedition.dayState.orientation": null,
+      [`flags.${MODULE_ID}.expedition.active`]: true,
+      [`flags.${MODULE_ID}.expedition.day`]: nextDay,
+      [`flags.${MODULE_ID}.expedition.dayState.orientation`]: null
+    });
+
+    const msg = globalThis.game?.i18n?.format
+      ? globalThis.game.i18n.format("TENEBRE.Party.ExpeditionDayAdvancedNotice", { day: nextDay })
+      : `Expedição avançou para o Dia ${nextDay}.`;
+    globalThis.ui?.notifications?.info?.(msg);
+  }
+
+  async _onPrevExpeditionDay() {
+    if (!this.isEditable) return;
+    const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
+    const currentDay = Math.max(1, Number(rawExpedition.day) || 1);
+    if (currentDay <= 1) return;
+    const prevDay = currentDay - 1;
+
+    await this.actor.update({
+      "system.expedition.day": prevDay,
+      [`flags.${MODULE_ID}.expedition.day`]: prevDay
+    });
   }
 
   async _onSelectGuide() {

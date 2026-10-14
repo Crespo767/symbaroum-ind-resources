@@ -244,6 +244,12 @@ test("Party sheet template includes expedition tab with guide card and actions",
   assert.match(cssSource, /\.guide-card-layout/);
   assert.match(cssSource, /\.guide-portrait/);
   assert.match(cssSource, /\.guide-info-column/);
+  assert.match(templateSource, /class="expedition-step-header"/);
+  assert.match(templateSource, /class="expedition-step-label"/);
+  assert.match(templateSource, /TENEBRE\.Party\.ExpeditionStep1Title/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.expedition-step-header/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.expedition-step-label/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.expedition-step-line/);
   assert.match(cssSource, /\.tenebre-party-sheet \.tab\[data-tab="expedition"\]\.active/);
   assert.match(cssSource, /\.tenebre-party-sheet \.party-expedition-tab-content/);
   assert.match(cssSource, /\.tenebre-party-sheet \.party-guide-box/);
@@ -727,4 +733,124 @@ test("OFFICIAL_DAVOKAR_MISHAPS contains all 30 entries with valid webp images", 
   assert.equal(tableData.results.length, 30);
   assert.match(tableData.img, /^icons\/.+\.webp$/);
 });
+
+test("Party sheet template includes expedition control block and day counter", () => {
+  const tpl = fs.readFileSync(path.join(root, "templates/party-sheet.hbs"), "utf8");
+  assert.match(tpl, /class="party-storage-location-box party-expedition-control-box/);
+  assert.match(tpl, /data-action="start-expedition"/);
+  assert.match(tpl, /data-action="end-expedition"/);
+  assert.match(tpl, /data-action="next-expedition-day"/);
+  assert.match(tpl, /data-action="prev-expedition-day"/);
+  assert.match(tpl, /class="day-counter-display"/);
+  assert.match(tpl, /{{expedition\.day}}/);
+});
+
+test("Party stylesheet contains styles for expedition control block and day counter", () => {
+  const css = fs.readFileSync(path.join(root, "styles/symbaroum-ind-resources.css"), "utf8");
+  assert.match(css, /\.tenebre-party-sheet \.party-expedition-control-box/);
+  assert.match(css, /\.tenebre-party-sheet \.party-expedition-control-box\.is-active/);
+  assert.match(css, /\.tenebre-party-sheet \.party-expedition-control-box\.is-inactive/);
+  assert.match(css, /\.tenebre-party-sheet \.expedition-day-counter/);
+  assert.match(css, /\.tenebre-party-sheet \.btn-expedition-action\.is-start/);
+});
+
+test("PartyDataModel defines active and day in expedition schema", async () => {
+  const { PartyDataModel } = await import("../scripts/party-actor.mjs");
+  const model = new PartyDataModel();
+  model.prepareDerivedData();
+  assert.equal(model.expedition.active, false);
+  assert.equal(model.expedition.day, 0);
+});
+
+test("PartyActorSheet getData formats expedition active, day, and isFirstDay", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+
+  // Inactive expedition
+  const inactiveSheet = new PartyActorSheet({
+    system: { expedition: { active: false, day: 0 } },
+    flags: {}
+  });
+  const data1 = await inactiveSheet.getData();
+  assert.equal(data1.expedition.active, false);
+  assert.equal(data1.expedition.day, 0);
+
+  // Active expedition at day 1
+  const activeSheet1 = new PartyActorSheet({
+    system: { expedition: { active: true, day: 1 } },
+    flags: {}
+  });
+  const data2 = await activeSheet1.getData();
+  assert.equal(data2.expedition.active, true);
+  assert.equal(data2.expedition.day, 1);
+  assert.equal(data2.expedition.isFirstDay, true);
+
+  // Active expedition at day 3
+  const activeSheet3 = new PartyActorSheet({
+    system: { expedition: { active: true, day: 3 } },
+    flags: {}
+  });
+  const data3 = await activeSheet3.getData();
+  assert.equal(data3.expedition.active, true);
+  assert.equal(data3.expedition.day, 3);
+  assert.equal(data3.expedition.isFirstDay, false);
+});
+
+test("PartyActorSheet._onStartExpedition starts expedition and initializes day 1", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  let updatedData = null;
+  const mockActor = {
+    system: { expedition: { active: false, day: 0 } },
+    flags: {},
+    update: async (data) => {
+      updatedData = data;
+    }
+  };
+  const sheet = new PartyActorSheet(mockActor);
+  await sheet._onStartExpedition();
+
+  assert.equal(updatedData["system.expedition.active"], true);
+  assert.equal(updatedData["system.expedition.day"], 1);
+  assert.equal(updatedData["system.expedition.dayState.orientation"], null);
+});
+
+test("PartyActorSheet._onNextExpeditionDay increments day and resets orientation", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  let updatedData = null;
+  const mockActor = {
+    system: { expedition: { active: true, day: 2, dayState: { orientation: { rolled: true } } } },
+    flags: {},
+    update: async (data) => {
+      updatedData = data;
+    }
+  };
+  const sheet = new PartyActorSheet(mockActor);
+  await sheet._onNextExpeditionDay();
+
+  assert.equal(updatedData["system.expedition.active"], true);
+  assert.equal(updatedData["system.expedition.day"], 3);
+  assert.equal(updatedData["system.expedition.dayState.orientation"], null);
+});
+
+test("PartyActorSheet._onPrevExpeditionDay decrements day down to 1", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  let updatedData = null;
+  const mockActor = {
+    system: { expedition: { active: true, day: 3 } },
+    flags: {},
+    update: async (data) => {
+      updatedData = data;
+    }
+  };
+  const sheet = new PartyActorSheet(mockActor);
+  await sheet._onPrevExpeditionDay();
+
+  assert.equal(updatedData["system.expedition.day"], 2);
+
+  // When at day 1, should not decrement below 1
+  mockActor.system.expedition.day = 1;
+  updatedData = null;
+  await sheet._onPrevExpeditionDay();
+  assert.equal(updatedData, null);
+});
+
 
