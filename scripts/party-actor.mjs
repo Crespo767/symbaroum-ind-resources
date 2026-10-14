@@ -269,9 +269,9 @@ export function buildOrientationChatHtml({
 
   const guideImg = guideActor?.img || "icons/svg/mystery-man.svg";
   const guideName = guideActor?.name || "Guia";
-  const abilityImg = (bushcraft.item?.img && !bushcraft.item.img.includes("/unknown"))
+  const abilityImg = (bushcraft.item?.img && !bushcraft.item.img.includes("/unknown") && !bushcraft.item.img.endsWith("boon.png"))
     ? bushcraft.item.img
-    : "icons/svg/compass.svg";
+    : (bushcraft.hasBushcraft ? "icons/environment/wilderness/tree-ash.webp" : "icons/svg/compass.svg");
 
   let bonusesList = "";
   if (evalResult.success) {
