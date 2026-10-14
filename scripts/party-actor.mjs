@@ -866,6 +866,23 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
+    root.querySelectorAll('[data-action="toggle-guide"]').forEach(el => {
+      el.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!this.isEditable) return;
+        const actorId = el.dataset.actorId;
+        if (!actorId) return;
+        const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
+        const currentGuideUuid = this.actor?.system?.expedition?.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
+        if (currentGuideId === actorId || currentGuideUuid === actorId) {
+          await this._onUnsetGuide();
+        } else {
+          await this._onSetGuide(actorId);
+        }
+      });
+    });
+
     this._bindMemberContextMenu(root);
   }
 
@@ -884,7 +901,8 @@ export class PartyActorSheet extends BaseActorSheet {
         const actorId = card?.dataset?.actorId;
         if (!actorId) return false;
         const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
-        return currentGuideId !== actorId;
+        const currentGuideUuid = this.actor?.system?.expedition?.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
+        return currentGuideId !== actorId && currentGuideUuid !== actorId;
       },
       onClick: (target) => {
         const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
@@ -904,7 +922,8 @@ export class PartyActorSheet extends BaseActorSheet {
         const actorId = card?.dataset?.actorId;
         if (!actorId) return false;
         const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
-        return currentGuideId === actorId;
+        const currentGuideUuid = this.actor?.system?.expedition?.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
+        return currentGuideId === actorId || currentGuideUuid === actorId;
       },
       onClick: () => {
         void this._onUnsetGuide();
@@ -912,16 +931,12 @@ export class PartyActorSheet extends BaseActorSheet {
     });
 
     try {
-      if (typeof ContextMenuClass.create === "function") {
-        ContextMenuClass.create(this, root, ".party-member-card[data-actor-id]", [setGuideEntry, unsetGuideEntry]);
-      } else {
-        new ContextMenuClass(
-          root,
-          ".party-member-card[data-actor-id]",
-          [setGuideEntry, unsetGuideEntry],
-          { fixed: true, jQuery: false }
-        );
-      }
+      new ContextMenuClass(
+        root,
+        ".party-member-card[data-actor-id]",
+        [setGuideEntry, unsetGuideEntry],
+        { fixed: true, jQuery: false }
+      );
     } catch (err) {
       console.warn("Tenebre | Could not register member ContextMenu:", err);
     }

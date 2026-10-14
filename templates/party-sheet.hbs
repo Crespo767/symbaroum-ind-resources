@@ -119,9 +119,12 @@
                                     </div>
                                 </div>
 
-                                <!-- Botões de controle: Alternar para companheiro / Remover -->
+                                <!-- Botões de controle: Guia / Alternar para companheiro / Remover -->
                                 {{#if ../editable}}
                                 <div class="member-actions">
+                                    <a class="item-control member-guide-toggle {{#if isGuide}}is-active{{/if}}" data-action="toggle-guide" data-actor-id="{{id}}" data-tooltip="{{#if isGuide}}{{localize "TENEBRE.Party.UnsetGuideContextMenu"}}{{else}}{{localize "TENEBRE.Party.SetGuideContextMenu"}}{{/if}}">
+                                        <i class="fas fa-compass"></i>
+                                    </a>
                                     <a class="item-control member-switch" data-action="toggle-member-type" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.MoveToCompanions"}}">
                                         <i class="fas fa-paw"></i>
                                     </a>
@@ -219,9 +222,12 @@
                                     </div>
                                 </div>
 
-                                <!-- Botões de controle: Alternar para jogador / Remover -->
+                                <!-- Botões de controle: Guia / Alternar para jogador / Remover -->
                                 {{#if ../editable}}
                                 <div class="member-actions">
+                                    <a class="item-control member-guide-toggle {{#if isGuide}}is-active{{/if}}" data-action="toggle-guide" data-actor-id="{{id}}" data-tooltip="{{#if isGuide}}{{localize "TENEBRE.Party.UnsetGuideContextMenu"}}{{else}}{{localize "TENEBRE.Party.SetGuideContextMenu"}}{{/if}}">
+                                        <i class="fas fa-compass"></i>
+                                    </a>
                                     <a class="item-control member-switch" data-action="toggle-member-type" data-actor-id="{{id}}" data-tooltip="{{localize "TENEBRE.Party.MoveToMembers"}}">
                                         <i class="fas fa-user"></i>
                                     </a>

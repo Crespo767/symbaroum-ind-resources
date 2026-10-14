@@ -4084,6 +4084,27 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   padding: 0 4px;
 }
 
+.tenebre-party-sheet .member-guide-toggle {
+  color: #3c3022;
+  cursor: pointer;
+  padding: 8px 6px;
+  font-size: 1.25em;
+  opacity: 0.75;
+  transition: opacity 0.2s, color 0.2s, transform 0.15s;
+}
+
+.tenebre-party-sheet .member-guide-toggle:hover {
+  color: #dfb743;
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+.tenebre-party-sheet .member-guide-toggle.is-active {
+  color: #dfb743;
+  opacity: 1;
+  text-shadow: 0 0 6px rgba(223, 183, 67, 0.6);
+}
+
 .tenebre-party-sheet .member-switch {
   color: #3c3022;
   cursor: pointer;

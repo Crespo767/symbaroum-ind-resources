@@ -232,11 +232,15 @@ test("Party sheet template includes expedition tab with guide card and actions",
   assert.match(templateSource, /class="member-guide-tag"/);
   assert.match(templateSource, /is-expedition-guide/);
   assert.match(templateSource, /class="portrait-guide-badge"/);
+  assert.match(templateSource, /data-action="toggle-guide"/);
+  assert.match(templateSource, /class="item-control member-guide-toggle/);
   assert.match(templateSource, /class="guide-card-layout"/);
   assert.match(templateSource, /class="guide-portrait/);
   assert.match(templateSource, /class="guide-info-column"/);
   assert.match(cssSource, /\.party-member-card\.is-expedition-guide/);
   assert.match(cssSource, /\.portrait-guide-badge/);
+  assert.match(cssSource, /\.member-guide-toggle/);
+  assert.match(cssSource, /\.member-guide-toggle\.is-active/);
   assert.match(cssSource, /\.guide-card-layout/);
   assert.match(cssSource, /\.guide-portrait/);
   assert.match(cssSource, /\.guide-info-column/);
@@ -353,6 +357,28 @@ test("PartyDataModel defines expedition in schema and prepareDerivedData", async
   assert.equal(model.expedition.guideId, "");
 });
 
+test("PartyActorSheet._bindMemberContextMenu registers ContextMenu with fixed: true and jQuery: false", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  let capturedArgs = null;
+  class MockContextMenu {
+    constructor(container, selector, entries, options) {
+      capturedArgs = { container, selector, entries, options };
+    }
+  }
 
+  globalThis.foundry = globalThis.foundry ?? {};
+  globalThis.foundry.applications = globalThis.foundry.applications ?? {};
+  globalThis.foundry.applications.ux = globalThis.foundry.applications.ux ?? {};
+  globalThis.foundry.applications.ux.ContextMenu = MockContextMenu;
 
+  const mockActor = { id: "p1", system: { expedition: { guideId: "" } } };
+  const sheet = new PartyActorSheet(mockActor);
+  const mockRoot = { querySelectorAll: () => [] };
+  sheet._bindMemberContextMenu(mockRoot);
 
+  assert.ok(capturedArgs, "ContextMenu should be instantiated");
+  assert.equal(capturedArgs.selector, ".party-member-card[data-actor-id]");
+  assert.equal(capturedArgs.options?.fixed, true, "ContextMenu must have fixed: true to prevent container clipping");
+  assert.equal(capturedArgs.options?.jQuery, false, "ContextMenu must have jQuery: false to avoid deprecation warnings");
+  assert.equal(capturedArgs.entries.length, 2, "Must register Set and Unset guide entries");
+});

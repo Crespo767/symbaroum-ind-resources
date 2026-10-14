@@ -400,11 +400,11 @@ function decision({ level, moduleId, noticeKey, area, action, reason }) {
 }
 
 function getFoundryGeneration() {
-  const generation = Number(game.release?.generation);
+  const generation = Number(globalThis.game?.release?.generation);
   if (Number.isFinite(generation)) return generation;
 
-  const major = Number(String(game.version ?? "").split(".")[0]);
-  return Number.isFinite(major) ? major : 0;
+  const major = Number(String(globalThis.game?.version ?? "").split(".")[0]);
+  return Number.isFinite(major) && major > 0 ? major : 13;
 }
 
 function getDecisionModules(moduleId) {
