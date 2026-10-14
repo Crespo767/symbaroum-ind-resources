@@ -1,4 +1,5 @@
 const { ClassicLevel } = require('classic-level');
+const fs = require('fs');
 const path = require('path');
 
 function makeId(prefix, num) {
@@ -816,7 +817,11 @@ async function run() {
     })
   ];
 
+  const originalTables = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'original-tables.json'), 'utf8'));
+  const filteredOriginal = originalTables.filter(t => t.name !== 'Tabela 25 - Infortúnios na Davokar');
+
   adventure.tables = [
+    ...filteredOriginal,
     createMishapsTable(tableFolderId, OFFICIAL_DAVOKAR_MISHAPS)
   ];
 
