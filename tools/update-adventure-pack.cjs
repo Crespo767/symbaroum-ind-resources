@@ -76,7 +76,7 @@ function createBoon({ id, name, img, description, reference = 'bushcraft', level
     _id: id,
     name,
     type: 'boon',
-    img: img || 'systems/symbaroum/asset/image/boon.png',
+    img: img || 'icons/environment/wilderness/tree-ash.webp',
     folder: folder || null,
     sort: 0,
     effects: [],
@@ -520,7 +520,7 @@ async function run() {
     createBoon({
       id: makeId('bnBushc', 1), // bnBushc000000001
       name: 'Mateiro',
-      img: 'systems/symbaroum/asset/image/boon.png',
+      img: 'icons/environment/wilderness/tree-ash.webp',
       reference: 'bushcraft',
       level: 1,
       folder: itemFolderId,

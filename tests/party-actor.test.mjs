@@ -593,6 +593,7 @@ test("PartyActorSheet._onRollOrientation updates dayState after dice roll and po
   assert.match(sentMessage.content, /class="symbaroum chat ability tenebre-orientation-chat"/);
   assert.match(sentMessage.content, /class="tenebre-berserker-participants"/);
   assert.match(sentMessage.content, /class="tenebre-attribute-test-title"/);
+  assert.match(sentMessage.content, /icons\/environment\/wilderness\/tree-ash\.webp/);
 
   await sheet._onResetOrientation();
   assert.equal(updates.length, 2);
