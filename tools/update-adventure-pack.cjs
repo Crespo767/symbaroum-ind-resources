@@ -448,33 +448,95 @@ async function run() {
   console.log('Existing Tables:', adventure.tables?.length || 0);
 
   // Folder IDs (strictly 16 characters)
-  const itemFolderId = makeId('fldTransport', 1); // fldTransport0001
-  const actorFolderId = makeId('fldAnimals', 1);   // fldAnimals000001
-  const tableFolderId = makeId('fldTables', 1);    // fldTables00000001
+  const itemFolderId = makeId('fldIndItm', 1);     // fldIndItm0000001
+  const actorFolderId = makeId('fldIndAct', 1);    // fldIndAct0000001
+  const tableRootFolderId = 'sZexcUw9eW4dVevS';    // Ind Resources - Tabelas
+  const tableEquipFolderId = 'GS9u5kHIlHI0DgIA';   // Equipamentos
+  const tableShadowFolderId = 'TupSLuYxLsjNGCy5';  // Sombras
+  const tableEventFolderId = '4HaLWecuTkmNBMCm';   // Eventos
+  const macroIndFolderId = 'keiBTL2WxCWPxGhJ';     // Ind Resources - Utilidades
+  const macroUtilFolderId = 'eCk060eQBtIEtASn';    // Utilidades
+
   validateDocumentId(itemFolderId, 'itemFolderId');
   validateDocumentId(actorFolderId, 'actorFolderId');
-  validateDocumentId(tableFolderId, 'tableFolderId');
+  validateDocumentId(tableRootFolderId, 'tableRootFolderId');
+  validateDocumentId(tableEquipFolderId, 'tableEquipFolderId');
+  validateDocumentId(tableShadowFolderId, 'tableShadowFolderId');
+  validateDocumentId(tableEventFolderId, 'tableEventFolderId');
+  validateDocumentId(macroIndFolderId, 'macroIndFolderId');
+  validateDocumentId(macroUtilFolderId, 'macroUtilFolderId');
 
   adventure.folders = [
     {
-      _id: itemFolderId,
-      name: 'Veículos e Transportes',
-      type: 'Item',
-      color: '#6b4226',
+      _id: tableRootFolderId,
+      name: 'Ind Resources - Tabelas',
+      type: 'RollTable',
+      folder: null,
+      sorting: 'a',
+      color: '#7a3e1d',
+      flags: {}
+    },
+    {
+      _id: tableEquipFolderId,
+      name: 'Equipamentos',
+      type: 'RollTable',
+      folder: tableRootFolderId,
+      sorting: 'a',
+      color: null,
+      flags: {}
+    },
+    {
+      _id: tableShadowFolderId,
+      name: 'Sombras',
+      type: 'RollTable',
+      folder: tableRootFolderId,
+      sorting: 'a',
+      color: null,
+      flags: {}
+    },
+    {
+      _id: tableEventFolderId,
+      name: 'Eventos',
+      type: 'RollTable',
+      folder: tableRootFolderId,
+      sorting: 'a',
+      color: null,
       flags: {}
     },
     {
       _id: actorFolderId,
-      name: 'Animais de Carga e Tração',
+      name: 'Ind Resources - atores',
       type: 'Actor',
+      folder: null,
+      sorting: 'a',
       color: '#2d5a27',
       flags: {}
     },
     {
-      _id: tableFolderId,
-      name: 'Tabelas de Expedição',
-      type: 'RollTable',
-      color: '#7a3e1d',
+      _id: itemFolderId,
+      name: 'Ind Resources - itens',
+      type: 'Item',
+      folder: null,
+      sorting: 'a',
+      color: '#6b4226',
+      flags: {}
+    },
+    {
+      _id: macroIndFolderId,
+      name: 'Ind Resources - Utilidades',
+      type: 'Macro',
+      folder: null,
+      sorting: 'a',
+      color: '#994d4d',
+      flags: {}
+    },
+    {
+      _id: macroUtilFolderId,
+      name: 'Utilidades',
+      type: 'Macro',
+      folder: null,
+      sorting: 'a',
+      color: null,
       flags: {}
     }
   ];
@@ -822,7 +884,7 @@ async function run() {
 
   adventure.tables = [
     ...filteredOriginal,
-    createMishapsTable(tableFolderId, OFFICIAL_DAVOKAR_MISHAPS)
+    createMishapsTable(tableRootFolderId, OFFICIAL_DAVOKAR_MISHAPS)
   ];
 
   adventure._stats.modifiedTime = Date.now();
