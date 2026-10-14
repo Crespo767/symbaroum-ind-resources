@@ -662,3 +662,51 @@ test("drawMishapTable calls draw for world table and roll/toMessage for compendi
   assert.equal(rolledCompendium, true);
   assert.equal(messagedCompendium, true);
 });
+
+test("isDavokarMishapsTable strictly rejects military tables and accepts Davokar tables", async () => {
+  const { isDavokarMishapsTable } = await import("../scripts/party-actor.mjs");
+
+  // Rejeições obrigatórias
+  assert.equal(isDavokarMishapsTable("Tabela 18 - Infortúnios do Exército"), false);
+  assert.equal(isDavokarMishapsTable("Infortúnios do Exército"), false);
+  assert.equal(isDavokarMishapsTable("Infortúnios do Exercito"), false);
+  assert.equal(isDavokarMishapsTable("Army Mishaps"), false);
+  assert.equal(isDavokarMishapsTable("Tabela de Infortúnios de Batalha"), false);
+  assert.equal(isDavokarMishapsTable("Infortúnios"), false); // Genérico demais sem citar Davokar ou Tabela 25
+
+  // Aceitações obrigatórias
+  assert.equal(isDavokarMishapsTable("Tabela 25 - Infortúnios na Davokar"), true);
+  assert.equal(isDavokarMishapsTable("Tabela 25"), true);
+  assert.equal(isDavokarMishapsTable("Infortúnios na Davokar"), true);
+  assert.equal(isDavokarMishapsTable("Table 25 - Mishaps in Davokar"), true);
+});
+
+test("resolveMishapsTable ignores Tabela 18 do Exército and auto-creates Tabela 25 if needed", async () => {
+  const { resolveMishapsTable } = await import("../scripts/party-actor.mjs");
+
+  let createdTableData = null;
+  globalThis.RollTable = {
+    create: async (data) => {
+      createdTableData = data;
+      return { id: "tbl-auto-created", name: data.name };
+    }
+  };
+
+  // Simula mundo contendo APENAS a Tabela 18 (do Exército)
+  globalThis.game = {
+    tables: [
+      { id: "tbl-exercito", name: "Tabela 18 - Infortúnios do Exército" }
+    ],
+    packs: [],
+    user: { isGM: true }
+  };
+
+  const resolved = await resolveMishapsTable();
+  // Não pode ter pego a Tabela 18!
+  assert.notEqual(resolved?.id, "tbl-exercito");
+  // Deve ter auto-criado a Tabela 25 oficial
+  assert.equal(resolved?.id, "tbl-auto-created");
+  assert.equal(createdTableData?.name, "Tabela 25 - Infortúnios na Davokar");
+  assert.equal(createdTableData?.results?.length, 30);
+});
+

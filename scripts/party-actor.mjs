@@ -4,6 +4,7 @@ import { EncumbranceService } from "./encumbrance.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs";
 import { escapeHtml } from "./utils.mjs";
+import { getDavokarMishapsTableData } from "./expedition-data.mjs";
 
 /** Tipo de ator declarado em module.json (documentTypes.Actor.party); o core o registra sozinho. */
 export const PARTY_ACTOR_TYPE = `${MODULE_ID}.party`;
@@ -159,43 +160,80 @@ export function getMishapsModifier(regionKey = "ambria") {
 }
 
 /**
- * Localiza a Tabela de Infortúnios (RollTable) no mundo ou no compêndio do módulo
+ * Valida se um nome pertence à Tabela 25 (Infortúnios na Davokar),
+ * e explicitamente rejeita tabelas militares como Infortúnios do Exército (Tabela 18).
+ */
+export function isDavokarMishapsTable(nameStr) {
+  const name = (nameStr || "").toLowerCase().trim();
+  if (!name) return false;
+
+  // Rejeita explicitamente tabelas de batalha, guerra ou exército
+  if (name.includes("exército") || name.includes("exercito") || name.includes("army") || name.includes("batalha")) {
+    return false;
+  }
+
+  // Corresponde a referências explícitas à Tabela 25
+  if (name.includes("tabela 25") || name.includes("tabela25") || name.includes("table 25")) {
+    return true;
+  }
+
+  // Corresponde a infortúnio/mishap específico de Davokar
+  if ((name.includes("infortúnio") || name.includes("infortunio") || name.includes("mishap")) && name.includes("davokar")) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Localiza a Tabela de Infortúnios na Davokar (RollTable) no mundo ou no compêndio do módulo.
+ * Caso não exista em nenhum lugar, realiza fallback criando-a automaticamente no mundo.
  */
 export async function resolveMishapsTable() {
   const game = globalThis.game;
   if (!game) return null;
 
-  // 1. Procura primeiro nas tabelas do próprio mundo (caso o usuário tenha importado ou customizado)
+  // 1. Procura primeiro nas tabelas do próprio mundo (se o usuário já importou ou customizou)
   const worldTables = Array.from(game.tables ?? []);
-  const worldTable = worldTables.find(t => {
-    const name = (t.name || "").toLowerCase();
-    return name.includes("infortúnio") || name.includes("infortunio") || name.includes("mishap") || name.includes("tabela 25");
-  });
+  const worldTable = worldTables.find(t => isDavokarMishapsTable(t.name));
   if (worldTable) return worldTable;
 
   // 2. Procura no compêndio de tabelas de expedição do módulo
-  const modPack = game.packs?.get(`${MODULE_ID}.expedition-tables`);
+  const modPack = typeof game.packs?.get === "function"
+    ? game.packs.get(`${MODULE_ID}.expedition-tables`)
+    : (Array.isArray(game.packs) ? game.packs.find(p => p.metadata?.id === `${MODULE_ID}.expedition-tables` || p.name === "expedition-tables") : null);
   if (modPack) {
-    if (!modPack.indexed) await modPack.getIndex();
-    const entry = modPack.index.find(e => {
-      const name = (e.name || "").toLowerCase();
-      return name.includes("infortúnio") || name.includes("infortunio") || name.includes("mishap") || name.includes("tabela 25");
-    });
-    if (entry) {
-      return await modPack.getDocument(entry._id);
+    try {
+      if (!modPack.indexed) await modPack.getIndex();
+      const entry = modPack.index.find(e => isDavokarMishapsTable(e.name));
+      if (entry) {
+        return await modPack.getDocument(entry._id);
+      }
+    } catch (errPack) {
+      console.warn("symbaroum-ind-resources | Falha ao consultar pack expedition-tables:", errPack);
     }
   }
 
-  // 3. Procura em qualquer outro compêndio de RollTable carregado no Foundry
+  // 3. Procura no compêndio de aventura ou em outros compêndios de RollTable carregados
   for (const pack of (game.packs ?? [])) {
     if (pack.documentName !== "RollTable") continue;
-    if (!pack.indexed) await pack.getIndex();
-    const entry = pack.index.find(e => {
-      const name = (e.name || "").toLowerCase();
-      return name.includes("infortúnio") || name.includes("infortunio") || name.includes("mishap") || name.includes("tabela 25");
-    });
-    if (entry) {
-      return await pack.getDocument(entry._id);
+    try {
+      if (!pack.indexed) await pack.getIndex();
+      const entry = pack.index.find(e => isDavokarMishapsTable(e.name));
+      if (entry) {
+        return await pack.getDocument(entry._id);
+      }
+    } catch (_) {}
+  }
+
+  // 4. Fallback: se não estiver em nenhum compêndio nem no mundo, cria automaticamente a Tabela 25 oficial no mundo
+  if (globalThis.RollTable?.create && (game.user?.isGM || game.user?.can?.("TABLE_CREATE"))) {
+    try {
+      const tableData = getDavokarMishapsTableData();
+      const created = await globalThis.RollTable.create(tableData);
+      if (created) return created;
+    } catch (createErr) {
+      console.warn("symbaroum-ind-resources | Falha ao auto-criar Tabela 25:", createErr);
     }
   }
 

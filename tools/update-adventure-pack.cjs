@@ -387,7 +387,53 @@ function createActor({ id, name, img, race, shadow, appearance, tactics, attribu
   };
 }
 
+function createMishapsTable(folderId = null, mishaps = []) {
+  const tableId = makeId('tblMishDav', 1); // tblMishDav000001
+  const results = mishaps.map(m => ({
+    _id: makeId('resMish', m.num),
+    type: 'text',
+    name: m.name,
+    text: `<strong>${m.num}. ${m.name}:</strong> ${m.desc}`,
+    description: `<p><strong>${m.name}</strong></p><p>${m.desc}</p>`,
+    img: m.img || 'icons/svg/d20-black.svg',
+    weight: 1,
+    range: [m.num, m.num],
+    drawn: false,
+    flags: {},
+    _stats: {
+      systemId: 'symbaroum',
+      systemVersion: '6.1.6',
+      coreVersion: '13.350',
+      createdTime: Date.now(),
+      modifiedTime: Date.now()
+    }
+  }));
+
+  return {
+    _id: tableId,
+    name: 'Tabela 25 - Infortúnios na Davokar',
+    img: 'icons/environment/wilderness/tree-twisted.webp',
+    description: '<p>Tabela oficial de Infortúnios em expedições pela floresta de Davokar (Guia do Mestre, p. 91, 115).</p><p><strong>Rolagem:</strong> 1d20 + Modificador de Região (+0 Iluminada, +5 Selvagem, +10 Escura).</p>',
+    results,
+    formula: '1d20',
+    replacement: true,
+    displayRoll: true,
+    folder: folderId,
+    sort: 0,
+    flags: {},
+    ownership: { default: 0 },
+    _stats: {
+      systemId: 'symbaroum',
+      systemVersion: '6.1.6',
+      coreVersion: '13.350',
+      createdTime: Date.now(),
+      modifiedTime: Date.now()
+    }
+  };
+}
+
 async function run() {
+  const { OFFICIAL_DAVOKAR_MISHAPS } = await import('../scripts/expedition-data.mjs');
   const dbPath = path.resolve('packs/symbaroum-ind-resources');
   console.log('Connecting to LevelDB:', dbPath);
   const db = new ClassicLevel(dbPath, { valueEncoding: 'utf8' });
@@ -403,8 +449,10 @@ async function run() {
   // Folder IDs (strictly 16 characters)
   const itemFolderId = makeId('fldTransport', 1); // fldTransport0001
   const actorFolderId = makeId('fldAnimals', 1);   // fldAnimals000001
+  const tableFolderId = makeId('fldTables', 1);    // fldTables00000001
   validateDocumentId(itemFolderId, 'itemFolderId');
   validateDocumentId(actorFolderId, 'actorFolderId');
+  validateDocumentId(tableFolderId, 'tableFolderId');
 
   adventure.folders = [
     {
@@ -419,6 +467,13 @@ async function run() {
       name: 'Animais de Carga e Tração',
       type: 'Actor',
       color: '#2d5a27',
+      flags: {}
+    },
+    {
+      _id: tableFolderId,
+      name: 'Tabelas de Expedição',
+      type: 'RollTable',
+      color: '#7a3e1d',
       flags: {}
     }
   ];
@@ -759,6 +814,10 @@ async function run() {
         })
       ]
     })
+  ];
+
+  adventure.tables = [
+    createMishapsTable(tableFolderId, OFFICIAL_DAVOKAR_MISHAPS)
   ];
 
   adventure._stats.modifiedTime = Date.now();
