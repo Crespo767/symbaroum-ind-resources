@@ -524,6 +524,7 @@ test("Template and Stylesheet include orientation panel, buttons and chat card s
   assert.match(cssSource, /\.tenebre-party-sheet \.guide-bushcraft-badge/);
   assert.match(cssSource, /\.tenebre-party-sheet \.btn-orientation-roll/);
   assert.match(cssSource, /\.tenebre-party-sheet \.orientation-result-badge/);
+  assert.match(cssSource, /\.symbaroum\.chat\.ability\.tenebre-orientation-chat/);
   assert.match(cssSource, /\.tenebre-chat-card\.tenebre-orientation-card/);
 });
 
@@ -532,7 +533,11 @@ test("PartyActorSheet._onRollOrientation updates dayState and posts chat card", 
   globalThis.game.user = globalThis.game.user ?? { isGM: true, id: "u1" };
   globalThis.game.settings = globalThis.game.settings ?? { get: () => false };
   globalThis.game.i18n = globalThis.game.i18n ?? { localize: (k) => k, format: (k, d) => k };
-  globalThis.ChatMessage = globalThis.ChatMessage ?? { getSpeaker: () => ({ alias: "Guia" }), create: async (d) => d };
+  let sentMessage = null;
+  globalThis.ChatMessage = {
+    getSpeaker: () => ({ alias: "Guia" }),
+    create: async (d) => { sentMessage = d; return d; }
+  };
 
   const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
   const updates = [];
@@ -578,8 +583,73 @@ test("PartyActorSheet._onRollOrientation updates dayState and posts chat card", 
   assert.equal(orientData.baseVigilant, 15);
   assert.equal(orientData.penalty, 0);
   assert.ok(["greatSuccess", "success", "failure"].includes(orientData.verdict));
+  assert.ok(sentMessage);
+  assert.match(sentMessage.content, /class="symbaroum chat ability tenebre-orientation-chat"/);
+  assert.match(sentMessage.content, /class="tenebre-berserker-participants"/);
+  assert.match(sentMessage.content, /class="tenebre-attribute-test-title"/);
 
   await sheet._onResetOrientation();
   assert.equal(updates.length, 2);
   assert.equal(updates[1]["system.expedition.dayState.orientation"], null);
+});
+
+test("getMishapsModifier returns official modifiers per region", async () => {
+  const { getMishapsModifier } = await import("../scripts/party-actor.mjs");
+  assert.equal(getMishapsModifier("ambria"), 0);
+  assert.equal(getMishapsModifier("bright"), 0);
+  assert.equal(getMishapsModifier("wild"), 5);
+  assert.equal(getMishapsModifier("dark"), 10);
+});
+
+test("resolveMishapsTable finds table in world or compendium", async () => {
+  const { resolveMishapsTable } = await import("../scripts/party-actor.mjs");
+
+  // World table priority
+  globalThis.game = {
+    tables: [
+      { name: "Tabela 25 - Infortúnios na Davokar", id: "tbl-world" }
+    ],
+    packs: []
+  };
+
+  const worldTable = await resolveMishapsTable();
+  assert.equal(worldTable?.id, "tbl-world");
+
+  // Compendium table fallback
+  const mockPack = {
+    documentName: "RollTable",
+    indexed: true,
+    index: [{ _id: "tbl-pack", name: "Infortúnios na Davokar" }],
+    getDocument: async (id) => ({ id, name: "Infortúnios na Davokar", compendium: true })
+  };
+  globalThis.game = {
+    tables: [],
+    packs: new Map([["symbaroum-ind-resources.expedition-tables", mockPack]])
+  };
+
+  const packTable = await resolveMishapsTable();
+  assert.equal(packTable?.id, "tbl-pack");
+});
+
+test("drawMishapTable calls draw for world table and roll/toMessage for compendium table", async () => {
+  const { drawMishapTable } = await import("../scripts/party-actor.mjs");
+
+  let drawnWorld = false;
+  const worldTable = {
+    compendium: null,
+    draw: async ({ roll }) => { drawnWorld = true; return { roll }; }
+  };
+  await drawMishapTable(worldTable, { total: 12 });
+  assert.equal(drawnWorld, true);
+
+  let rolledCompendium = false;
+  let messagedCompendium = false;
+  const compendiumTable = {
+    compendium: true,
+    roll: async ({ roll }) => { rolledCompendium = true; return { roll, results: [{ text: "Mishap" }] }; },
+    toMessage: async (results, { roll }) => { messagedCompendium = true; return {}; }
+  };
+  await drawMishapTable(compendiumTable, { total: 18 });
+  assert.equal(rolledCompendium, true);
+  assert.equal(messagedCompendium, true);
 });

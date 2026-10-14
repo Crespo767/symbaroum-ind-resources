@@ -5151,193 +5151,183 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   color: #ffffff;
 }
 
-/* Chat Card: Teste de Orientação */
-.tenebre-chat-card.tenebre-orientation-card {
-  border: 1px solid #3c3022;
-  border-radius: 4px;
-  background: #1c1712 url('/systems/symbaroum/asset/image/background/editable.webp') repeat;
-  color: #f0ebe1;
+/* Chat Card: Teste de Orientação (Padrão de Habilidades e Poderes) */
+.symbaroum.chat.ability.tenebre-orientation-chat {
+  margin: 2px 0;
+}
+
+.symbaroum.chat.ability.tenebre-orientation-chat .foreground {
   padding: 8px 10px;
-  margin: 4px 0;
-  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.7), 0 2px 4px rgba(0, 0, 0, 0.35);
-  font-family: var(--font-text, sans-serif);
 }
 
-.tenebre-chat-card.tenebre-orientation-card .tenebre-card-header {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border-bottom: 1px solid rgba(223, 183, 67, 0.4);
-  padding-bottom: 4px;
-  margin-bottom: 6px;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-card-header i {
-  color: #dfb743;
-  font-size: 1.1em;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-card-header h3 {
-  margin: 0;
-  font-family: var(--font-title, serif);
-  font-size: 1.05em;
-  font-weight: bold;
-  color: #f2e3c6;
-  line-height: 1.2;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide img {
-  width: 36px;
-  height: 36px;
-  border-radius: 3px;
-  object-fit: cover;
-  border: 1px solid #4a3825;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide .guide-meta {
+.tenebre-chat-card.tenebre-orientation-card {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide .guide-meta strong {
-  font-family: var(--font-title, serif);
-  font-size: 0.95em;
-  color: #f5eedf;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-card-guide .guide-meta span {
-  font-size: 0.8em;
-  color: #baaa95;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-math {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(120, 95, 65, 0.3);
-  border-radius: 3px;
-  padding: 3px 6px;
-  font-size: 0.82em;
-  margin-bottom: 6px;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-math strong {
-  color: #f2e3c6;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .roll-target-badge strong {
-  color: #dfb743;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-result-box {
-  border-radius: 4px;
-  padding: 6px 8px;
-  margin-bottom: 6px;
+  gap: 7px;
+  min-width: 0;
+  padding: 2px 4px;
+  color: #18130f;
+  font-family: "Signika", var(--font-primary), sans-serif;
   text-align: center;
 }
 
-.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-result-box.greatSuccess {
-  background: rgba(223, 183, 67, 0.15);
-  border: 1px solid #dfb743;
+.tenebre-chat-card.tenebre-orientation-card .tenebre-attribute-test-title {
+  margin: 0;
+  color: #18130f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
 }
 
-.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-result-box.success {
-  background: rgba(50, 110, 45, 0.2);
-  border: 1px solid #4a803f;
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-intro {
+  margin: 1px 0 4px;
+  color: #3e352e;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
-.tenebre-chat-card.tenebre-orientation-card .tenebre-roll-result-box.failure {
-  background: rgba(140, 30, 30, 0.25);
-  border: 1px solid #8a3333;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .roll-score-row {
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-participants {
   display: flex;
+  gap: 14px;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 3px;
+  margin: 4px 0 6px;
 }
 
-.tenebre-chat-card.tenebre-orientation-card .roll-die {
-  font-family: var(--font-title, serif);
-  font-size: 1.15em;
-  font-weight: bold;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .roll-verdict {
-  font-family: var(--font-title, serif);
-  font-size: 1.05em;
-  font-weight: bold;
-  text-transform: uppercase;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .greatSuccess .roll-verdict,
-.tenebre-chat-card.tenebre-orientation-card .greatSuccess .roll-die {
-  color: #f7d568;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .success .roll-verdict,
-.tenebre-chat-card.tenebre-orientation-card .success .roll-die {
-  color: #8be17b;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .failure .roll-verdict,
-.tenebre-chat-card.tenebre-orientation-card .failure .roll-die {
-  color: #ff8585;
-}
-
-.tenebre-chat-card.tenebre-orientation-card .roll-desc {
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-actor,
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-ability {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  flex: 0 1 80px;
+  width: 80px;
+  min-width: 0;
   margin: 0;
-  font-size: 0.82em;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-actor img,
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-ability img {
+  box-sizing: border-box;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto;
+  border: 2px solid #4a4038;
+  border-radius: 7px;
+  background: #17130f;
+  object-fit: cover;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-actor figcaption,
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-ability figcaption {
+  max-width: 100%;
+  color: #18130f;
+  font-size: 12px;
   font-style: italic;
-  opacity: 0.9;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-berserker-flow-arrow {
+  flex: 0 0 auto;
+  color: #4a4038;
+  font-family: Georgia, serif;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-opposed-test-formula {
+  margin: 0;
+  color: #18130f;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.25;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgb(74 64 56 / 35%);
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-opposed-test-roll-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: center;
+  margin: 2px 0;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-opposed-test-objective,
+.tenebre-chat-card.tenebre-orientation-card .tenebre-opposed-test-roll {
+  margin: 0;
+  color: #18130f;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-opposed-test-outcome {
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid rgb(74 64 56 / 30%);
+  font-family: var(--font-text, "Signika"), sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-attribute-test-success {
+  color: #18520b;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-attribute-test-failure {
+  color: #aa0200;
+}
+
+.tenebre-chat-card.tenebre-orientation-card .tenebre-orientation-desc {
+  margin: 3px 0 6px;
+  color: #3e352e;
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.3;
 }
 
 .tenebre-chat-card.tenebre-orientation-card .tenebre-orientation-bonuses {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 5px;
   justify-content: center;
+  margin-top: 2px;
 }
 
 .tenebre-chat-card.tenebre-orientation-card .bonus-tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.78em;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-weight: 600;
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .tenebre-chat-card.tenebre-orientation-card .bonus-tag.is-positive {
-  background: rgba(45, 90, 39, 0.4);
-  border: 1px solid rgba(80, 160, 70, 0.6);
-  color: #9ee690;
+  background: rgba(35, 100, 30, 0.12);
+  border: 1px solid rgba(35, 100, 30, 0.45);
+  color: #18520b;
 }
 
 .tenebre-chat-card.tenebre-orientation-card .bonus-tag.is-info {
-  background: rgba(40, 75, 115, 0.4);
-  border: 1px solid rgba(70, 125, 190, 0.6);
-  color: #9ed2ff;
+  background: rgba(30, 75, 120, 0.12);
+  border: 1px solid rgba(30, 75, 120, 0.45);
+  color: #164773;
 }
 
 .tenebre-chat-card.tenebre-orientation-card .bonus-tag.is-negative {
-  background: rgba(120, 25, 25, 0.4);
-  border: 1px solid rgba(190, 50, 50, 0.6);
-  color: #ff9999;
+  background: rgba(170, 20, 20, 0.12);
+  border: 1px solid rgba(170, 20, 20, 0.45);
+  color: #aa0200;
 }

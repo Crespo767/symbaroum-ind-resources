@@ -141,6 +141,91 @@ export function evaluateOrientationRoll(rollTotal, target) {
 }
 
 /**
+ * Retorna o modificador regional para a rolagem na Tabela de Infortúnios
+ * Regras oficiais do Guia do Mestre (Capítulo 12, p. 115):
+ * - Davokar Iluminada: +0
+ * - Davokar Selvagem: +5
+ * - Davokar Escura: +10
+ * - Ambria: +0
+ */
+export function getMishapsModifier(regionKey = "ambria") {
+  const mishapModifiers = {
+    ambria: 0,
+    bright: 0,
+    wild: 5,
+    dark: 10
+  };
+  return mishapModifiers[regionKey] ?? 0;
+}
+
+/**
+ * Localiza a Tabela de Infortúnios (RollTable) no mundo ou no compêndio do módulo
+ */
+export async function resolveMishapsTable() {
+  const game = globalThis.game;
+  if (!game) return null;
+
+  // 1. Procura primeiro nas tabelas do próprio mundo (caso o usuário tenha importado ou customizado)
+  const worldTables = Array.from(game.tables ?? []);
+  const worldTable = worldTables.find(t => {
+    const name = (t.name || "").toLowerCase();
+    return name.includes("infortúnio") || name.includes("infortunio") || name.includes("mishap") || name.includes("tabela 25");
+  });
+  if (worldTable) return worldTable;
+
+  // 2. Procura no compêndio de tabelas de expedição do módulo
+  const modPack = game.packs?.get(`${MODULE_ID}.expedition-tables`);
+  if (modPack) {
+    if (!modPack.indexed) await modPack.getIndex();
+    const entry = modPack.index.find(e => {
+      const name = (e.name || "").toLowerCase();
+      return name.includes("infortúnio") || name.includes("infortunio") || name.includes("mishap") || name.includes("tabela 25");
+    });
+    if (entry) {
+      return await modPack.getDocument(entry._id);
+    }
+  }
+
+  // 3. Procura em qualquer outro compêndio de RollTable carregado no Foundry
+  for (const pack of (game.packs ?? [])) {
+    if (pack.documentName !== "RollTable") continue;
+    if (!pack.indexed) await pack.getIndex();
+    const entry = pack.index.find(e => {
+      const name = (e.name || "").toLowerCase();
+      return name.includes("infortúnio") || name.includes("infortunio") || name.includes("mishap") || name.includes("tabela 25");
+    });
+    if (entry) {
+      return await pack.getDocument(entry._id);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Executa a rolagem e o saque (draw) na Tabela de Infortúnios do Foundry
+ */
+export async function drawMishapTable(table, roll) {
+  if (!table) return null;
+  try {
+    if (table.compendium) {
+      const rollResult = await table.roll({ roll });
+      return await table.toMessage(rollResult.results, { roll: rollResult.roll });
+    }
+    return await table.draw({ roll });
+  } catch (err) {
+    console.warn("symbaroum-ind-resources | Falha ao executar table.draw(), tentando table.roll():", err);
+    try {
+      const rollResult = await table.roll({ roll });
+      return await table.toMessage(rollResult.results, { roll: rollResult.roll });
+    } catch (fallbackErr) {
+      console.error("symbaroum-ind-resources | Não foi possível rolar a tabela de infortúnios:", fallbackErr);
+      return null;
+    }
+  }
+}
+
+/**
  * Monta o HTML do Card de Chat do Teste de Orientação
  */
 export function buildOrientationChatHtml({
@@ -184,6 +269,9 @@ export function buildOrientationChatHtml({
 
   const guideImg = guideActor?.img || "icons/svg/mystery-man.svg";
   const guideName = guideActor?.name || "Guia";
+  const abilityImg = (bushcraft.item?.img && !bushcraft.item.img.includes("/unknown"))
+    ? bushcraft.item.img
+    : "icons/svg/compass.svg";
 
   let bonusesList = "";
   if (evalResult.success) {
@@ -203,32 +291,47 @@ export function buildOrientationChatHtml({
     `;
   }
 
+  const modText = bushcraft.penalty !== 0 ? `${bushcraft.penaltyText}` : "±0";
+  const vigilantLabel = globalThis.game?.i18n?.localize?.("ATTRIBUTE.VIGILANT") || "Vigilante";
+  const formulaText = `${vigilantLabel} (${bushcraft.baseVigilant}) ${modText} [${regionName} • ${bushcraftText}]`;
+  const outcomeClass = evalResult.success ? "tenebre-attribute-test-success" : "tenebre-attribute-test-failure";
+
   return `
-    <div class="tenebre-chat-card tenebre-orientation-card orientation-${evalResult.verdict}">
-      <header class="tenebre-card-header">
-        <i class="fas fa-compass"></i>
-        <h3>${escapeHtml(title)}</h3>
-      </header>
-      <div class="tenebre-card-guide">
-        <img src="${escapeHtml(guideImg)}" alt="${escapeHtml(guideName)}" />
-        <div class="guide-meta">
-          <strong>${escapeHtml(guideName)}</strong>
-          <span>${escapeHtml(regionName)} • ${escapeHtml(bushcraftText)}</span>
+    <div class="symbaroum chat ability tenebre-orientation-chat">
+      <div class="foreground">
+        <div class="tenebre-berserker-card tenebre-chat-card tenebre-orientation-card orientation-${evalResult.verdict}">
+          <h3 class="tenebre-attribute-test-title">${escapeHtml(title)}</h3>
+          <p class="tenebre-berserker-intro">${escapeHtml(guideName)} orienta a expedição em ${escapeHtml(regionName)}</p>
+
+          <div class="tenebre-berserker-participants">
+            <figure class="tenebre-berserker-actor">
+              <img src="${escapeHtml(guideImg)}" alt="${escapeHtml(guideName)}" loading="lazy">
+              <figcaption>${escapeHtml(guideName)}</figcaption>
+            </figure>
+            <span class="tenebre-berserker-flow-arrow" aria-hidden="true">→</span>
+            <figure class="tenebre-berserker-ability">
+              <img src="${escapeHtml(abilityImg)}" alt="${escapeHtml(bushcraftText)}" loading="lazy">
+              <figcaption><span class="tenebre-berserker-ability-link">${escapeHtml(bushcraftText)}</span></figcaption>
+            </figure>
+          </div>
+
+          <p class="tenebre-opposed-test-formula">${escapeHtml(formulaText)}</p>
+
+          <div class="tenebre-opposed-test-roll-summary">
+            <p class="tenebre-opposed-test-objective">Alvo: <strong>${target}</strong></p>
+            <p class="tenebre-opposed-test-roll">Rolagem: <strong>${rollVal}</strong></p>
+          </div>
+
+          <p class="tenebre-opposed-test-outcome ${outcomeClass}">
+            ${escapeHtml(verdictTitle)}
+          </p>
+
+          <div class="tenebre-orientation-details">
+            <p class="tenebre-orientation-desc">${escapeHtml(verdictDesc)}</p>
+            ${bonusesList}
+          </div>
         </div>
       </div>
-      <div class="tenebre-roll-math">
-        <span>Vigilante: <strong>${bushcraft.baseVigilant}</strong></span>
-        ${bushcraft.penalty ? `<span>Penalidade: <strong>${bushcraft.penaltyText}</strong></span>` : ""}
-        <span class="roll-target-badge">Alvo: <strong>${target}</strong></span>
-      </div>
-      <div class="tenebre-roll-result-box ${evalResult.verdict}">
-        <div class="roll-score-row">
-          <span class="roll-die"><i class="fas fa-dice-d20"></i> ${rollVal}</span>
-          <span class="roll-verdict">${escapeHtml(verdictTitle)}</span>
-        </div>
-        <p class="roll-desc">${escapeHtml(verdictDesc)}</p>
-      </div>
-      ${bonusesList}
     </div>
   `;
 }
@@ -1321,7 +1424,8 @@ export class PartyActorSheet extends BaseActorSheet {
       penalty: orientationTargetData.penalty,
       penaltyText: orientationTargetData.penalty === 0 ? "±0" : `${orientationTargetData.penalty}`,
       target: target,
-      baseVigilant: orientationTargetData.baseVigilant
+      baseVigilant: orientationTargetData.baseVigilant,
+      item: bushcraftData.item
     };
 
     const chatContent = buildOrientationChatHtml({
@@ -1364,6 +1468,22 @@ export class PartyActorSheet extends BaseActorSheet {
       rolls: [roll],
       flags: { [MODULE_ID]: { orientationCheck: true } }
     });
+
+    if (evalResult.verdict === "failure") {
+      const mishapMod = getMishapsModifier(regionKey);
+      const mishapFormula = mishapMod > 0 ? `1d20 + ${mishapMod}` : "1d20";
+      const mishapRoll = await evaluateRoll(mishapFormula);
+      const mishapTable = await resolveMishapsTable();
+
+      if (mishapTable) {
+        await drawMishapTable(mishapTable, mishapRoll);
+      } else {
+        globalThis.ui?.notifications?.warn?.(
+          globalThis.game?.i18n?.localize?.("TENEBRE.Party.MishapsTableNotFound") ||
+          "Tabela de Infortúnios não encontrada no compêndio ou no mundo."
+        );
+      }
+    }
 
     this.render(false);
   }
