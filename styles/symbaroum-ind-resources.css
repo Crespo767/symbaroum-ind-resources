@@ -4849,10 +4849,10 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 
 .tenebre-party-sheet .guide-portrait {
   position: relative;
-  flex: 0 0 76px;
-  width: 76px;
-  height: 80px;
-  min-height: 80px;
+  flex: 0 0 96px;
+  width: 96px;
+  height: 96px;
+  min-height: 96px;
   cursor: pointer;
   border: 1px solid #2b2015;
   border-radius: 3px;
@@ -4881,8 +4881,8 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   position: absolute;
   bottom: 3px;
   right: 3px;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   background: #231b12;
   border: 1px solid #dfb743;
   border-radius: 50%;
