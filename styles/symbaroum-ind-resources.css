@@ -3812,6 +3812,34 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 }
 
 /* ========================================================================== */
+/* Tenebre Party Sheet - Base Layout & Containers                            */
+/* ========================================================================== */
+
+.tenebre-party-sheet .player.party {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tenebre-party-sheet .sheet-header {
+  flex: 0 0 auto;
+}
+
+.tenebre-party-sheet .sheet-tabs {
+  flex: 0 0 auto;
+  margin: 5px 5px 2px 5px;
+}
+
+.tenebre-party-sheet .sheet-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 2px 5px 5px 5px;
+  overflow-y: auto;
+}
+
+/* ========================================================================== */
 /* Tenebre Party Sheet - Members List Layout                                 */
 /* ========================================================================== */
 
@@ -4825,18 +4853,60 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   font-size: 0.95em;
 }
 
+/* Aba de Expedição: expansão do fundo clássico de Symbaroum até o final */
+.tenebre-party-sheet .tab[data-tab="expedition"] {
+  display: none;
+}
+
+.tenebre-party-sheet .tab[data-tab="expedition"].active {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 380px;
+}
+
+.tenebre-party-sheet .party-expedition-tab-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 380px;
+  box-sizing: border-box;
+}
+
 .tenebre-party-sheet .party-guide-box {
-  margin-bottom: 12px;
+  margin-bottom: 0;
+  flex: 1 1 auto;
+  min-height: 380px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-sizing: border-box;
 }
 
 .tenebre-party-sheet .party-guide-box.is-linked {
   border: 1px solid #3c3022;
   border-left: 4px solid #dfb743;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  padding: 10px 12px;
+  padding: 12px;
   background-image: url("/systems/symbaroum/asset/image/foreground.webp");
   background-repeat: repeat;
   background-color: rgba(245, 240, 230, 0.95);
+  border-radius: 4px;
+}
+
+.tenebre-party-sheet .party-guide-box.is-unlinked {
+  border: 2px dashed rgba(120, 100, 75, 0.45);
+  background-image: url("/systems/symbaroum/asset/image/foreground.webp");
+  background-repeat: repeat;
+  background-color: rgba(245, 240, 230, 0.85);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border-radius: 4px;
 }
 
@@ -4845,6 +4915,9 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   align-items: center;
   gap: 14px;
   width: 100%;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(60, 48, 34, 0.25);
+  margin-bottom: 12px;
 }
 
 .tenebre-party-sheet .guide-portrait {

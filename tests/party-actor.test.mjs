@@ -244,6 +244,11 @@ test("Party sheet template includes expedition tab with guide card and actions",
   assert.match(cssSource, /\.guide-card-layout/);
   assert.match(cssSource, /\.guide-portrait/);
   assert.match(cssSource, /\.guide-info-column/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.tab\[data-tab="expedition"\]\.active/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.party-expedition-tab-content/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.party-guide-box/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.party-guide-box\.is-linked/);
+  assert.match(cssSource, /\.tenebre-party-sheet \.party-guide-box\.is-unlinked/);
 });
 
 test("PartyActorSheet formats expedition guide and members isGuide correctly", async () => {
