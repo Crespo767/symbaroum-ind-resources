@@ -525,7 +525,13 @@ export async function drawTableResult(table, roll) {
     if (!txt && typeof r.getChatText === "function") {
       try { txt = r.getChatText(); } catch {}
     }
-    txt = (txt || "").trim();
+    txt = (txt || "")
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<\/p>/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\r?\n+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (txt) textPieces.push(txt);
     if (r.img && !r.img.includes("/d20") && !r.img.endsWith("mystery-man.svg")) {
       resultImg = r.img;
@@ -1424,7 +1430,18 @@ export class PartyActorSheet extends BaseActorSheet {
       }
 
       const slotResult = dayEventsState[s.key] || null;
-      const hasResult = Boolean(slotResult?.rolled);
+      let slotResultClean = slotResult;
+      if (slotResult?.resultText) {
+        const cleanText = String(slotResult.resultText)
+          .replace(/<br\s*\/?>/gi, " ")
+          .replace(/<\/p>/gi, " ")
+          .replace(/<[^>]+>/g, "")
+          .replace(/\r?\n+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        slotResultClean = { ...slotResult, resultText: cleanText };
+      }
+      const hasResult = Boolean(slotResultClean?.rolled);
 
       const breakdownParts = [];
       breakdownParts.push(`Região: ${eventModifiers.regionMod >= 0 ? `+${eventModifiers.regionMod}` : eventModifiers.regionMod}`);
@@ -1452,7 +1469,7 @@ export class PartyActorSheet extends BaseActorSheet {
         resolvedTableName,
         tableOptions,
         hasResult,
-        result: slotResult
+        result: slotResultClean
       });
     }
 

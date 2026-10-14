@@ -6161,18 +6161,23 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 .tenebre-party-sheet .event-slot-result-area {
   flex: 1 1 200px;
   min-width: 140px;
+  overflow: hidden;
 }
 
 .tenebre-party-sheet .event-slot-result-box {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 2px 7px;
+  height: 26px;
+  max-height: 26px;
   background: rgba(245, 240, 230, 0.9);
   border: 1px solid rgba(60, 48, 34, 0.25);
   border-radius: 3px;
-  font-size: 0.82em;
-  line-height: 1.25;
+  font-size: 0.78em;
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .tenebre-party-sheet .event-result-score {
@@ -6180,6 +6185,7 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   color: #7a201b;
   font-family: var(--font-title, serif);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tenebre-party-sheet .event-result-text {
@@ -6187,6 +6193,20 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.tenebre-party-sheet .event-result-text * {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.tenebre-party-sheet .event-result-text br {
+  display: none !important;
 }
 
 .tenebre-party-sheet .event-slot-no-result {

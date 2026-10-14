@@ -729,9 +729,9 @@
 
                                 <div class="event-slot-result-area">
                                     {{#if slot.hasResult}}
-                                        <div class="event-slot-result-box" data-tooltip="{{localize "TENEBRE.Party.EventRollDetails"}}: {{slot.result.rollTotal}} ({{slot.result.formula}})">
+                                        <div class="event-slot-result-box" data-tooltip="{{slot.result.resultText}} ({{localize "TENEBRE.Party.EventRollDetails"}}: {{slot.result.rollTotal}} [{{slot.result.formula}}])">
                                             <span class="event-result-score">[{{slot.result.rollTotal}}]</span>
-                                            <span class="event-result-text">{{{slot.result.resultText}}}</span>
+                                            <span class="event-result-text">{{slot.result.resultText}}</span>
                                         </div>
                                     {{else}}
                                         <span class="event-slot-no-result">{{localize "TENEBRE.Party.EventNotRolled"}}</span>

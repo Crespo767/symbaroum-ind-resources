@@ -1280,3 +1280,27 @@ test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event
     globalThis.ChatMessage = originalChatMessage;
   }
 });
+
+test("drawTableResult sanitizes multiline HTML and CSS enforces compact single line", async () => {
+  const { drawTableResult } = await import("../scripts/party-actor.mjs");
+  const mockTable = {
+    img: "icons/svg/d20.svg",
+    roll: async () => ({
+      results: [
+        {
+          text: "<p>Encontro:</p>\n<p>Número de PJ de inimigos Fracos</p><br/>Exemplo: Ladrões",
+          img: "icons/svg/mystery-man.svg"
+        }
+      ]
+    })
+  };
+
+  const drawn = await drawTableResult(mockTable, {});
+  assert.ok(!drawn.text.includes("\n"), "Result text must not have newlines");
+  assert.ok(!drawn.text.includes("<p>"), "Result text must not contain HTML tags");
+  assert.match(drawn.text, /Encontro: Número de PJ de inimigos Fracos Exemplo: Ladrões/);
+
+  const updatedCss = fs.readFileSync(path.join(root, "styles/symbaroum-ind-resources.css"), "utf8");
+  assert.match(updatedCss, /\.tenebre-party-sheet \.event-slot-result-box[\s\S]*?max-height:\s*26px/);
+  assert.match(updatedCss, /\.tenebre-party-sheet \.event-result-text \*[\s\S]*?display:\s*inline/);
+});
