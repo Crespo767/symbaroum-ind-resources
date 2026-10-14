@@ -1303,4 +1303,6 @@ test("drawTableResult sanitizes multiline HTML and CSS enforces compact single l
   const updatedCss = fs.readFileSync(path.join(root, "styles/symbaroum-ind-resources.css"), "utf8");
   assert.match(updatedCss, /\.tenebre-party-sheet \.event-slot-result-box[\s\S]*?max-height:\s*26px/);
   assert.match(updatedCss, /\.tenebre-party-sheet \.event-result-text \*[\s\S]*?display:\s*inline/);
+  assert.match(updatedCss, /\.tenebre-event-result-item[\s\S]*?background:\s*rgba\(18,\s*22,\s*28/);
+  assert.match(updatedCss, /\.tenebre-event-result-item \.event-item-text \*[\s\S]*?color:\s*#e2ddd3\s*!important/);
 });
