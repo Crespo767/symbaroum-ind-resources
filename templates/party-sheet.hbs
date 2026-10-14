@@ -413,46 +413,57 @@
                     <!-- Box do Guia da Expedição (estilo idêntico ao de armazenamento) -->
                     <div class="party-storage-location-box party-guide-box foreground {{#if expedition.guide.hasGuide}}is-linked{{else}}is-unlinked{{/if}}" data-drop-zone="expedition-guide">
                         {{#if expedition.guide.hasGuide}}
-                        <div class="storage-linked-container">
-                            <div class="storage-header-row">
-                                <div class="storage-entities-group">
-                                    <!-- Card do Guia do Grupo -->
-                                    <div class="storage-entity-card primary-unit is-clickable" data-action="open-guide-sheet" data-actor-id="{{expedition.guide.id}}" data-tooltip="{{localize "TENEBRE.Party.OpenGuideSheet"}}">
-                                        <div class="storage-portrait">
-                                            <img src="{{expedition.guide.img}}" alt="{{expedition.guide.name}}" />
-                                        </div>
-                                        <div class="storage-entity-meta">
-                                            <span class="storage-name">{{expedition.guide.name}}</span>
-                                            <span class="storage-badge"><i class="fas fa-compass"></i> {{localize "TENEBRE.Party.ExpeditionGuideBadge"}}</span>
-                                        </div>
-                                    </div>
+                        <div class="guide-card-layout">
+                            <!-- Retrato do Guia (tamanho expandido) -->
+                            <div class="guide-portrait is-clickable" data-action="open-guide-sheet" data-actor-id="{{expedition.guide.id}}" data-tooltip="{{localize "TENEBRE.Party.OpenGuideSheet"}}">
+                                <img src="{{expedition.guide.img}}" alt="{{expedition.guide.name}}" />
+                                <div class="portrait-guide-badge" data-tooltip="{{localize "TENEBRE.Party.ExpeditionGuideBadge"}}">
+                                    <i class="fas fa-compass"></i>
+                                </div>
+                            </div>
+
+                            <!-- Coluna de Informações do Guia -->
+                            <div class="guide-info-column">
+                                <div class="guide-name-row is-clickable" data-action="open-guide-sheet" data-actor-id="{{expedition.guide.id}}" data-tooltip="{{localize "TENEBRE.Party.OpenGuideSheet"}}">
+                                    <h3 class="guide-name">{{expedition.guide.name}}</h3>
                                 </div>
 
-                                <!-- Botões de Ação do Guia -->
-                                {{#if editable}}
-                                <div class="storage-actions">
-                                    <a class="storage-action-btn" data-action="open-guide-sheet" data-actor-id="{{expedition.guide.id}}" data-tooltip="{{localize "TENEBRE.Party.OpenGuideSheet"}}">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
-                                    <a class="storage-action-btn" data-action="select-guide" data-tooltip="{{localize "TENEBRE.Party.ChangeGuide"}}">
-                                        <i class="fas fa-exchange-alt"></i>
-                                    </a>
-                                    <a class="storage-action-btn delete-btn" data-action="unlink-guide" data-tooltip="{{localize "TENEBRE.Party.UnlinkGuide"}}">
-                                        <i class="fas fa-unlink"></i>
-                                    </a>
+                                <div class="guide-badge-row">
+                                    <span class="guide-role-badge">
+                                        <i class="fas fa-compass"></i> {{localize "TENEBRE.Party.ExpeditionGuideBadge"}}
+                                    </span>
+                                </div>
+
+                                <div class="guide-stats-row">
+                                    <span class="guide-stats-label"><i class="fas fa-eye"></i> {{localize "TENEBRE.Party.OrientationAttributes"}}:</span>
+                                    <span class="guide-stat-value"><strong>{{localize "ATTRIBUTE.VIGILANT"}}</strong>: {{expedition.guide.vigilant}}</span>
+                                    {{#if expedition.guide.cunning}}
+                                    <span class="guide-stat-sep">|</span>
+                                    <span class="guide-stat-value"><strong>{{localize "ATTRIBUTE.CUNNING"}}</strong>: {{expedition.guide.cunning}}</span>
+                                    {{/if}}
+                                </div>
+
+                                {{#if expedition.guide.occupation}}
+                                <div class="guide-meta-row">
+                                    <span class="guide-occupation"><i class="fas fa-user-tag"></i> {{expedition.guide.occupation}}</span>
                                 </div>
                                 {{/if}}
                             </div>
 
-                            <!-- Atributos do Guia relevantes para Orientação -->
-                            <div class="storage-stats-row expedition-guide-stats">
-                                <span class="storage-stats-text">
-                                    <i class="fas fa-eye"></i> {{localize "TENEBRE.Party.OrientationAttributes"}}:
-                                    <strong>{{localize "ATTRIBUTE.VIGILANT"}}: {{expedition.guide.vigilant}}</strong>
-                                    {{#if expedition.guide.cunning}} | <strong>{{localize "ATTRIBUTE.CUNNING"}}: {{expedition.guide.cunning}}</strong>{{/if}}
-                                    {{#if expedition.guide.occupation}} • <em>{{expedition.guide.occupation}}</em>{{/if}}
-                                </span>
+                            <!-- Botões de Ação do Guia -->
+                            {{#if editable}}
+                            <div class="storage-actions guide-actions">
+                                <a class="storage-action-btn" data-action="open-guide-sheet" data-actor-id="{{expedition.guide.id}}" data-tooltip="{{localize "TENEBRE.Party.OpenGuideSheet"}}">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                                <a class="storage-action-btn" data-action="select-guide" data-tooltip="{{localize "TENEBRE.Party.ChangeGuide"}}">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </a>
+                                <a class="storage-action-btn delete-btn" data-action="unlink-guide" data-tooltip="{{localize "TENEBRE.Party.UnlinkGuide"}}">
+                                    <i class="fas fa-unlink"></i>
+                                </a>
                             </div>
+                            {{/if}}
                         </div>
                         {{else}}
                         <!-- Estado quando não há guia definido -->

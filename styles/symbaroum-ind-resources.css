@@ -4808,7 +4808,193 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   margin-bottom: 12px;
 }
 
-.tenebre-party-sheet .expedition-guide-stats {
-  padding-top: 4px;
-  border-top: 1px dashed rgba(60, 48, 34, 0.2);
+.tenebre-party-sheet .party-guide-box.is-linked {
+  border: 1px solid #3c3022;
+  border-left: 4px solid #dfb743;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  padding: 10px 12px;
+  background-image: url("/systems/symbaroum/asset/image/foreground.webp");
+  background-repeat: repeat;
+  background-color: rgba(245, 240, 230, 0.95);
+  border-radius: 4px;
+}
+
+.tenebre-party-sheet .guide-card-layout {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.tenebre-party-sheet .guide-portrait {
+  position: relative;
+  flex: 0 0 76px;
+  width: 76px;
+  height: 80px;
+  min-height: 80px;
+  cursor: pointer;
+  border: 1px solid #2b2015;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #1a1612;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tenebre-party-sheet .guide-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0 none;
+  display: block;
+  transition: transform 0.15s ease;
+}
+
+.tenebre-party-sheet .guide-portrait:hover img {
+  transform: scale(1.05);
+}
+
+.tenebre-party-sheet .guide-portrait .portrait-guide-badge {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  background: #231b12;
+  border: 1px solid #dfb743;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+.tenebre-party-sheet .guide-portrait .portrait-guide-badge i {
+  color: #dfb743;
+  font-size: 0.7em;
+}
+
+.tenebre-party-sheet .guide-info-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tenebre-party-sheet .guide-name-row {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.tenebre-party-sheet .guide-name-row .guide-name {
+  margin: 0;
+  font-family: var(--font-title, serif);
+  font-size: 1.25em;
+  font-weight: bold;
+  color: #1a1612;
+  line-height: 1.15;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.15s ease;
+}
+
+.tenebre-party-sheet .guide-name-row:hover .guide-name {
+  color: #7a201b;
+}
+
+.tenebre-party-sheet .guide-badge-row {
+  display: flex;
+  align-items: center;
+  margin: 1px 0;
+}
+
+.tenebre-party-sheet .guide-role-badge {
+  font-family: var(--font-title, serif);
+  font-size: 0.74em;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  background: #231b12;
+  color: #dfb743;
+  border: 1px solid #dfb743;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.tenebre-party-sheet .guide-role-badge i {
+  color: #dfb743;
+  font-size: 0.9em;
+}
+
+.tenebre-party-sheet .guide-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-text, sans-serif);
+  font-size: 0.85em;
+  color: #3c3022;
+  flex-wrap: wrap;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+.tenebre-party-sheet .guide-stats-label {
+  color: #6a4a28;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tenebre-party-sheet .guide-stats-label i {
+  color: #8b1e1e;
+  font-size: 0.9em;
+}
+
+.tenebre-party-sheet .guide-stat-value strong {
+  color: #2b2015;
+}
+
+.tenebre-party-sheet .guide-stat-sep {
+  color: rgba(60, 48, 34, 0.4);
+  font-size: 0.85em;
+}
+
+.tenebre-party-sheet .guide-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-text, sans-serif);
+  font-size: 0.82em;
+  color: #554433;
+  line-height: 1.2;
+}
+
+.tenebre-party-sheet .guide-meta-row .guide-occupation {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.tenebre-party-sheet .guide-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  align-self: center;
 }

@@ -494,6 +494,10 @@ export class PartyActorSheet extends BaseActorSheet {
       const guideOccupation = (guideBio.occupation && typeof guideBio.occupation === "string")
         ? guideBio.occupation.trim()
         : (typeof guideSys.occupation === "string" ? guideSys.occupation.trim() : "");
+      const guideRace = (guideBio.race && typeof guideBio.race === "string")
+        ? guideBio.race.trim()
+        : (typeof guideSys.race === "string" ? guideSys.race.trim() : "");
+      const occupationDisplay = guideOccupation || guideRace || (guideActor.type === "monster" ? (globalThis.game?.i18n?.localize?.("TENEBRE.Party.CompanionsSectionTitle") || "Companheiro") : "");
 
       const attrs = guideSys.attributes ?? {};
       const getAttrVal = (attrObj) => {
@@ -509,7 +513,7 @@ export class PartyActorSheet extends BaseActorSheet {
         uuid: guideActor.uuid,
         name: guideActor.name,
         img: guideActor.img || "icons/svg/mystery-man.svg",
-        occupation: guideOccupation,
+        occupation: occupationDisplay,
         vigilant: vigilantVal,
         cunning: cunningVal,
         canOpenSheet: true,

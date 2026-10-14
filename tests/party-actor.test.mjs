@@ -232,8 +232,14 @@ test("Party sheet template includes expedition tab with guide card and actions",
   assert.match(templateSource, /class="member-guide-tag"/);
   assert.match(templateSource, /is-expedition-guide/);
   assert.match(templateSource, /class="portrait-guide-badge"/);
+  assert.match(templateSource, /class="guide-card-layout"/);
+  assert.match(templateSource, /class="guide-portrait/);
+  assert.match(templateSource, /class="guide-info-column"/);
   assert.match(cssSource, /\.party-member-card\.is-expedition-guide/);
   assert.match(cssSource, /\.portrait-guide-badge/);
+  assert.match(cssSource, /\.guide-card-layout/);
+  assert.match(cssSource, /\.guide-portrait/);
+  assert.match(cssSource, /\.guide-info-column/);
 });
 
 test("PartyActorSheet formats expedition guide and members isGuide correctly", async () => {
