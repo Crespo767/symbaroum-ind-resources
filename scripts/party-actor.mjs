@@ -515,7 +515,17 @@ export async function drawTableResult(table, roll) {
   const textPieces = [];
   let resultImg = table.img || "icons/svg/d20-grey.svg";
   for (const r of results) {
-    const txt = (typeof r.getChatText === "function" ? r.getChatText() : (r.text || r.name || "")).trim();
+    let txt = r.text || r.name || "";
+    if (!txt && typeof r.getHTML === "function") {
+      try {
+        const el = await r.getHTML();
+        txt = typeof el === "string" ? el : (el?.textContent || el?.innerText || "");
+      } catch {}
+    }
+    if (!txt && typeof r.getChatText === "function") {
+      try { txt = r.getChatText(); } catch {}
+    }
+    txt = (txt || "").trim();
     if (txt) textPieces.push(txt);
     if (r.img && !r.img.includes("/d20") && !r.img.endsWith("mystery-man.svg")) {
       resultImg = r.img;
@@ -2539,11 +2549,10 @@ export class PartyActorSheet extends BaseActorSheet {
     });
 
     await createChatMessageAfterDice({
-      roll,
-      messageData: {
-        speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
-        content: chatHtml
-      }
+      speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
+      content: chatHtml,
+      rolls: [roll],
+      flags: { [MODULE_ID]: { eventsCheck: true } }
     });
 
     this.render(false);
@@ -2640,11 +2649,10 @@ export class PartyActorSheet extends BaseActorSheet {
     });
 
     await createChatMessageAfterDice({
-      roll: lastRoll,
-      messageData: {
-        speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
-        content: chatHtml
-      }
+      speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
+      content: chatHtml,
+      rolls: lastRoll ? [lastRoll] : [],
+      flags: { [MODULE_ID]: { eventsCheck: true } }
     });
 
     this.render(false);

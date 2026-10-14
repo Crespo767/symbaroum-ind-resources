@@ -1230,3 +1230,53 @@ test("PartyActorSheet Step 3 actions: activeSearch toggle, table change, reset e
   await sheet._onResetSingleEvent("ruins");
   assert.deepEqual(updatedData["system.expedition.dayState.events"], {});
 });
+
+test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event results", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+
+  let createdMessage = null;
+  const originalChatMessage = globalThis.ChatMessage;
+  globalThis.ChatMessage = {
+    getSpeaker: () => ({ alias: "Grupo" }),
+    create: async (data) => {
+      createdMessage = data;
+      return data;
+    }
+  };
+
+  try {
+    const mockPartyActor = {
+      id: "party-roll",
+      uuid: "Actor.party-roll",
+      type: "symbaroum-ind-resources.party",
+      system: {
+        location: { region: "bright" },
+        expedition: {
+          active: true,
+          day: 2,
+          activeSearch: true,
+          tables: {},
+          dayState: { events: {} }
+        }
+      },
+      flags: {
+        "symbaroum-ind-resources": {}
+      },
+      update: async (data) => data
+    };
+
+    const sheet = new PartyActorSheet(mockPartyActor);
+    sheet.render = () => {};
+    Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });
+    sheet._resolveActor = () => ({ name: "Guia Bardo" });
+
+    await sheet._onRollAllEvents();
+
+    assert.ok(createdMessage, "Chat message should be created");
+    assert.ok(createdMessage.content, "Chat message content must not be empty");
+    assert.match(createdMessage.content, /tenebre-events-card/);
+    assert.match(createdMessage.content, /Dia 2/);
+  } finally {
+    globalThis.ChatMessage = originalChatMessage;
+  }
+});
