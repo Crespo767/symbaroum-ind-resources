@@ -942,6 +942,7 @@
   "TENEBRE.Party.OpenGuideSheet": "Abrir ficha do guia",
   "TENEBRE.Party.ChangeGuide": "Trocar guia da expedição",
   "TENEBRE.Party.UnlinkGuide": "Remover guia da expedição",
+  "TENEBRE.Party.GuideCardTooltip": "Clique para abrir a ficha. Clique com botão direito para opções do guia.",
   "TENEBRE.Party.OrientationAttributes": "Atributos para Orientação",
   "TENEBRE.Party.ExpeditionNoGuideTitle": "Nenhum guia definido",
   "TENEBRE.Party.ExpeditionNoGuideHint": "Clique com o botão direito em um personagem na aba de Personagens ou clique abaixo para definir o guia.",

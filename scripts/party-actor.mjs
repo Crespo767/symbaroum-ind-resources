@@ -1,4 +1,4 @@
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, CANONICAL_EXPEDITION_TABLE_IDS } from "./constants.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
@@ -229,44 +229,41 @@ export function isDavokarMishapsTable(nameStr) {
  * Localiza a Tabela de Infortúnios na Davokar (RollTable) no mundo ou no compêndio do módulo.
  * Caso não exista em nenhum lugar, realiza fallback criando-a automaticamente no mundo.
  */
-export async function resolveMishapsTable() {
+export async function resolveMishapsTable(configuredUuidOrId) {
   const game = globalThis.game;
   if (!game) return null;
 
-  // 1. Procura primeiro nas tabelas do próprio mundo (se o usuário já importou ou customizou)
-  const worldTables = Array.from(game.tables ?? []);
-  const worldTable = worldTables.find(t => isDavokarMishapsTable(t.name));
-  if (worldTable) return worldTable;
+  // 1. UUID ou ID explicitamente configurado na ficha
+  if (configuredUuidOrId) {
+    if (configuredUuidOrId.startsWith("Compendium.") && globalThis.fromUuid) {
+      try {
+        const doc = await globalThis.fromUuid(configuredUuidOrId);
+        if (doc) return doc;
+      } catch {}
+    }
+    const worldTable = game.tables?.get?.(configuredUuidOrId)
+      || Array.from(game.tables ?? []).find(t => t.uuid === configuredUuidOrId || t.id === configuredUuidOrId);
+    if (worldTable) return worldTable;
+  }
 
-  // 2. Procura no compêndio de tabelas de expedição do módulo
+  // 2. ID canônico no mundo (tblMishapsDav001 ou flag tableKey: "mishaps")
+  const canonicalId = CANONICAL_EXPEDITION_TABLE_IDS.mishaps;
+  const canonicalWorldTable = game.tables?.get?.(canonicalId)
+    || Array.from(game.tables ?? []).find(t => t.id === canonicalId || t.flags?.[MODULE_ID]?.tableKey === "mishaps");
+  if (canonicalWorldTable) return canonicalWorldTable;
+
+  // 3. ID canônico no compêndio do módulo (symbaroum-ind-resources.expedition-tables)
   const modPack = typeof game.packs?.get === "function"
     ? game.packs.get(`${MODULE_ID}.expedition-tables`)
     : (Array.isArray(game.packs) ? game.packs.find(p => p.metadata?.id === `${MODULE_ID}.expedition-tables` || p.name === "expedition-tables") : null);
-  if (modPack) {
+  if (modPack && canonicalId) {
     try {
-      if (!modPack.indexed) await modPack.getIndex();
-      const entry = modPack.index.find(e => isDavokarMishapsTable(e.name));
-      if (entry) {
-        return await modPack.getDocument(entry._id);
-      }
-    } catch (errPack) {
-      console.warn("symbaroum-ind-resources | Falha ao consultar pack expedition-tables:", errPack);
-    }
+      const entry = await modPack.getDocument(canonicalId);
+      if (entry) return entry;
+    } catch {}
   }
 
-  // 3. Procura no compêndio de aventura ou em outros compêndios de RollTable carregados
-  for (const pack of (game.packs ?? [])) {
-    if (pack.documentName !== "RollTable") continue;
-    try {
-      if (!pack.indexed) await pack.getIndex();
-      const entry = pack.index.find(e => isDavokarMishapsTable(e.name));
-      if (entry) {
-        return await pack.getDocument(entry._id);
-      }
-    } catch (_) {}
-  }
-
-  // 4. Fallback: se não estiver em nenhum compêndio nem no mundo, cria automaticamente a Tabela 25 oficial no mundo
+  // 4. Fallback: cria automaticamente a Tabela 25 oficial com seu ID canônico no mundo (se for GM)
   if (globalThis.RollTable?.create && (game.user?.isGM || game.user?.can?.("TABLE_CREATE"))) {
     try {
       const tableData = getDavokarMishapsTableData();
@@ -277,6 +274,7 @@ export async function resolveMishapsTable() {
     }
   }
 
+  // Nunca busca por nome difuso em outros compêndios ou no mundo
   return null;
 }
 
@@ -401,6 +399,7 @@ export async function resolveDavokarEventTable(slot, configuredUuidOrId) {
   const game = globalThis.game;
   if (!game) return null;
 
+  // 1. UUID ou ID explicitamente configurado na ficha do grupo
   if (configuredUuidOrId) {
     if (configuredUuidOrId.startsWith("Compendium.") && globalThis.fromUuid) {
       try {
@@ -409,81 +408,49 @@ export async function resolveDavokarEventTable(slot, configuredUuidOrId) {
       } catch {}
     }
     const worldTable = game.tables?.get?.(configuredUuidOrId)
-      || Array.from(game.tables ?? []).find(t => t.uuid === configuredUuidOrId || t.name === configuredUuidOrId || t.id === configuredUuidOrId);
+      || Array.from(game.tables ?? []).find(t => t.uuid === configuredUuidOrId || t.id === configuredUuidOrId);
     if (worldTable) return worldTable;
   }
 
-  let isMatch = null;
-  let defaultDataGetter = null;
-  if (slot === "ruins") {
-    isMatch = isDavokarRuinsTable;
-    defaultDataGetter = getDavokarRuinsTableData;
-  } else if (slot === "encounters") {
-    isMatch = isDavokarEncountersTable;
-    defaultDataGetter = getDavokarEncountersTableData;
-  } else if (slot === "enemies") {
-    isMatch = isDavokarEnemiesTable;
-    defaultDataGetter = getDavokarEnemiesTableData;
-  } else if (slot === "terrain") {
-    isMatch = isDavokarTerrainTable;
-    defaultDataGetter = getDavokarTerrainTableData;
-  }
-  if (!isMatch) return null;
+  const canonicalId = CANONICAL_EXPEDITION_TABLE_IDS[slot];
 
-  const exactNumber = slot === "ruins" ? "26" : slot === "encounters" ? "27" : slot === "enemies" ? "28" : "29";
-  const isExactNum = (nStr) => {
-    const s = String(nStr || "").toLowerCase();
-    return s.includes(`tabela ${exactNumber}`) || s.includes(`table ${exactNumber}`) || s.includes(`tabela${exactNumber}`) || s.includes(`table${exactNumber}`);
-  };
-
-  const worldTables = Array.from(game.tables ?? []);
-  const exactWorld = worldTables.find(t => isExactNum(t.name) && isMatch(t.name));
-  if (exactWorld) return exactWorld;
-
-  const worldTable = worldTables.find(t => isMatch(t.name));
-  if (worldTable) return worldTable;
-
-  // 2. Procura no compêndio oficial do Guia do Mestre (symbaroum-gmg)
-  const gmgPack = typeof game.packs?.get === "function" ? game.packs.get("symbaroum-gmg.symbaroum-gmg") : null;
-  if (gmgPack && gmgPack.documentName === "RollTable") {
-    try {
-      if (!gmgPack.indexed) await gmgPack.getIndex();
-      const entry = gmgPack.index.find(e => isExactNum(e.name) || isMatch(e.name));
-      if (entry) return await gmgPack.getDocument(entry._id);
-    } catch {}
+  // 2. ID canônico no mundo (tabela oficial criada pelo módulo ou identificada pela flag tableKey)
+  if (canonicalId) {
+    const canonicalWorldTable = game.tables?.get?.(canonicalId)
+      || Array.from(game.tables ?? []).find(t => t.id === canonicalId || t.flags?.[MODULE_ID]?.tableKey === slot);
+    if (canonicalWorldTable) return canonicalWorldTable;
   }
 
-  // 3. Procura no compêndio integrado de expedições do módulo
+  // 3. ID canônico no compêndio do módulo (symbaroum-ind-resources.expedition-tables)
   const modPack = typeof game.packs?.get === "function"
     ? game.packs.get(`${MODULE_ID}.expedition-tables`)
     : (Array.isArray(game.packs) ? game.packs.find(p => p.metadata?.id === `${MODULE_ID}.expedition-tables` || p.name === "expedition-tables") : null);
-  if (modPack) {
+  if (modPack && canonicalId) {
     try {
-      if (!modPack.indexed) await modPack.getIndex();
-      const entry = modPack.index.find(e => isExactNum(e.name) || isMatch(e.name));
-      if (entry) return await modPack.getDocument(entry._id);
+      const entry = await modPack.getDocument(canonicalId);
+      if (entry) return entry;
     } catch {}
   }
 
-  // 4. Procura em outros compêndios de RollTable (ignorando explicitamente o Códice de Monstros)
-  for (const pack of (game.packs ?? [])) {
-    if (pack.documentName !== "RollTable") continue;
-    if (pack.collection?.includes("monstercodex") || pack.collection?.includes("monster-codex")) continue;
-    try {
-      if (!pack.indexed) await pack.getIndex();
-      const entry = pack.index.find(e => isExactNum(e.name) || isMatch(e.name));
-      if (entry) return await pack.getDocument(entry._id);
-    } catch {}
-  }
+  // 4. Fallback: cria automaticamente a RollTable padrão no mundo com seu ID canônico e flag oficial
+  let defaultDataGetter = null;
+  if (slot === "ruins") defaultDataGetter = getDavokarRuinsTableData;
+  else if (slot === "encounters") defaultDataGetter = getDavokarEncountersTableData;
+  else if (slot === "enemies") defaultDataGetter = getDavokarEnemiesTableData;
+  else if (slot === "terrain") defaultDataGetter = getDavokarTerrainTableData;
 
   if (defaultDataGetter && globalThis.RollTable?.create && (game.user?.isGM || game.user?.can?.("TABLE_CREATE"))) {
     try {
       const data = defaultDataGetter();
       const created = await globalThis.RollTable.create(data);
       if (created) return created;
-    } catch {}
+    } catch (createErr) {
+      console.warn("symbaroum-ind-resources | Falha ao auto-criar tabela padrão:", createErr);
+    }
   }
 
+  // Não encontrou por ID/UUID e não foi possível criar:
+  // NUNCA busca por nome difuso em outros módulos ou compêndios!
   return null;
 }
 
@@ -2089,6 +2056,7 @@ export class PartyActorSheet extends BaseActorSheet {
     });
 
     this._bindMemberContextMenu(root);
+    this._bindGuideContextMenu(root);
   }
 
   _bindMemberContextMenu(root) {
@@ -2144,6 +2112,74 @@ export class PartyActorSheet extends BaseActorSheet {
       );
     } catch (err) {
       console.warn("Tenebre | Could not register member ContextMenu:", err);
+    }
+  }
+
+  _bindGuideContextMenu(root) {
+    const BaseContextMenu = globalThis.foundry?.applications?.ux?.ContextMenu ?? globalThis.ContextMenu;
+    const ContextMenuClass = BaseContextMenu?.implementation ?? BaseContextMenu;
+    if (typeof ContextMenuClass !== "function") return;
+
+    const _getGuideActor = () => {
+      const guideUuid = this.actor?.system?.expedition?.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
+      const guideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
+      let guideActor = null;
+      if (guideUuid) guideActor = this._resolveActor(guideUuid);
+      if (!guideActor && guideId) guideActor = this._resolveActor(guideId);
+      return guideActor;
+    };
+
+    const openGuideSheetEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OpenGuideSheet") || "Abrir ficha do guia",
+      icon: '<i class="fas fa-external-link-alt"></i>',
+      visible: (target) => {
+        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
+        if (el?.closest?.(".btn-orientation-roll, .btn-orientation-reset")) return false;
+        return Boolean(_getGuideActor());
+      },
+      onClick: () => {
+        const guideActor = _getGuideActor();
+        guideActor?.sheet?.render(true);
+      }
+    });
+
+    const changeGuideEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.ChangeGuide") || "Trocar guia da expedição",
+      icon: '<i class="fas fa-exchange-alt"></i>',
+      visible: (target) => {
+        if (!this.isEditable) return false;
+        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
+        if (el?.closest?.(".btn-orientation-roll, .btn-orientation-reset")) return false;
+        return true;
+      },
+      onClick: () => {
+        void this._onSelectGuide();
+      }
+    });
+
+    const unlinkGuideEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.UnlinkGuide") || "Remover guia da expedição",
+      icon: '<i class="fas fa-unlink"></i>',
+      visible: (target) => {
+        if (!this.isEditable) return false;
+        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
+        if (el?.closest?.(".btn-orientation-roll, .btn-orientation-reset")) return false;
+        return Boolean(_getGuideActor());
+      },
+      onClick: async () => {
+        await this._onUnsetGuide();
+      }
+    });
+
+    try {
+      new ContextMenuClass(
+        root,
+        ".party-guide-box.is-linked",
+        [openGuideSheetEntry, changeGuideEntry, unlinkGuideEntry],
+        { fixed: true, jQuery: false }
+      );
+    } catch (err) {
+      console.warn("Tenebre | Could not register guide ContextMenu:", err);
     }
   }
 
@@ -2206,9 +2242,9 @@ export class PartyActorSheet extends BaseActorSheet {
     }
 
     try {
-      const rawExpedition = this.actor?.system?.expedition ?? this.actor?.flags?.[MODULE_ID]?.expedition ?? {};
-      const guideId = rawExpedition.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
-      const guideUuid = rawExpedition.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
+      const expData = getActorExpeditionData(this.actor);
+      const guideId = expData.guideId || "";
+      const guideUuid = expData.guideUuid || "";
       let guideActor = null;
       if (guideUuid) guideActor = this._resolveActor(guideUuid);
       if (!guideActor && guideId) guideActor = this._resolveActor(guideId);
@@ -2314,15 +2350,28 @@ export class PartyActorSheet extends BaseActorSheet {
         const mishapMod = getMishapsModifier(regionKey);
         const mishapFormula = mishapMod > 0 ? `1d20 + ${mishapMod}` : "1d20";
         const mishapRoll = await evaluateRoll(mishapFormula);
-        const mishapTable = await resolveMishapsTable();
+        const configuredMishapsUuid = expData.tables?.mishaps || "";
+        const mishapTable = await resolveMishapsTable(configuredMishapsUuid);
 
         if (mishapTable) {
           await drawMishapTable(mishapTable, mishapRoll);
         } else {
-          globalThis.ui?.notifications?.warn?.(
-            globalThis.game?.i18n?.localize?.("TENEBRE.Party.MishapsTableNotFound") ||
-            "Tabela de Infortúnios não encontrada no compêndio ou no mundo."
-          );
+          const warnMsg = globalThis.game?.i18n?.localize?.("TENEBRE.Party.MishapsTableNotFound") ||
+            "Aviso: Tabela de Infortúnios não encontrada por ID ou UUID. Por favor, selecione ou configure a tabela na ficha do grupo.";
+          globalThis.ui?.notifications?.warn?.(warnMsg);
+          await createChatMessageAfterDice({
+            speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
+            content: `<div class="symbaroum-ind-resources tenebre-events-card">
+              <div class="events-card-header">
+                <h4><i class="fas fa-exclamation-triangle" style="color: #c97d34;"></i> Tabela de Infortúnios Não Encontrada</h4>
+              </div>
+              <div class="events-card-body" style="padding: 10px; font-size: 0.9em; color: #dfddd6; line-height: 1.4;">
+                <p style="margin: 0 0 6px 0;">O teste de orientação falhou, mas a <strong>Tabela de Infortúnios</strong> não pôde ser localizada por ID ou UUID configurado.</p>
+                <p style="margin: 0; color: #a49f91; font-size: 0.85em;">Por favor, selecione ou importe a Tabela de Infortúnios na ficha do grupo.</p>
+              </div>
+            </div>`,
+            flags: { [MODULE_ID]: { mishapsCheck: true, missingTable: true } }
+          });
         }
       }
 
@@ -2611,10 +2660,6 @@ export class PartyActorSheet extends BaseActorSheet {
     const roll = await evaluateRoll(slotMods.formula);
     const total = rollTotal(roll);
 
-    const configuredUuid = configuredTables[slotKey] || "";
-    const table = await resolveDavokarEventTable(slotKey, configuredUuid);
-    const drawn = await drawTableResult(table, roll);
-
     const slotTitles = {
       ruins: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventRuinsTitle") || "Ruínas na Davokar",
       encounters: globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventEncountersTitle") || "Encontros Neutros",
@@ -2627,6 +2672,32 @@ export class PartyActorSheet extends BaseActorSheet {
       enemies: "fas fa-skull-crossbones",
       terrain: "fas fa-mountain"
     };
+
+    const configuredUuid = configuredTables[slotKey] || "";
+    const table = await resolveDavokarEventTable(slotKey, configuredUuid);
+
+    if (!table) {
+      const slotTitle = slotTitles[slotKey] || slotKey;
+      const warnMsg = `Aviso: Tabela para "${slotTitle}" não encontrada por ID ou UUID. Por favor, selecione a tabela desejada no seletor da aba Expedição.`;
+      globalThis.ui?.notifications?.warn?.(warnMsg);
+
+      await createChatMessageAfterDice({
+        speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: this.actor }) ?? {},
+        content: `<div class="symbaroum-ind-resources tenebre-events-card">
+          <div class="events-card-header">
+            <h4><i class="fas fa-exclamation-triangle" style="color: #c97d34;"></i> Tabela Não Encontrada</h4>
+          </div>
+          <div class="events-card-body" style="padding: 10px; font-size: 0.9em; color: #dfddd6; line-height: 1.4;">
+            <p style="margin: 0 0 6px 0;">Não foi possível localizar a tabela de <strong>${escapeHtml(slotTitle)}</strong> por ID ou UUID configurado.</p>
+            <p style="margin: 0; color: #a49f91; font-size: 0.85em;">Por favor, selecione a tabela correspondente no menu suspenso da aba <em>Expedição</em> na ficha do grupo.</p>
+          </div>
+        </div>`,
+        flags: { [MODULE_ID]: { eventsCheck: true, missingTable: true, slotKey } }
+      });
+      return;
+    }
+
+    const drawn = await drawTableResult(table, roll);
 
     const currentEvents = {
       ...(expData.dayState?.events ?? {})
@@ -2728,6 +2799,29 @@ export class PartyActorSheet extends BaseActorSheet {
 
       const configuredUuid = configuredTables[slotKey] || "";
       const table = await resolveDavokarEventTable(slotKey, configuredUuid);
+
+      if (!table) {
+        const slotTitle = slotTitles[slotKey] || slotKey;
+        chatResults.push({
+          slotKey,
+          title: slotTitle,
+          icon: slotIcons[slotKey] || "fas fa-dice",
+          rollTotal: total,
+          formula: slotMods.formula,
+          resultText: "⚠️ Tabela não encontrada por ID. Selecione a tabela no menu da aba Expedição."
+        });
+        currentEvents[slotKey] = {
+          rolled: false,
+          missingTable: true,
+          rollTotal: total,
+          formula: slotMods.formula,
+          resultText: "Tabela não encontrada por ID",
+          resultImg: "icons/svg/hazard.svg",
+          tableName: "Não encontrada"
+        };
+        continue;
+      }
+
       const drawn = await drawTableResult(table, roll);
 
       currentEvents[slotKey] = {

@@ -1,3 +1,5 @@
+import { CANONICAL_EXPEDITION_TABLE_IDS, FLAG_SCOPE } from "./constants.mjs";
+
 /**
  * Dados oficiais de Infortúnios em Davokar (Guia do Mestre, p. 91, 115)
  * Transcrição fiel do texto oficial em português.
@@ -197,12 +199,19 @@ export function getDavokarMishapsTableData() {
   }));
 
   return {
+    _id: CANONICAL_EXPEDITION_TABLE_IDS.mishaps,
     name: "Tabela 25 - Infortúnios na Davokar",
     img: "icons/magic/nature/tree-twisted-glow-yellow.webp",
     description: "<p>Tabela oficial de Infortúnios em expedições pela floresta de Davokar (Guia do Mestre, p. 91, 115).</p><p><strong>Rolagem:</strong> 1d20 + Modificador de Região (+0 Iluminada, +5 Selvagem, +10 Escura).</p>",
     formula: "1d20",
     replacement: true,
     displayRoll: true,
+    flags: {
+      [FLAG_SCOPE]: {
+        tableKey: "mishaps",
+        canonicalId: CANONICAL_EXPEDITION_TABLE_IDS.mishaps
+      }
+    },
     results
   };
 }
@@ -233,12 +242,19 @@ export function getDavokarRuinsTableData() {
     drawn: false
   }));
   return {
+    _id: CANONICAL_EXPEDITION_TABLE_IDS.ruins,
     name: "Tabela 26 - Ruínas na Davokar",
     img: "icons/environment/structures/arch-stone-damaged.webp",
     description: "<p>Tabela oficial de Ruínas na floresta de Davokar (Guia do Mestre, p. 95).</p>",
     formula: "1d20",
     replacement: true,
     displayRoll: true,
+    flags: {
+      [FLAG_SCOPE]: {
+        tableKey: "ruins",
+        canonicalId: CANONICAL_EXPEDITION_TABLE_IDS.ruins
+      }
+    },
     results
   };
 }
@@ -267,12 +283,19 @@ export function getDavokarEncountersTableData() {
     drawn: false
   }));
   return {
+    _id: CANONICAL_EXPEDITION_TABLE_IDS.encounters,
     name: "Tabela 27 - Encontros Neutros na Davokar",
     img: "icons/environment/settlement/village-huts.webp",
     description: "<p>Tabela oficial de Encontros Neutros e Pacíficos na floresta de Davokar (Guia do Mestre, p. 97).</p>",
     formula: "1d20",
     replacement: true,
     displayRoll: true,
+    flags: {
+      [FLAG_SCOPE]: {
+        tableKey: "encounters",
+        canonicalId: CANONICAL_EXPEDITION_TABLE_IDS.encounters
+      }
+    },
     results
   };
 }
@@ -303,12 +326,19 @@ export function getDavokarEnemiesTableData() {
     drawn: false
   }));
   return {
+    _id: CANONICAL_EXPEDITION_TABLE_IDS.enemies,
     name: "Tabela 28 - Inimigos na Davokar",
     img: "icons/creatures/mammals/wolf-dire-grey.webp",
     description: "<p>Tabela oficial de Inimigos e Predadores na floresta de Davokar (Guia do Mestre, p. 99).</p>",
     formula: "1d20",
     replacement: true,
     displayRoll: true,
+    flags: {
+      [FLAG_SCOPE]: {
+        tableKey: "enemies",
+        canonicalId: CANONICAL_EXPEDITION_TABLE_IDS.enemies
+      }
+    },
     results
   };
 }
@@ -337,12 +367,19 @@ export function getDavokarTerrainTableData() {
     drawn: false
   }));
   return {
+    _id: CANONICAL_EXPEDITION_TABLE_IDS.terrain,
     name: "Tabela 29 - Terreno na Davokar",
     img: "icons/environment/wilderness/swamp-bog-green.webp",
     description: "<p>Tabela oficial de Terreno e Perigos Naturais na floresta de Davokar (Guia do Mestre, p. 100).</p>",
     formula: "1d20",
     replacement: true,
     displayRoll: true,
+    flags: {
+      [FLAG_SCOPE]: {
+        tableKey: "terrain",
+        canonicalId: CANONICAL_EXPEDITION_TABLE_IDS.terrain
+      }
+    },
     results
   };
 }

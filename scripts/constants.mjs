@@ -395,3 +395,11 @@ export const DEFAULTS = {
   enableMovementEffectModifiers: true,
   enableDeathAutomation: true
 };
+
+export const CANONICAL_EXPEDITION_TABLE_IDS = Object.freeze({
+  mishaps: "tblMishapsDav001",
+  ruins: "tblRuinsDavok001",
+  encounters: "tblEncountDav001",
+  enemies: "tblEnemiesDav001",
+  terrain: "tblTerrainDav001"
+});

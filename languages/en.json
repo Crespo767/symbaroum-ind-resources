@@ -942,6 +942,7 @@
   "TENEBRE.Party.OpenGuideSheet": "Open guide sheet",
   "TENEBRE.Party.ChangeGuide": "Change expedition guide",
   "TENEBRE.Party.UnlinkGuide": "Remove expedition guide",
+  "TENEBRE.Party.GuideCardTooltip": "Click to open sheet. Right-click for guide options.",
   "TENEBRE.Party.OrientationAttributes": "Orientation Attributes",
   "TENEBRE.Party.ExpeditionNoGuideTitle": "No guide assigned",
   "TENEBRE.Party.ExpeditionNoGuideHint": "Right-click a character in the Characters tab or click below to assign the party guide.",

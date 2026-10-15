@@ -227,7 +227,6 @@ test("Party sheet template includes expedition tab with guide card and actions",
   assert.match(templateSource, /data-drop-zone="expedition-guide"/);
   assert.match(templateSource, /data-action="open-guide-sheet"/);
   assert.match(templateSource, /data-action="select-guide"/);
-  assert.match(templateSource, /data-action="unlink-guide"/);
   assert.match(templateSource, /TENEBRE\.Party\.ExpeditionGuideBadge/);
   assert.match(templateSource, /class="member-guide-tag"/);
   assert.match(templateSource, /is-expedition-guide/);
@@ -395,6 +394,32 @@ test("PartyActorSheet._bindMemberContextMenu registers ContextMenu with fixed: t
   assert.equal(capturedArgs.entries.length, 2, "Must register Set and Unset guide entries");
 });
 
+test("PartyActorSheet._bindGuideContextMenu registers ContextMenu with open, change, and unlink entries", async () => {
+  const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
+  let capturedArgs = null;
+  class MockContextMenu {
+    constructor(container, selector, entries, options) {
+      capturedArgs = { container, selector, entries, options };
+    }
+  }
+
+  globalThis.foundry = globalThis.foundry ?? {};
+  globalThis.foundry.applications = globalThis.foundry.applications ?? {};
+  globalThis.foundry.applications.ux = globalThis.foundry.applications.ux ?? {};
+  globalThis.foundry.applications.ux.ContextMenu = MockContextMenu;
+
+  const mockActor = { id: "p1", system: { expedition: { guideId: "g1" } } };
+  const sheet = new PartyActorSheet(mockActor);
+  const mockRoot = { querySelectorAll: () => [] };
+  sheet._bindGuideContextMenu(mockRoot);
+
+  assert.ok(capturedArgs, "Guide ContextMenu should be instantiated");
+  assert.equal(capturedArgs.selector, ".party-guide-box.is-linked");
+  assert.equal(capturedArgs.options?.fixed, true, "ContextMenu must have fixed: true to prevent container clipping");
+  assert.equal(capturedArgs.options?.jQuery, false, "ContextMenu must have jQuery: false to avoid deprecation warnings");
+  assert.equal(capturedArgs.entries.length, 3, "Must register Open, Change, and Unlink guide entries");
+});
+
 test("calculateBushcraftPenalty respects official rules per region and tier", async () => {
   const { calculateBushcraftPenalty } = await import("../scripts/party-actor.mjs");
 
@@ -543,12 +568,12 @@ test("PartyActorSheet._onRollOrientation updates dayState after dice roll and po
   globalThis.game.user = globalThis.game.user ?? { isGM: true, id: "u1" };
   globalThis.game.settings = globalThis.game.settings ?? { get: () => false };
   globalThis.game.i18n = globalThis.game.i18n ?? { localize: (k) => k, format: (k, d) => k };
-  let sentMessage = null;
+  let sentMessages = [];
   const callSequence = [];
   globalThis.ChatMessage = {
     getSpeaker: () => ({ alias: "Guia" }),
     create: async (d) => {
-      sentMessage = d;
+      sentMessages.push(d);
       callSequence.push("chatMessage");
       return d;
     }
@@ -601,6 +626,7 @@ test("PartyActorSheet._onRollOrientation updates dayState after dice roll and po
   assert.equal(orientData.baseVigilant, 15);
   assert.equal(orientData.penalty, 0);
   assert.ok(["greatSuccess", "success", "failure"].includes(orientData.verdict));
+  const sentMessage = sentMessages.find(m => m.flags?.["symbaroum-ind-resources"]?.orientationCheck) || sentMessages[0];
   assert.ok(sentMessage);
   assert.match(sentMessage.content, /class="symbaroum chat ability tenebre-orientation-chat"/);
   assert.match(sentMessage.content, /class="tenebre-berserker-participants"/);
@@ -622,26 +648,36 @@ test("getMishapsModifier returns official modifiers per region", async () => {
   assert.equal(getMishapsModifier("dark"), 10);
 });
 
-test("resolveMishapsTable finds table in world or compendium", async () => {
+test("resolveMishapsTable finds table strictly by ID/UUID or canonical ID", async () => {
   const { resolveMishapsTable } = await import("../scripts/party-actor.mjs");
+  const { CANONICAL_EXPEDITION_TABLE_IDS } = await import("../scripts/constants.mjs");
 
-  // World table priority
+  // 1. Explicitly configured ID / UUID
   globalThis.game = {
     tables: [
-      { name: "Tabela 25 - Infortúnios na Davokar", id: "tbl-world" }
+      { name: "Minha Tabela Customizada", id: "tbl-custom", uuid: "RollTable.tbl-custom" }
     ],
     packs: []
   };
+  const customTable = await resolveMishapsTable("tbl-custom");
+  assert.equal(customTable?.id, "tbl-custom");
 
-  const worldTable = await resolveMishapsTable();
-  assert.equal(worldTable?.id, "tbl-world");
+  // 2. Canonical world table ID
+  globalThis.game = {
+    tables: [
+      { name: "Tabela 25 - Infortúnios na Davokar", id: CANONICAL_EXPEDITION_TABLE_IDS.mishaps }
+    ],
+    packs: []
+  };
+  const canonicalWorldTable = await resolveMishapsTable();
+  assert.equal(canonicalWorldTable?.id, CANONICAL_EXPEDITION_TABLE_IDS.mishaps);
 
-  // Compendium table fallback
+  // 3. Canonical compendium fallback
   const mockPack = {
     documentName: "RollTable",
     indexed: true,
-    index: [{ _id: "tbl-pack", name: "Infortúnios na Davokar" }],
-    getDocument: async (id) => ({ id, name: "Infortúnios na Davokar", compendium: true })
+    index: [{ _id: CANONICAL_EXPEDITION_TABLE_IDS.mishaps, name: "Infortúnios na Davokar" }],
+    getDocument: async (id) => (id === CANONICAL_EXPEDITION_TABLE_IDS.mishaps ? { id, name: "Infortúnios na Davokar", compendium: true } : null)
   };
   globalThis.game = {
     tables: [],
@@ -649,7 +685,17 @@ test("resolveMishapsTable finds table in world or compendium", async () => {
   };
 
   const packTable = await resolveMishapsTable();
-  assert.equal(packTable?.id, "tbl-pack");
+  assert.equal(packTable?.id, CANONICAL_EXPEDITION_TABLE_IDS.mishaps);
+
+  // 4. Does NOT match by random name when ID does not match
+  globalThis.game = {
+    tables: [
+      { name: "Infortúnios na Davokar Qualquer", id: "tbl-random-id" }
+    ],
+    packs: []
+  };
+  const noMatch = await resolveMishapsTable();
+  assert.equal(noMatch, null);
 });
 
 test("drawMishapTable calls draw for world table and roll/toMessage for compendium table", async () => {
@@ -1431,4 +1477,51 @@ test("isDavokarTerrainTable and other matchers reject Monster Codex and match of
   assert.equal(isDavokarEnemiesTable("Table 28 - Enemies in Davokar"), true);
 });
 
+test("resolveDavokarEventTable strictly resolves by configured ID/UUID or canonical ID without fuzzy guessing", async () => {
+  const { resolveDavokarEventTable } = await import("../scripts/party-actor.mjs");
+  const { CANONICAL_EXPEDITION_TABLE_IDS } = await import("../scripts/constants.mjs");
 
+  // 1. Explicitly configured UUID / ID
+  globalThis.game = {
+    tables: [
+      { id: "customTerrainId", uuid: "RollTable.customTerrainId", name: "Minha Tabela de Terreno" }
+    ],
+    packs: []
+  };
+  const resolvedConfigured = await resolveDavokarEventTable("terrain", "customTerrainId");
+  assert.equal(resolvedConfigured?.id, "customTerrainId");
+
+  // 2. Canonical world table ID for terrain (tblTerrainDav001)
+  globalThis.game = {
+    tables: [
+      { id: CANONICAL_EXPEDITION_TABLE_IDS.terrain, name: "Tabela 29 - Terreno na Davokar" }
+    ],
+    packs: []
+  };
+  const resolvedCanonical = await resolveDavokarEventTable("terrain");
+  assert.equal(resolvedCanonical?.id, CANONICAL_EXPEDITION_TABLE_IDS.terrain);
+
+  // 3. Compendium canonical pack lookup
+  const mockPack = {
+    documentName: "RollTable",
+    indexed: true,
+    index: [{ _id: CANONICAL_EXPEDITION_TABLE_IDS.ruins, name: "Ruínas na Davokar" }],
+    getDocument: async (id) => (id === CANONICAL_EXPEDITION_TABLE_IDS.ruins ? { id, name: "Ruínas na Davokar", compendium: true } : null)
+  };
+  globalThis.game = {
+    tables: [],
+    packs: new Map([["symbaroum-ind-resources.expedition-tables", mockPack]])
+  };
+  const resolvedPack = await resolveDavokarEventTable("ruins");
+  assert.equal(resolvedPack?.id, CANONICAL_EXPEDITION_TABLE_IDS.ruins);
+
+  // 4. Returns null (no random name hijacking when ID does not match)
+  globalThis.game = {
+    tables: [
+      { id: "wrongTableId", name: "Tabela 29 - Terreno na Davokar" }
+    ],
+    packs: []
+  };
+  const notFound = await resolveDavokarEventTable("terrain");
+  assert.equal(notFound, null);
+});
