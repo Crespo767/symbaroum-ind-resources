@@ -939,6 +939,7 @@
   "TENEBRE.Party.GuideTag": "Guide",
   "TENEBRE.Party.GuideLabel": "Guide",
   "TENEBRE.Party.ExpeditionGuideBadge": "Expedition Guide",
+  "TENEBRE.Party.OpenMemberSheet": "Open character sheet",
   "TENEBRE.Party.OpenGuideSheet": "Open guide sheet",
   "TENEBRE.Party.ChangeGuide": "Change expedition guide",
   "TENEBRE.Party.UnlinkGuide": "Remove expedition guide",

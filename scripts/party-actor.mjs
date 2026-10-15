@@ -2064,23 +2064,36 @@ export class PartyActorSheet extends BaseActorSheet {
     const ContextMenuClass = BaseContextMenu?.implementation ?? BaseContextMenu;
     if (typeof ContextMenuClass !== "function") return;
 
+    const _getActorId = (target) => {
+      const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
+      return el?.dataset?.actorId || el?.closest?.(".party-member-card[data-actor-id]")?.dataset?.actorId || "";
+    };
+
+    const openSheetEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OpenMemberSheet") || "Abrir ficha do personagem",
+      icon: '<i class="fas fa-external-link-alt"></i>',
+      visible: (target) => Boolean(_getActorId(target)),
+      onClick: async (target) => {
+        const actorId = _getActorId(target);
+        if (!actorId) return;
+        const targetActor = this._resolveActor(actorId);
+        targetActor?.sheet?.render(true);
+      }
+    });
+
     const setGuideEntry = CompatibilityService.buildContextMenuEntry({
       label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.SetGuideContextMenu") || "Definir como guia do grupo",
       icon: '<i class="fas fa-compass"></i>',
       visible: (target) => {
         if (!this.isEditable) return false;
-        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
-        const card = el?.closest?.(".party-member-card") ?? el;
-        const actorId = card?.dataset?.actorId;
+        const actorId = _getActorId(target);
         if (!actorId) return false;
         const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
         const currentGuideUuid = this.actor?.system?.expedition?.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
         return currentGuideId !== actorId && currentGuideUuid !== actorId;
       },
       onClick: (target) => {
-        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
-        const card = el?.closest?.(".party-member-card") ?? el;
-        const actorId = card?.dataset?.actorId;
+        const actorId = _getActorId(target);
         if (actorId) void this._onSetGuide(actorId);
       }
     });
@@ -2090,9 +2103,7 @@ export class PartyActorSheet extends BaseActorSheet {
       icon: '<i class="fas fa-times"></i>',
       visible: (target) => {
         if (!this.isEditable) return false;
-        const el = target instanceof HTMLElement ? target : (target?.[0] ?? target);
-        const card = el?.closest?.(".party-member-card") ?? el;
-        const actorId = card?.dataset?.actorId;
+        const actorId = _getActorId(target);
         if (!actorId) return false;
         const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
         const currentGuideUuid = this.actor?.system?.expedition?.guideUuid || this.actor?.flags?.[MODULE_ID]?.expedition?.guideUuid || "";
@@ -2103,11 +2114,56 @@ export class PartyActorSheet extends BaseActorSheet {
       }
     });
 
+    const moveToCompanionsEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.MoveToCompanions") || "Mover para Companheiros",
+      icon: '<i class="fas fa-paw"></i>',
+      visible: (target) => {
+        if (!this.isEditable) return false;
+        const actorId = _getActorId(target);
+        if (!actorId) return false;
+        const currentMembers = Array.isArray(this.actor?.system?.members) ? this.actor.system.members : [];
+        return currentMembers.includes(actorId);
+      },
+      onClick: (target) => {
+        const actorId = _getActorId(target);
+        if (actorId) void this._onToggleMemberType(actorId);
+      }
+    });
+
+    const moveToMembersEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.MoveToMembers") || "Mover para Jogadores",
+      icon: '<i class="fas fa-user"></i>',
+      visible: (target) => {
+        if (!this.isEditable) return false;
+        const actorId = _getActorId(target);
+        if (!actorId) return false;
+        const currentCompanions = Array.isArray(this.actor?.system?.companions) ? this.actor.system.companions : [];
+        return currentCompanions.includes(actorId);
+      },
+      onClick: (target) => {
+        const actorId = _getActorId(target);
+        if (actorId) void this._onToggleMemberType(actorId);
+      }
+    });
+
+    const removeMemberEntry = CompatibilityService.buildContextMenuEntry({
+      label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RemoveMember") || "Remover do grupo",
+      icon: '<i class="fas fa-trash-alt"></i>',
+      visible: (target) => {
+        if (!this.isEditable) return false;
+        return Boolean(_getActorId(target));
+      },
+      onClick: (target) => {
+        const actorId = _getActorId(target);
+        if (actorId) void this._onRemoveMember(actorId);
+      }
+    });
+
     try {
       new ContextMenuClass(
         root,
         ".party-member-card[data-actor-id]",
-        [setGuideEntry, unsetGuideEntry],
+        [openSheetEntry, setGuideEntry, unsetGuideEntry, moveToCompanionsEntry, moveToMembersEntry, removeMemberEntry],
         { fixed: true, jQuery: false }
       );
     } catch (err) {

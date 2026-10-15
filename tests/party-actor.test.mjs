@@ -231,8 +231,6 @@ test("Party sheet template includes expedition tab with guide card and actions",
   assert.match(templateSource, /class="member-guide-tag"/);
   assert.match(templateSource, /is-expedition-guide/);
   assert.match(templateSource, /class="portrait-guide-badge"/);
-  assert.match(templateSource, /data-action="toggle-guide"/);
-  assert.match(templateSource, /class="item-control member-guide-toggle/);
   assert.match(templateSource, /class="guide-card-layout"/);
   assert.match(templateSource, /class="guide-portrait/);
   assert.match(templateSource, /class="guide-info-column"/);
@@ -391,7 +389,7 @@ test("PartyActorSheet._bindMemberContextMenu registers ContextMenu with fixed: t
   assert.equal(capturedArgs.selector, ".party-member-card[data-actor-id]");
   assert.equal(capturedArgs.options?.fixed, true, "ContextMenu must have fixed: true to prevent container clipping");
   assert.equal(capturedArgs.options?.jQuery, false, "ContextMenu must have jQuery: false to avoid deprecation warnings");
-  assert.equal(capturedArgs.entries.length, 2, "Must register Set and Unset guide entries");
+  assert.equal(capturedArgs.entries.length, 6, "Must register Open, Set, Unset, MoveToCompanions, MoveToMembers, and Remove entries");
 });
 
 test("PartyActorSheet._bindGuideContextMenu registers ContextMenu with open, change, and unlink entries", async () => {
