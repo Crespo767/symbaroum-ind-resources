@@ -4910,7 +4910,6 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 
 .tenebre-party-sheet .party-expedition-control-box.is-active {
   border: 1px solid #3c3022;
-  border-left: 4px solid #4a7c59;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
   background: rgba(245, 240, 230, 0.95);
 }
@@ -5178,7 +5177,6 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 
 .tenebre-party-sheet .party-guide-box.is-linked {
   border: 1px solid #3c3022;
-  border-left: 4px solid #dfb743;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   padding: 12px;
   background-image: url("/systems/symbaroum/asset/image/foreground.webp");
@@ -5727,7 +5725,6 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   background-repeat: repeat;
   background-color: rgba(245, 240, 230, 0.95);
   border: 1px solid #3c3022;
-  border-left: 4px solid #8c5b30;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   box-sizing: border-box;
 }
@@ -5987,7 +5984,6 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   background-repeat: repeat;
   background-color: rgba(245, 240, 230, 0.95);
   border: 1px solid #3c3022;
-  border-left: 4px solid #634d32;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   box-sizing: border-box;
 }
