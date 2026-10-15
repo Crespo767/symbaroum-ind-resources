@@ -531,24 +531,64 @@ export function calculateDavokarEventModifiers({ regionKey = "bright", orientati
  */
 export async function drawTableResult(table, roll) {
   if (!table) return { results: [], text: "Tabela não encontrada", img: "icons/svg/d20-grey.svg" };
+  const total = Number(roll?.total ?? rollTotal(roll));
   let results = [];
-  try {
-    const rollResult = await table.roll({ roll });
-    results = rollResult.results || [];
-  } catch (err) {
+
+  // 1. Prioriza getResultsForRoll(total) para garantir correspondência exata com o dado já rolado
+  // (evita que table.roll() internamente force um reroll() aleatório descartando o roll avaliado)
+  if (typeof table.getResultsForRoll === "function") {
     try {
-      const drawResult = await table.draw({ roll, displayChat: false });
-      results = drawResult?.results || [];
-    } catch (e2) {
-      console.error("symbaroum-ind-resources | Falha ao rolar tabela:", e2);
-      return { results: [], text: "Erro ao rolar tabela", img: "icons/svg/d20-grey.svg" };
+      results = table.getResultsForRoll(total) || [];
+      // Se a tabela tiver itens marcados como 'drawn: true', recupera sem o filtro de drawn
+      if (!results.length && table.results) {
+        const contents = Array.from(table.results.values ? table.results.values() : (table.results.contents || table.results || []));
+        results = contents.filter(r => {
+          const min = r.range?.[0] ?? 0;
+          const max = r.range?.[1] ?? 0;
+          return total >= min && total <= max;
+        });
+      }
+    } catch (e) {
+      console.warn("symbaroum-ind-resources | Falha em table.getResultsForRoll:", e);
+    }
+  }
+
+  // 2. Se o total rolado estiver fora da faixa dos resultados (ex: modificador negativo ou muito alto),
+  // ajusta para o resultado do extremo mais próximo (mínimo ou máximo)
+  if (!results.length && table.results) {
+    const contents = Array.from(table.results.values ? table.results.values() : (table.results.contents || table.results || []));
+    if (contents.length > 0) {
+      const sorted = [...contents].sort((a, b) => (a.range?.[0] ?? 0) - (b.range?.[0] ?? 0));
+      const minEntry = sorted[0];
+      const maxEntry = sorted[sorted.length - 1];
+      if (minEntry && total < (minEntry.range?.[0] ?? 1)) {
+        results = [minEntry];
+      } else if (maxEntry && total > (maxEntry.range?.[1] ?? 20)) {
+        results = [maxEntry];
+      }
+    }
+  }
+
+  // 3. Fallback: se a tabela não tiver getResultsForRoll ou não encontrou por faixa
+  if (!results.length) {
+    try {
+      const rollResult = await table.roll?.({ roll });
+      results = rollResult?.results || [];
+    } catch (err) {
+      try {
+        const drawResult = await table.draw?.({ roll, displayChat: false });
+        results = drawResult?.results || [];
+      } catch (e2) {
+        console.error("symbaroum-ind-resources | Falha ao rolar tabela:", e2);
+        return { results: [], text: "Erro ao rolar tabela", img: "icons/svg/d20-grey.svg" };
+      }
     }
   }
 
   const textPieces = [];
   let resultImg = table.img || "icons/svg/d20-grey.svg";
   for (const r of results) {
-    let txt = r.text || r.name || "";
+    let txt = r.text || r.description || r.name || "";
     if (!txt && typeof r.getHTML === "function") {
       try {
         const el = await r.getHTML();

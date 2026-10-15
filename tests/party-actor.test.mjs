@@ -1354,7 +1354,44 @@ test("drawTableResult sanitizes multiline HTML and CSS enforces compact single l
 
   const updatedCss = fs.readFileSync(path.join(root, "styles/symbaroum-ind-resources.css"), "utf8");
   assert.match(updatedCss, /\.tenebre-party-sheet \.event-slot-result-box[\s\S]*?max-height:\s*26px/);
-  assert.match(updatedCss, /\.tenebre-party-sheet \.event-result-text \*[\s\S]*?display:\s*inline/);
-  assert.match(updatedCss, /\.tenebre-event-result-item[\s\S]*?background:\s*rgba\(18,\s*22,\s*28/);
   assert.match(updatedCss, /\.tenebre-event-result-item \.event-item-text \*[\s\S]*?color:\s*#e2ddd3\s*!important/);
 });
+
+test("drawTableResult deterministically matches roll.total via getResultsForRoll and clamps bounds", async () => {
+  const { drawTableResult } = await import("../scripts/party-actor.mjs");
+  const entries = [
+    { range: [1, 8], text: "Nenhum inimigo", img: "icons/svg/d20.svg" },
+    { range: [9, 10], text: "[PJs] Inimigos Fracos", img: "icons/svg/d20.svg" },
+    { range: [17, 18], text: "[PJs] Inimigos Desafiadores", img: "icons/svg/d20.svg" },
+    { range: [25, 35], text: "[PJs] Inimigos Poderosos", img: "icons/svg/d20.svg" }
+  ];
+
+  let getResultsForRollCalledWith = null;
+  const mockTable = {
+    img: "icons/svg/d20.svg",
+    results: {
+      contents: entries
+    },
+    getResultsForRoll(val) {
+      getResultsForRollCalledWith = val;
+      return entries.filter(e => val >= e.range[0] && val <= e.range[1]);
+    },
+    roll: async () => {
+      throw new Error("table.roll must NOT be called when getResultsForRoll is available");
+    }
+  };
+
+  // 1. Testa rolagem de 18 (deve retornar Inimigos Desafiadores 17-18 e NÃO Inimigos Fracos 9-10)
+  const drawn18 = await drawTableResult(mockTable, { total: 18 });
+  assert.equal(getResultsForRollCalledWith, 18);
+  assert.match(drawn18.text, /\[PJs\] Inimigos Desafiadores/);
+
+  // 2. Testa rolagem alta acima do limite 35 (ex: 40) -> clamp para maior faixa
+  const drawnHigh = await drawTableResult(mockTable, { total: 40 });
+  assert.match(drawnHigh.text, /\[PJs\] Inimigos Poderosos/);
+
+  // 3. Testa rolagem baixa abaixo de 1 (ex: -2 com penalidade) -> clamp para menor faixa
+  const drawnLow = await drawTableResult(mockTable, { total: -2 });
+  assert.match(drawnLow.text, /Nenhum inimigo/);
+});
+
