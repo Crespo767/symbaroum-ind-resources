@@ -1395,3 +1395,40 @@ test("drawTableResult deterministically matches roll.total via getResultsForRoll
   assert.match(drawnLow.text, /Nenhum inimigo/);
 });
 
+test("isDavokarTerrainTable and other matchers reject Monster Codex and match official tables", async () => {
+  const {
+    isDavokarRuinsTable,
+    isDavokarEncountersTable,
+    isDavokarEnemiesTable,
+    isDavokarTerrainTable
+  } = await import("../scripts/party-actor.mjs");
+
+  // Rejeita tabelas do Códice de Monstros / Natureza Corrupta no slot de Terreno
+  assert.equal(isDavokarTerrainTable("CM - Tabela 2: Perigos na Natureza Corrupta"), false);
+  assert.equal(isDavokarTerrainTable("MC - Table 2: Dangers in Corrupt Nature"), false);
+  assert.equal(isDavokarTerrainTable("Perigos na Natureza Corrupta"), false);
+  assert.equal(isDavokarTerrainTable("Tabela 18 - Infortúnios do Exército"), false);
+
+  // Aceita as oficiais da Davokar
+  assert.equal(isDavokarTerrainTable("Tabela 29 - Terreno na Davokar"), true);
+  assert.equal(isDavokarTerrainTable("Table 29 - Terrain in Davokar"), true);
+  assert.equal(isDavokarTerrainTable("Terreno na Davokar"), true);
+
+  // Ruínas (Tabela 26)
+  assert.equal(isDavokarRuinsTable("02.10 The Treasures of the Ruins"), false);
+  assert.equal(isDavokarRuinsTable("02.11 Exploring Ruins"), false);
+  assert.equal(isDavokarRuinsTable("Tabela 26 - Ruínas na Davokar"), true);
+  assert.equal(isDavokarRuinsTable("Table 26 - Ruins in Davokar"), true);
+
+  // Encontros (Tabela 27)
+  assert.equal(isDavokarEncountersTable("Tabela 28 - Inimigos na Davokar"), false);
+  assert.equal(isDavokarEncountersTable("Tabela 27 - Encontros na Davokar"), true);
+  assert.equal(isDavokarEncountersTable("Table 27 - Encounters in Davokar"), true);
+
+  // Inimigos (Tabela 28)
+  assert.equal(isDavokarEnemiesTable("Tabela 18 - Infortúnios do Exército"), false);
+  assert.equal(isDavokarEnemiesTable("Tabela 28 - Inimigos na Davokar"), true);
+  assert.equal(isDavokarEnemiesTable("Table 28 - Enemies in Davokar"), true);
+});
+
+

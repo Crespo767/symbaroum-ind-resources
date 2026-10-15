@@ -309,10 +309,10 @@ export async function drawMishapTable(table, roll) {
 export function isDavokarRuinsTable(target = "") {
   const name = typeof target === "string" ? target : (target?.name || "");
   const n = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (n.includes("tabela 26") || n.includes("tabela26") || n.includes("table 26")) return true;
-  if (n.includes("ruina") || n.includes("ruin")) {
-    if (n.includes("davokar") || n.includes("symbaroum") || n.includes("floresta") || n.includes("erm") || n.includes("tabela")) return true;
-  }
+  if (n.includes("tesouro") || n.includes("treasure") || n.includes("explorando") || n.includes("exploring")) return false;
+  if (n.includes("codice") || n.includes("codex") || n.includes("cm -") || n.includes("mc -")) return false;
+  if (n.includes("tabela 26") || n.includes("tabela26") || n.includes("table 26") || n.includes("table26")) return true;
+  if ((n.includes("ruina") || n.includes("ruin")) && (n.includes("davokar") || n.includes("erm"))) return true;
   return false;
 }
 
@@ -322,8 +322,11 @@ export function isDavokarRuinsTable(target = "") {
 export function isDavokarEncountersTable(target = "") {
   const name = typeof target === "string" ? target : (target?.name || "");
   const n = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (n.includes("tabela 27") || n.includes("tabela27") || n.includes("table 27")) return true;
-  if ((n.includes("encontro") || n.includes("encounter")) && (n.includes("davokar") || n.includes("neutro") || n.includes("pacifico") || n.includes("symbaroum"))) return true;
+  if (n.includes("inimigo") || n.includes("enemy") || n.includes("predador") || n.includes("predator")) return false;
+  if (n.includes("codice") || n.includes("codex") || n.includes("cm -") || n.includes("mc -")) return false;
+  if (n.includes("batalha") || n.includes("battle") || n.includes("exercito") || n.includes("army")) return false;
+  if (n.includes("tabela 27") || n.includes("tabela27") || n.includes("table 27") || n.includes("table27")) return true;
+  if ((n.includes("encontro") || n.includes("encounter")) && (n.includes("davokar") || n.includes("neutro") || n.includes("pacifico"))) return true;
   return false;
 }
 
@@ -333,9 +336,11 @@ export function isDavokarEncountersTable(target = "") {
 export function isDavokarEnemiesTable(target = "") {
   const name = typeof target === "string" ? target : (target?.name || "");
   const n = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (n.includes("tabela 28") || n.includes("tabela28") || n.includes("table 28")) return true;
+  if (n.includes("exercito") || n.includes("army") || n.includes("batalha") || n.includes("battle")) return false;
+  if (n.includes("codice") || n.includes("codex") || n.includes("cm -") || n.includes("mc -")) return false;
+  if (n.includes("tabela 28") || n.includes("tabela28") || n.includes("table 28") || n.includes("table28")) return true;
   if ((n.includes("inimigo") && n.includes("predador")) || (n.includes("enemy") && n.includes("predator"))) return true;
-  if ((n.includes("inimigo") || n.includes("predador") || n.includes("enemy") || n.includes("enemies")) && (n.includes("davokar") || n.includes("symbaroum"))) return true;
+  if ((n.includes("inimigo") || n.includes("enemy") || n.includes("predador") || n.includes("predator")) && n.includes("davokar")) return true;
   return false;
 }
 
@@ -345,9 +350,13 @@ export function isDavokarEnemiesTable(target = "") {
 export function isDavokarTerrainTable(target = "") {
   const name = typeof target === "string" ? target : (target?.name || "");
   const n = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (n.includes("tabela 29") || n.includes("tabela29") || n.includes("table 29")) return true;
+  // Rejeita explicitamente Códice de Monstros, Perigos na Natureza Corrupta e tabelas militares/infortúnios
+  if (n.includes("codice") || n.includes("codex") || n.includes("corrupt") || n.includes("corrompid")) return false;
+  if (n.startsWith("cm -") || n.startsWith("mc -") || n.includes("cm -") || n.includes("mc -")) return false;
+  if (n.includes("infortunio") || n.includes("mishap") || n.includes("exercito") || n.includes("army")) return false;
+  if (n.includes("tabela 29") || n.includes("tabela29") || n.includes("table 29") || n.includes("table29")) return true;
   if ((n.includes("terreno") && n.includes("perigo")) || (n.includes("terrain") && (n.includes("hazard") || n.includes("danger")))) return true;
-  if ((n.includes("terreno") || n.includes("terrain") || n.includes("perigo")) && (n.includes("davokar") || n.includes("natureza") || n.includes("symbaroum"))) return true;
+  if ((n.includes("terreno") || n.includes("terrain")) && (n.includes("davokar") || n.includes("symbaroum"))) return true;
   return false;
 }
 
@@ -421,25 +430,48 @@ export async function resolveDavokarEventTable(slot, configuredUuidOrId) {
   }
   if (!isMatch) return null;
 
-  const worldTable = Array.from(game.tables ?? []).find(t => isMatch(t.name));
+  const exactNumber = slot === "ruins" ? "26" : slot === "encounters" ? "27" : slot === "enemies" ? "28" : "29";
+  const isExactNum = (nStr) => {
+    const s = String(nStr || "").toLowerCase();
+    return s.includes(`tabela ${exactNumber}`) || s.includes(`table ${exactNumber}`) || s.includes(`tabela${exactNumber}`) || s.includes(`table${exactNumber}`);
+  };
+
+  const worldTables = Array.from(game.tables ?? []);
+  const exactWorld = worldTables.find(t => isExactNum(t.name) && isMatch(t.name));
+  if (exactWorld) return exactWorld;
+
+  const worldTable = worldTables.find(t => isMatch(t.name));
   if (worldTable) return worldTable;
 
+  // 2. Procura no compêndio oficial do Guia do Mestre (symbaroum-gmg)
+  const gmgPack = typeof game.packs?.get === "function" ? game.packs.get("symbaroum-gmg.symbaroum-gmg") : null;
+  if (gmgPack && gmgPack.documentName === "RollTable") {
+    try {
+      if (!gmgPack.indexed) await gmgPack.getIndex();
+      const entry = gmgPack.index.find(e => isExactNum(e.name) || isMatch(e.name));
+      if (entry) return await gmgPack.getDocument(entry._id);
+    } catch {}
+  }
+
+  // 3. Procura no compêndio integrado de expedições do módulo
   const modPack = typeof game.packs?.get === "function"
     ? game.packs.get(`${MODULE_ID}.expedition-tables`)
     : (Array.isArray(game.packs) ? game.packs.find(p => p.metadata?.id === `${MODULE_ID}.expedition-tables` || p.name === "expedition-tables") : null);
   if (modPack) {
     try {
       if (!modPack.indexed) await modPack.getIndex();
-      const entry = modPack.index.find(e => isMatch(e.name));
+      const entry = modPack.index.find(e => isExactNum(e.name) || isMatch(e.name));
       if (entry) return await modPack.getDocument(entry._id);
     } catch {}
   }
 
+  // 4. Procura em outros compêndios de RollTable (ignorando explicitamente o Códice de Monstros)
   for (const pack of (game.packs ?? [])) {
     if (pack.documentName !== "RollTable") continue;
+    if (pack.collection?.includes("monstercodex") || pack.collection?.includes("monster-codex")) continue;
     try {
       if (!pack.indexed) await pack.getIndex();
-      const entry = pack.index.find(e => isMatch(e.name));
+      const entry = pack.index.find(e => isExactNum(e.name) || isMatch(e.name));
       if (entry) return await pack.getDocument(entry._id);
     } catch {}
   }
