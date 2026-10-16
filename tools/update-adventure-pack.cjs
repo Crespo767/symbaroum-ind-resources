@@ -388,53 +388,8 @@ function createActor({ id, name, img, race, shadow, appearance, tactics, attribu
   };
 }
 
-function createMishapsTable(folderId = null, mishaps = []) {
-  const tableId = makeId('tblMishDav', 1); // tblMishDav000001
-  const results = mishaps.map(m => ({
-    _id: makeId('resMish', m.num),
-    type: 'text',
-    name: m.name,
-    text: `<strong>${m.num}. ${m.name}:</strong> ${m.desc}`,
-    description: `<p><strong>${m.name}</strong></p><p>${m.desc}</p>`,
-    img: m.img || 'icons/svg/d20-black.svg',
-    weight: 1,
-    range: [m.num, m.num],
-    drawn: false,
-    flags: {},
-    _stats: {
-      systemId: 'symbaroum',
-      systemVersion: '6.1.6',
-      coreVersion: '13.350',
-      createdTime: Date.now(),
-      modifiedTime: Date.now()
-    }
-  }));
-
-  return {
-    _id: tableId,
-    name: 'Tabela 25 - Infortúnios na Davokar',
-    img: 'icons/magic/nature/tree-twisted-glow-yellow.webp',
-    description: '<p>Tabela oficial de Infortúnios em expedições pela floresta de Davokar (Guia do Mestre, p. 91, 115).</p><p><strong>Rolagem:</strong> 1d20 + Modificador de Região (+0 Iluminada, +5 Selvagem, +10 Escura).</p>',
-    results,
-    formula: '1d20',
-    replacement: true,
-    displayRoll: true,
-    folder: folderId,
-    sort: 0,
-    flags: {},
-    ownership: { default: 0 },
-    _stats: {
-      systemId: 'symbaroum',
-      systemVersion: '6.1.6',
-      coreVersion: '13.350',
-      createdTime: Date.now(),
-      modifiedTime: Date.now()
-    }
-  };
-}
-
 async function run() {
-  const { OFFICIAL_DAVOKAR_MISHAPS } = await import('../scripts/expedition-data.mjs');
+  const { getExpeditionPackTables } = await import('./expedition-pack-data.mjs');
   const dbPath = path.resolve('packs/symbaroum-ind-resources');
   console.log('Connecting to LevelDB:', dbPath);
   const db = new ClassicLevel(dbPath, { valueEncoding: 'utf8' });
@@ -645,7 +600,7 @@ async function run() {
       description: `<p>O personagem pode sobreviver com recursos escassos e está acostumado a encontrar comida e abrigo em terrenos árduos.</p>
 <p>Com um Teste bem-sucedido de <strong>Vigilante</strong>, o personagem pode encontrar comida e água o suficiente (1d6 rações) para se alimentar enquanto se move em locais selvagens ou pelas ruínas da Davokar. Se o grupo permanecer parado dedicando o dia à coleta, encontra 1d10 rações.</p>
 <hr />
-<h3>Expedições na Floresta de Davokar (Guia do Mestre, p. 115)</h3>
+<h3>Expedições na Floresta de Davokar (Guia do Mestre, pp. 87–103)</h3>
 <p>Para guiar expedições e navegar através da mata, o nível de Mateiro determina a adaptação do guia à profundidade da floresta:</p>
 <ul>
   <li><strong>Nível I (Davokar Iluminada):</strong> Eficaz nas bordas da floresta, montanhas e planícies. Testes de Orientação e Forrageamento são realizados sem penalidade na Davokar Iluminada.</li>
@@ -880,11 +835,12 @@ async function run() {
   ];
 
   const originalTables = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'original-tables.json'), 'utf8'));
-  const filteredOriginal = originalTables.filter(t => t.name !== 'Tabela 25 - Infortúnios na Davokar');
+  const expeditionTables = getExpeditionPackTables(tableRootFolderId);
+  const filteredOriginal = originalTables.filter(t => !expeditionTables.some(exp => exp._id === t._id || exp.name === t.name || t.flags?.['symbaroum-ind-resources']?.tableKey === exp.flags['symbaroum-ind-resources'].tableKey));
 
   adventure.tables = [
     ...filteredOriginal,
-    createMishapsTable(tableRootFolderId, OFFICIAL_DAVOKAR_MISHAPS)
+    ...expeditionTables
   ];
 
   adventure._stats.modifiedTime = Date.now();

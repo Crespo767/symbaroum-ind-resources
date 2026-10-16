@@ -66,7 +66,7 @@ recursos adequados para sua mesa.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.17.31 |
+| Modulo | 0.18.42 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -1293,9 +1293,22 @@ Set-Location symbaroum-ind-resources
 npm run validate
 ```
 
-O comando valida a sintaxe de todos os ES modules e executa a suite completa.
+O comando valida a sintaxe dos arquivos `.mjs` e `.cjs` e executa a suite completa.
 O mesmo fluxo roda automaticamente no GitHub Actions em pushes para `main` e em
 pull requests. O projeto nao possui dependencias npm de runtime.
+
+O gerador de tabelas exige uma saída vazia fora de `packs`:
+
+```powershell
+node tools/build-expedition-tables.cjs --output <diretorio-vazio>
+node tools/validate-expedition-assets.mjs <diretorio-public-do-foundry>
+```
+
+A geração do banco requer `classic-level` no ambiente de desenvolvimento.
+Os geradores usam a mesma fonte das cinco tabelas em `scripts/expedition-data.mjs`.
+Validar uma saída não substitui os compêndios instalados nem atualiza tabelas já
+importadas nos mundos. O andamento da estabilização está em
+[docs/PLANO-ESTABILIZACAO.md](docs/PLANO-ESTABILIZACAO.md).
 
 Para o teste manual, instale a copia de desenvolvimento em
 `FoundryVTT/Data/modules/symbaroum-ind-resources`. Feche o Foundry antes de
@@ -1323,3 +1336,8 @@ Autores declarados no `module.json`:
 Symbaroum e suas artes oficiais pertencem aos seus respectivos detentores. Este
 modulo apenas adiciona automacoes e recursos de interface para uso em mesas no
 Foundry VTT.
+
+
+### Expedições: orientação e privacidade
+
+A implementação atual e os testes manuais pendentes estão em [Etapa A — orientação e privacidade](docs/EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md). Resultados privados novos usam um compêndio privado do mundo, criado pelo GM no primeiro uso. O Grupo guarda apenas referências; resultados públicos mantêm o armazenamento existente. Dados antigos não são migrados automaticamente. O GM dispõe de um ajuste circunstancial opcional para informação e mapas.

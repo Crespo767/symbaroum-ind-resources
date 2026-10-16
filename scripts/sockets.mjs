@@ -176,6 +176,16 @@ export class SocketService {
 
     return moduleSocket.executeAsGM(handlerName, ...args);
   }
+
+  /** Diferente de executeAsGM, também encaminha os GMs secundários ao GM designado. */
+  static async executeAsPrimaryGM(handlerName, ...args) {
+    if (!HANDLERS[handlerName]) throw new Error(`Unknown socket handler: ${handlerName}`);
+    const primaryGM = globalThis.game?.users?.activeGM;
+    if (!primaryGM) throw new Error(`${MODULE_ID} | No active GM is available for socketlib execution.`);
+    if (primaryGM.id === game.user?.id) return this.executeAsGM(handlerName, ...args);
+    if (!moduleSocket) throw new Error(`${MODULE_ID} | socketlib is not active for this module.`);
+    return moduleSocket.executeAsUser(handlerName, primaryGM.id, ...args);
+  }
 }
 
 async function disarmItemAsGM(actorUuid, itemId) {
@@ -306,7 +316,7 @@ async function updateEmbeddedDocumentsAsGM(parentUuid, embeddedName, updates, op
   return true;
 }
 
-function getRequestUser(context) {
+export function getRequestUser(context) {
   const senderId = context?.socketdata?.userId;
   const user = senderId ? game.users?.get?.(senderId) : (game.user?.isGM ? game.user : null);
   if (!user?.active) throw new Error("Socket request has no authenticated active user.");
@@ -335,7 +345,7 @@ function authorizeOwnedDocument(user, document, action) {
   throw new Error(`Unauthorized socket operation: ${action}.`);
 }
 
-function hasOwnerPermission(document, user) {
+export function hasOwnerPermission(document, user) {
   if (!document || !user) return false;
   try {
     return document.testUserPermission?.(user, globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3) === true;

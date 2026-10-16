@@ -44,9 +44,11 @@ import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import { PartyActorService } from "./party-actor.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
 import { getWeaponRollForDialog } from "./roll-context.mjs";
+import { registerDiceHooks } from "./dice.mjs";
 import { getActorTokens, getCanvasCreatureTokens, isActiveGM, normalizeText } from "./utils.mjs";
 
 Hooks.once("init", () => {
+  registerDiceHooks();
   try {
     TenebreSettings.register();
   } catch (err) {
@@ -73,6 +75,12 @@ Hooks.once("init", () => {
     ActorCreationService.register();
   } catch (err) {
     console.error("Symbaroum Ind Resources | Falha ao registrar ActorCreationService:", err);
+  }
+
+  try {
+    RationService.register();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao registrar RationService:", err);
   }
 
   try {

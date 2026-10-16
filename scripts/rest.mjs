@@ -13,8 +13,7 @@ export class RestService {
     const configuredHealing = Number(TenebreSettings.get("restHealing"));
     const defaultHealing = restHealingEnabled && Number.isFinite(configuredHealing) ? configuredHealing : 0;
     const rationsEnabled = TenebreSettings.get("enableRations");
-    const rationState = rationsEnabled ? RationService.getState(actor) : null;
-    const hasBread = Boolean(rationsEnabled && ((rationState?.totalUsesRemaining ?? 0) > 0 || (rationState?.quantity ?? 0) > 0));
+    const hasBread = Boolean(rationsEnabled && RationService.getTotalUses(actor) > 0);
 
     const spendBreadRow = rationsEnabled
       ? `
@@ -69,11 +68,13 @@ export class RestService {
 
   // Aplica efeitos de descanso (recuperação de vitalidade, remoção de corrupção temporária e resets de morte)
   static async applyRest(actor, days = 1, healingPerDay = null, { spendBread = false } = {}) {
+    let rationsMissing = false;
     if (spendBread && TenebreSettings.get("enableRations")) {
-      await RationService.consumeDay(actor, null, { days });
+      // Evita gastar provisões de parte do período e tratar todo o descanso como abastecido.
+      rationsMissing = !await RationService.consumeDay(actor, null, { days, requireFull: true });
     }
     const updates = {};
-    const results = { days, actorName: actor.name, healed: 0, corruptionCleared: 0, hungerResults: [], hungerStrongRecovered: 0 };
+    const results = { days, actorName: actor.name, rationsMissing, healed: 0, corruptionCleared: 0, hungerResults: [], hungerStrongRecovered: 0 };
 
     // Zera os testes de morte falhos
     updates["system.nbrOfFailedDeathRoll"] = 0;
@@ -186,6 +187,7 @@ export class RestService {
   // Envia mensagem de chat resumindo descanso
   static async #postRestMessage(actor, results) {
     const lines = [];
+    if (results.rationsMissing) lines.push(game.i18n.localize("TENEBRE.Rest.RationsMissing"));
     if (results.healed > 0) {
       lines.push(game.i18n.format("TENEBRE.Rest.ChatHealed", { amount: results.healed }));
     }

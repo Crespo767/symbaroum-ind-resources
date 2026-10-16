@@ -62,7 +62,7 @@ export class HungerService {
 
   static hasHunger(actor) {
     if (!TenebreSettings.get("enableHunger")) return false;
-    return Array.from(actor?.effects ?? []).some((effect) => HungerService.isHungerEffect(effect));
+    return Array.from(actor?.effects ?? []).some((effect) => !effect.disabled && !effect.isSuppressed && HungerService.isHungerEffect(effect));
   }
 
   static registerHooks() {

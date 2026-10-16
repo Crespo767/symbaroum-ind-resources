@@ -38,6 +38,9 @@ test("RestService.applyRest consumes travel bread when spendBread is true", asyn
 
   let consumedArgs = null;
   const originalConsumeDay = RationService.consumeDay;
+  const originalChat = ChatMessage.create;
+  const messages = [];
+  ChatMessage.create = async data => { messages.push(data); return data; };
   RationService.consumeDay = async (actor, item, options) => {
     consumedArgs = { actor, item, options };
     return true;
@@ -80,13 +83,19 @@ test("RestService.applyRest consumes travel bread when spendBread is true", asyn
     await RestService.applyRest(actor, 2, 1, { spendBread: true });
     assert.ok(consumedArgs, "consumeDay should be called");
     assert.equal(consumedArgs.actor, actor);
-    assert.deepEqual(consumedArgs.options, { days: 2 });
+    assert.deepEqual(consumedArgs.options, { days: 2, requireFull: true });
 
     // spendBread: false -> does not call consumeDay
     consumedArgs = null;
     await RestService.applyRest(actor, 1, 1, { spendBread: false });
     assert.equal(consumedArgs, null, "consumeDay should not be called when spendBread is false");
+
+    RationService.consumeDay = async () => false;
+    await RestService.applyRest(actor, 3, 1, { spendBread: true });
+    assert.match(messages.at(-1).content, /TENEBRE.Rest.RationsMissing/);
+    assert.doesNotMatch(messages[0].content, /TENEBRE.Rest.RationsMissing/);
   } finally {
     RationService.consumeDay = originalConsumeDay;
+    ChatMessage.create = originalChat;
   }
 });

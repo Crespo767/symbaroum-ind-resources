@@ -1,90 +1,40 @@
-const { ClassicLevel } = require('classic-level');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
-function make16Id(prefix, num) {
-  const pad = '0'.repeat(16 - prefix.length - String(num).length);
-  return `${prefix}${pad}${num}`;
-}
-
-async function buildTablePack() {
-  const { OFFICIAL_DAVOKAR_MISHAPS } = await import('../scripts/expedition-data.mjs');
-
-  const packDir = path.resolve(__dirname, '..', 'packs', 'expedition-tables');
-  if (fs.existsSync(packDir)) {
-    fs.rmSync(packDir, { recursive: true, force: true });
+async function buildTablePack(packDir, LevelClass) {
+  if (!packDir) throw new Error('Informe --output <diretório vazio>; os bancos instalados não são sobrescritos.');
+  const output = path.resolve(packDir);
+  const installedPacks = path.resolve(__dirname, '..', 'packs');
+  const relative = path.relative(installedPacks, output);
+  if (!relative || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative))) {
+    throw new Error('Gere e valide o compêndio fora dos bancos instalados.');
   }
-  fs.mkdirSync(packDir, { recursive: true });
-
-  const db = new ClassicLevel(packDir, { valueEncoding: 'json' });
+  if (fs.existsSync(output) && fs.readdirSync(output).length) throw new Error('O diretório de saída deve estar vazio.');
+  const { getExpeditionPackTables } = await import('./expedition-pack-data.mjs');
+  const tables = getExpeditionPackTables();
+  const ClassicLevel = LevelClass ?? require('classic-level').ClassicLevel;
+  fs.mkdirSync(output, { recursive: true });
+  const db = new ClassicLevel(output, { valueEncoding: 'json' });
   await db.open();
-
-  const tableId = 'tblMishapsDav001'; // 16 chars
-  const resultIds = [];
-  const fullResults = [];
-
-  for (const m of OFFICIAL_DAVOKAR_MISHAPS) {
-    const resId = make16Id('resMish', m.num); // resMish000000001 to 30
-    resultIds.push(resId);
-
-    const resObj = {
-      _id: resId,
-      type: 'text',
-      name: m.name,
-      text: `<strong>${m.num}. ${m.name}:</strong> ${m.desc}`,
-      description: `<p><strong>${m.name}</strong></p><p>${m.desc}</p>`,
-      img: m.img || 'icons/svg/d20-black.svg',
-      weight: 1,
-      range: [m.num, m.num],
-      drawn: false,
-      flags: {},
-      _stats: {
-        coreVersion: '13.350',
-        systemId: 'symbaroum',
-        systemVersion: '6.1.6',
-        createdTime: Date.now(),
-        modifiedTime: Date.now()
-      }
-    };
-    fullResults.push(resObj);
-
-    // Salva o subdocumento no LevelDB
-    await db.put(`!tables.results!${tableId}.${resId}`, resObj);
-  }
-
-  const tableDoc = {
-    _id: tableId,
-    name: 'Tabela 25 - Infortúnios na Davokar',
-    img: 'icons/magic/nature/tree-twisted-glow-yellow.webp',
-    description: '<p>Tabela oficial de Infortúnios em expedições pela floresta de Davokar (Guia do Mestre, p. 91, 115).</p><p><strong>Rolagem:</strong> 1d20 + Modificador de Região (+0 Iluminada, +5 Selvagem, +10 Escura).</p>',
-    results: resultIds,
-    formula: '1d20',
-    replacement: true,
-    displayRoll: true,
-    folder: null,
-    sort: 0,
-    flags: {},
-    _stats: {
-      coreVersion: '13.350',
-      systemId: 'symbaroum',
-      systemVersion: '6.1.6',
-      createdTime: Date.now(),
-      modifiedTime: Date.now()
-    },
-    ownership: {
-      default: 0
+  try {
+    for (const table of tables) {
+      const { results, ...data } = table;
+      await db.put(`!tables!${table._id}`, { ...data, results: results.map(result => result._id) });
+      for (const result of results) await db.put(`!tables.results!${table._id}.${result._id}`, result);
     }
-  };
-
-  await db.put(`!tables!${tableId}`, tableDoc);
-  await db.compactRange('\x00', '\xff');
-  await db.close();
-  console.log(`Pack expedition-tables created successfully with ${OFFICIAL_DAVOKAR_MISHAPS.length} results!`);
-
-  return { tableDoc, fullResults };
+    await db.compactRange('\x00', '\xff');
+  } finally {
+    await db.close();
+  }
+  return tables;
 }
 
-buildTablePack().catch(err => {
-  console.error('Error building table pack:', err);
-  process.exit(1);
-});
+module.exports = { buildTablePack };
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  const output = args.length === 2 && args[0] === '--output' ? args[1] : null;
+  buildTablePack(output).then(tables => console.log(`Compêndio gerado: ${tables.length} tabelas.`)).catch(error => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}

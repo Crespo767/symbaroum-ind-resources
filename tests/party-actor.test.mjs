@@ -482,7 +482,7 @@ test("detectBushcraftTier extracts level from system.level or name", async () =>
   assert.equal(resEng.level, 1);
 });
 
-test("calculateOrientationTarget calculates target and bounds to minimum 1", async () => {
+test("calculateOrientationTarget calculates the unbounded target before native roll options", async () => {
   const { calculateOrientationTarget } = await import("../scripts/party-actor.mjs");
 
   // Vigilant 15 in Bright Davokar with Mateiro 1 -> target 15
@@ -499,11 +499,11 @@ test("calculateOrientationTarget calculates target and bounds to minimum 1", asy
     target: 8
   });
 
-  // Vigilant 5 in Dark Davokar without Mateiro (penalty -5) -> target 1
+  // No unconditional minimum: native system options determine the effective bounds.
   assert.deepEqual(calculateOrientationTarget(5, 0, "dark"), {
     baseVigilant: 5,
     penalty: -5,
-    target: 1
+    target: 0
   });
 });
 
@@ -521,10 +521,10 @@ test("evaluateOrientationRoll classifies Great Success, Normal Success and Failu
   assert.equal(great.neutralDetection, true);
   assert.equal(great.mishap, false);
 
-  // Great Success on natural 1 (target 4, roll 1 -> margin 3, but roll 1)
+  // A natural 1 with margin 3 grants the normal event benefits only.
   const nat1 = evaluateOrientationRoll(1, 4);
-  assert.equal(nat1.verdict, "greatSuccess");
-  assert.equal(nat1.greatSuccess, true);
+  assert.equal(nat1.verdict, "success");
+  assert.equal(nat1.greatSuccess, false);
 
   // Normal Success (target 15, roll 13 -> margin 2)
   const normal = evaluateOrientationRoll(13, 15);
@@ -563,7 +563,8 @@ test("Template and Stylesheet include orientation panel, buttons and chat card s
 
 test("PartyActorSheet._onRollOrientation updates dayState after dice roll and posts chat card", async () => {
   globalThis.game = globalThis.game ?? {};
-  globalThis.game.user = globalThis.game.user ?? { isGM: true, id: "u1" };
+  globalThis.game.user = { isGM: true, id: "u1", active: true };
+  globalThis.game.users = { get: id => id === "u1" ? game.user : null };
   globalThis.game.settings = globalThis.game.settings ?? { get: () => false };
   globalThis.game.i18n = globalThis.game.i18n ?? { localize: (k) => k, format: (k, d) => k };
   let sentMessages = [];
@@ -582,9 +583,10 @@ test("PartyActorSheet._onRollOrientation updates dayState after dice roll and po
   const mockPartyActor = {
     id: "p1",
     uuid: "Actor.p1",
+    documentName: "Actor", type: "symbaroum-ind-resources.party", isOwner: true,
     system: {
       location: { region: "bright" },
-      expedition: { guideId: "guide-1" }
+      expedition: { guideId: "guide-1", active: true }
     },
     update: async (data) => {
       updates.push(data);
@@ -610,6 +612,8 @@ test("PartyActorSheet._onRollOrientation updates dayState after dice roll and po
       { type: "boon", name: "Mateiro", system: { reference: "bushcraft", level: 1 } }
     ]
   };
+  globalThis.fromUuid = async uuid => uuid === mockPartyActor.uuid ? mockPartyActor : null;
+  globalThis.game.actors = new Map([[mockGuide.id, mockGuide]]);
   sheet._resolveActor = (id) => (id === "guide-1" ? mockGuide : null);
 
   await sheet._onRollOrientation();
@@ -617,7 +621,7 @@ test("PartyActorSheet._onRollOrientation updates dayState after dice roll and po
   assert.equal(callSequence[0], "chatMessage");
   assert.equal(callSequence[1], "actorUpdate");
   assert.equal(updates.length, 1);
-  const orientData = updates[0]["system.expedition.dayState.orientation"];
+  const orientData = updates[0]["system.expedition.dayState.==orientation"];
   assert.ok(orientData);
   assert.equal(orientData.rolled, true);
   assert.equal(orientData.target, 15);
@@ -732,7 +736,9 @@ test("isDavokarMishapsTable strictly rejects military tables and accepts Davokar
 
   // Aceitações obrigatórias
   assert.equal(isDavokarMishapsTable("Tabela 25 - Infortúnios na Davokar"), true);
-  assert.equal(isDavokarMishapsTable("Tabela 25"), true);
+  assert.equal(isDavokarMishapsTable("Tabela 25"), true); // nome legado isolado
+  assert.equal(isDavokarMishapsTable("Tabela 25 - Guias dos Ermos"), false);
+  assert.equal(isDavokarMishapsTable("Table 25 - Wilderness Guides"), false);
   assert.equal(isDavokarMishapsTable("Infortúnios na Davokar"), true);
   assert.equal(isDavokarMishapsTable("Table 25 - Mishaps in Davokar"), true);
 });
@@ -762,7 +768,7 @@ test("resolveMishapsTable ignores Tabela 18 do Exército and auto-creates Tabela
   assert.notEqual(resolved?.id, "tbl-exercito");
   // Deve ter auto-criado a Tabela 25 oficial
   assert.equal(resolved?.id, "tbl-auto-created");
-  assert.equal(createdTableData?.name, "Tabela 25 - Infortúnios na Davokar");
+  assert.equal(createdTableData?.name, "Infortúnios na Davokar");
   assert.equal(createdTableData?.results?.length, 30);
 });
 
@@ -855,7 +861,7 @@ test("PartyActorSheet._onStartExpedition starts expedition and initializes day 1
 
   assert.equal(updatedData["system.expedition.active"], true);
   assert.equal(updatedData["system.expedition.day"], 1);
-  assert.equal(updatedData["system.expedition.dayState.orientation"], null);
+  assert.equal(updatedData["system.expedition.==dayState"].orientation, null);
 });
 
 test("PartyActorSheet._onNextExpeditionDay increments day and resets orientation", async () => {
@@ -873,7 +879,7 @@ test("PartyActorSheet._onNextExpeditionDay increments day and resets orientation
 
   assert.equal(updatedData["system.expedition.active"], true);
   assert.equal(updatedData["system.expedition.day"], 3);
-  assert.equal(updatedData["system.expedition.dayState.orientation"], null);
+  assert.equal(updatedData["system.expedition.==dayState"].orientation, null);
 });
 
 test("PartyActorSheet._onPrevExpeditionDay decrements day down to 1", async () => {
@@ -984,15 +990,16 @@ test("PartyActorSheet getData formats expedition.rations correctly", async () =>
   assert.equal(m2.isFed, false);
 });
 
-test("PartyActorSheet feeding methods update dayState.rations", async () => {
+test("PartyActorSheet feeding methods delegate consumption and persistence to the ration service", async () => {
   const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
   const { RationService } = await import("../scripts/rations.mjs");
 
-  // Stub RationService.consumeDay
-  const originalConsumeDay = RationService.consumeDay;
-  const originalGetState = RationService.getState;
-  RationService.consumeDay = async () => true;
-  RationService.getState = () => ({ totalUsesRemaining: 10, name: "Pão de Viagem" });
+  const calls = [];
+  const originalFeed = RationService.feedExpedition;
+  RationService.feedExpedition = async (party, memberIds, source) => {
+    calls.push({ party, memberIds, source });
+    return { status: "fed", count: memberIds.length };
+  };
 
   try {
     let updatedData = null;
@@ -1012,14 +1019,13 @@ test("PartyActorSheet feeding methods update dayState.rations", async () => {
 
     // Feed member from group
     await sheet._onFeedMemberGroup("m1");
-    assert.equal(updatedData["system.expedition.dayState.rations.m1"].fed, true);
-    assert.equal(updatedData["system.expedition.dayState.rations.m1"].source, "group");
+    assert.deepEqual(calls[0], { party: mockActor, memberIds: ["m1"], source: "group" });
+    assert.equal(updatedData, null, "the sheet must not write a result that bypasses the authority");
 
     // Feed member personal
     updatedData = null;
     await sheet._onFeedMemberPersonal("m1");
-    assert.equal(updatedData["system.expedition.dayState.rations.m1"].fed, true);
-    assert.equal(updatedData["system.expedition.dayState.rations.m1"].source, "personal");
+    assert.deepEqual(calls[1], { party: mockActor, memberIds: ["m1"], source: "personal" });
 
     // Toggle feed member
     updatedData = null;
@@ -1027,8 +1033,7 @@ test("PartyActorSheet feeding methods update dayState.rations", async () => {
     await sheet._onToggleFeedMember("m1");
     assert.equal(updatedData["system.expedition.dayState.rations.m1"], null);
   } finally {
-    RationService.consumeDay = originalConsumeDay;
-    RationService.getState = originalGetState;
+    RationService.feedExpedition = originalFeed;
   }
 });
 
@@ -1070,6 +1075,7 @@ test("RationService.consumeDay marks character as fed in active party expedition
 
   globalThis.game = {
     actors: [mockParty, mockActor],
+    user: { id: "gm", isGM: true, active: true },
     i18n: {
       localize: (k) => k,
       format: (k) => k
@@ -1232,7 +1238,7 @@ test("PartyActorSheet Step 3 actions: activeSearch toggle, table change, reset e
   const mockPartyActor = {
     id: "party-3",
     uuid: "Actor.party-3",
-    type: "symbaroum-ind-resources.party",
+    documentName: "Actor", isOwner: true, type: "symbaroum-ind-resources.party",
     system: {
       location: { region: "bright" },
       expedition: {
@@ -1256,6 +1262,9 @@ test("PartyActorSheet Step 3 actions: activeSearch toggle, table change, reset e
     }
   };
 
+  game.user = { id: "event-gm", isGM: true, active: true };
+  game.users = { get: id => id === game.user.id ? game.user : null };
+  globalThis.fromUuid = async uuid => uuid === mockPartyActor.uuid ? mockPartyActor : null;
   const sheet = new PartyActorSheet(mockPartyActor);
   sheet.render = () => {};
   Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });
@@ -1272,7 +1281,8 @@ test("PartyActorSheet Step 3 actions: activeSearch toggle, table change, reset e
   // Reset single event
   updatedData = null;
   await sheet._onResetSingleEvent("ruins");
-  assert.deepEqual(updatedData["system.expedition.dayState.events"], {});
+  assert.equal(updatedData["system.expedition.dayState.events.-=ruins"], null);
+  assert.equal(updatedData["flags.symbaroum-ind-resources.expedition.dayState.events.-=ruins"], null);
 });
 
 test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event results", async () => {
@@ -1292,7 +1302,7 @@ test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event
     const mockPartyActor = {
       id: "party-roll",
       uuid: "Actor.party-roll",
-      type: "symbaroum-ind-resources.party",
+      documentName: "Actor", isOwner: true, type: "symbaroum-ind-resources.party",
       system: {
         location: { region: "bright" },
         expedition: {
@@ -1309,6 +1319,10 @@ test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event
       update: async (data) => data
     };
 
+    game.user = { id: "event-gm", isGM: true, active: true };
+    game.users = { get: id => id === game.user.id ? game.user : null };
+    game.settings = { get: () => false };
+    globalThis.fromUuid = async uuid => uuid === mockPartyActor.uuid ? mockPartyActor : null;
     const sheet = new PartyActorSheet(mockPartyActor);
     sheet.render = () => {};
     Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });
@@ -1342,7 +1356,7 @@ test("PartyActorSheet._onRollAllEvents respects inactive activeSearch from flags
     const mockPartyActor = {
       id: "party-roll-inactive",
       uuid: "Actor.party-roll-inactive",
-      type: "symbaroum-ind-resources.party",
+      documentName: "Actor", isOwner: true, type: "symbaroum-ind-resources.party",
       system: {
         location: { region: "wild" },
         expedition: {
@@ -1362,6 +1376,10 @@ test("PartyActorSheet._onRollAllEvents respects inactive activeSearch from flags
       update: async (data) => data
     };
 
+    game.user = { id: "event-gm", isGM: true, active: true };
+    game.users = { get: id => id === game.user.id ? game.user : null };
+    game.settings = { get: () => false };
+    globalThis.fromUuid = async uuid => uuid === mockPartyActor.uuid ? mockPartyActor : null;
     const sheet = new PartyActorSheet(mockPartyActor);
     sheet.render = () => {};
     Object.defineProperty(sheet, "isEditable", { value: true, configurable: true });

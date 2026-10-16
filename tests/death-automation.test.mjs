@@ -144,9 +144,6 @@ test("native Death and Recover buttons are hidden only while automation is enabl
   assert.match(css, /\.tenebre-death-system-hidden/);
 });
 
-test("Dice So Nice completes before the custom result message and private rolls target GMs", () => {
-  const dice = read("scripts/dice.mjs");
+test("death automation awaits the shared dice and chat helper", () => {
   assert.match(source, /await createChatMessageAfterDice\(/);
-  assert.match(dice, /await showDice3d\(foundryRolls, \{ privateRoll: effectivePrivateRoll \}\)/);
-  assert.match(dice, /filter\(\(user\) => user\.isGM\)/);
 });

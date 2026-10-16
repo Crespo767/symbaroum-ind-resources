@@ -19,7 +19,7 @@ for (const file of files) {
   process.exit(1);
 }
 
-console.log(`Syntax validation passed (${files.length} ES modules).`);
+console.log(`Syntax validation passed (${files.length} JavaScript modules).`);
 
 function collectModules(directory) {
   if (!fs.existsSync(directory)) return [];
@@ -27,7 +27,7 @@ function collectModules(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...collectModules(absolutePath));
-    else if (entry.isFile() && entry.name.endsWith(".mjs")) files.push(absolutePath);
+    else if (entry.isFile() && /\.(mjs|cjs)$/.test(entry.name)) files.push(absolutePath);
   }
   return files;
 }
