@@ -2,7 +2,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { SocketService, getRequestUser, hasOwnerPermission } from "./sockets.mjs";
 import { getActorExpeditionData, expeditionDayKey, runExpeditionOperation } from "./expedition-state.mjs";
 import { actorReference } from "./actor-references.mjs";
-import { expeditionTravel, partyTravelPreview, resolvePartyTravelActors, journeyContextKey, TRAVEL_MODES, travelMount, travelMountKey, findTravelParties } from "./travel-context.mjs";
+import { expeditionTravel, partyTravelPreview, resolvePartyTravelActors, journeyContextKey, TRAVEL_MODES, findTravelParties } from "./travel-context.mjs";
 import { rollExpeditionAttribute } from "./expedition-orientation.mjs";
 import { HungerService } from "./hunger.mjs";
 import { getRollMode, getRollVisibility, evaluateRoll, createChatMessageAfterDice } from "./dice.mjs";
@@ -48,22 +48,12 @@ async function request(context, uuid, day) {
 async function setTravelAsAuthority(uuid, day, config) {
   const { user, party } = await request(this, uuid, day);
   if (!user.isGM && !hasOwnerPermission(party, user)) throw new Error("Journey party is not owned.");
-  if (!config || !TRAVEL_MODES.includes(config.mode) || !["travel", "stay"].includes(config.activity) || typeof config.alongRiver !== "boolean" || typeof config.site !== "string" || config.site.length > 200 || !Array.isArray(config.participantRefs) || config.participantRefs.length > 100 || config.participantRefs.some(r => typeof r !== "string" || r.length > 300) || typeof config.searchRule !== "boolean") throw new Error("Invalid journey configuration.");
+  if (!config || !TRAVEL_MODES.includes(config.mode) || !["travel", "stay"].includes(config.activity) || typeof config.alongRiver !== "boolean" || typeof config.site !== "string" || config.site.length > 200) throw new Error("Invalid journey configuration.");
   return runExpeditionOperation(party, async () => {
     if (expeditionDayKey(party) !== day) return { status: "stale" };
-    const actors = await resolvePartyTravelActors(party), allowed = new Set(actors.map(actorReference));
-    if (config.participantRefs.some(ref => !allowed.has(ref))) throw new Error("Journey participant is not in the party.");
-    const mounts = {};
-    for (const ref of config.participantRefs) {
-      const mount = travelMount(config, ref);
-      if (mount) {
-        if (typeof mount !== "string" || !allowed.has(mount) || mount === ref) throw new Error("Invalid journey mount.");
-        mounts[travelMountKey(ref)] = mount;
-      }
-    }
     const previous = expeditionTravel(party);
     const stored = { mode: config.mode, activity: config.activity, alongRiver: config.alongRiver,
-      site: config.site.trim(), participantRefs: [...new Set(config.participantRefs)], mounts, searchRule: config.searchRule,
+      site: config.site.trim(),
       dailyEnemiesWhileStaying: config.dailyEnemiesWhileStaying !== false, configured: true,
       stayStartDay: config.activity === "stay" && previous.activity === "stay" && previous.site === config.site.trim() ? previous.stayStartDay ?? Number(getActorExpeditionData(party).day) : Math.max(1, Number(getActorExpeditionData(party).day) || 1), revision: id() };
     await party.update({ [`flags.${MODULE_ID}.expedition.==travel`]: stored });
@@ -87,7 +77,7 @@ async function resolveAsAuthority(uuid, day, expectedContext, kind, rollMode, ex
     const existing = await readPrivateExpeditionResult(exp.dayState.journey?.[kind], party, kind);
     if (existing?.context === expectedContext && (kind !== "detection" || existing.parentRevision === exp.dayState.events?.encounters?.revision && existing.orientationRevision === exp.dayState.orientation?.revision)) return { status: "alreadyResolved" };
     if (existing?.applied?.length || kind === "effort" && existing && actors.some(a => { const r = a.flags?.[MODULE_ID]?.journeyReceipt; return r?.party === uuid && r.day === day && r.revision === existing.revision; })) throw new Error("Applied effort cannot be rerolled.");
-    if (!preview.config.configured || !preview.profiles.length) throw new Error("Configure journey participants first.");
+    if (!preview.config.configured || !preview.profiles.length) throw new Error("Configure the group journey first.");
     if (kind === "effort" && (preview.config.activity !== "travel" || preview.blocked)) throw new Error("Journey is blocked or not travelling.");
     let audience = visibility(rollMode, user), result, rolls = [], detectionSources = null;
     if (kind === "effort") {

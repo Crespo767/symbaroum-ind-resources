@@ -352,6 +352,31 @@ function prepareGuide() {
   };
 }
 
+test("orientation cannot use an old guide when private storage creation changes the party guide", async () => {
+  prepareForestGuide(2,"wild");
+  const create=CompendiumCollection.createCompendium;
+  CompendiumCollection.createCompendium=async metadata => {
+    const pack=await create(metadata);
+    party.system.expedition.guideId=companion.id;
+    return pack;
+  };
+  assert.equal((await orientation(player,"blindroll")).status,"stale");
+  assert.equal(chat.length,0);
+  assert.equal(party.system.expedition.dayState.orientation,undefined);
+});
+
+test("orientation prepared under an old group composition is rejected before publication", async () => {
+  prepareForestGuide(2,"wild");
+  game.symbaroum={api:{async baseRoll() {
+    party.system.companions=["removed-companion"];
+    const roll=new Roll("1d20");roll.total=10;
+    return {diceResult:10,diceTarget:15,hasSucceed:true,rolls:[roll]};
+  }}};
+  assert.equal((await orientation()).status,"stale");
+  assert.equal(chat.length,0);
+  assert.equal(party.system.expedition.dayState.orientation,undefined);
+});
+
 test("guide owner rolls through the GM without ownership of the party", async () => {
   prepareGuide(); party.testUserPermission = user => user.isGM;
   assert.equal((await orientation()).status, "rolled");
@@ -519,6 +544,28 @@ test("no Bushcraft in Davokar is rejected before dice, chat or storage writes", 
   assert.equal(party.system.expedition.dayState.orientation, undefined);
 });
 
+test("wild orientation failure rolls the separate +5 mishap through the selected table exactly once", async () => {
+  prepareForestGuide(2,"wild");
+  let draws=0;
+  const table={id:"mishaps",async draw({roll,displayChat}) {
+    draws++;assert.equal(roll.formula,"1d20 + 5");assert.equal(displayChat,false);
+    return {roll,results:[{text:"An incident"}]};
+  },async toMessage(results,options) { return {results,...options}; }};
+  game.tables=new Collection([[table.id,table]]);
+  party.system.expedition.tables={mishaps:table.id};
+  game.symbaroum={api:{async baseRoll(_actor,attribute,_a,_b,favour,modifier) {
+    assert.equal(attribute,"vigilant");assert.equal(favour,0);assert.equal(modifier,0);
+    const roll=new Roll("1d20");roll.total=17;
+    return {diceResult:17,diceTarget:15,hasSucceed:false,rolls:[roll]};
+  }}};
+  assert.equal((await orientation()).status,"rolled");
+  assert.equal(draws,1);
+  assert.equal(party.system.expedition.dayState.orientation.rollTotal,17);
+  assert.equal(party.system.expedition.dayState.orientation.target,15);
+  assert.equal(party.system.expedition.dayState.orientation.mishap,true);
+  assert.equal(party.system.expedition.dayState.orientation.ruinsMod,0);
+});
+
 test("underqualified guide avoids mishap without event benefits", async () => {
   prepareForestGuide(1, "wild");
   assert.equal((await orientation()).status, "rolled");
@@ -528,7 +575,7 @@ test("underqualified guide avoids mishap without event benefits", async () => {
   assert.equal(state.ruinsMod, 0);
   assert.equal(state.enemiesMod, 0);
   assert.equal(state.neutralDetection, false);
-  assert.match(chat[0].content, /OrientationAvoidedMishap/);
+  assert.match(chat[0].content, /Infortúnio evitado/);
   assert.doesNotMatch(chat[0].content, /bonus-tag/);
 });
 
@@ -715,8 +762,8 @@ function journeySetup() {
 }
 async function configureJourney(extra = {}, user = gm) {
   return request("setExpeditionTravel", user, party.uuid, expeditionDayKey(party), {
-    mode:"dayMarch", activity:"travel", site:"", alongRiver:false, searchRule:true,
-    participantRefs:[hero.id,companion.id], mounts:{}, ...extra
+    mode:"dayMarch", activity:"travel", site:"", alongRiver:false,
+    ...extra
   });
 }
 function nativeJourneyTest(total, callback) {
@@ -737,11 +784,13 @@ function installEventTable(data) {
   game.tables ??= new Collection(); if (!game.tables.set) game.tables=new Collection(); game.tables.set(table.id,table); return table;
 }
 
-test("journey configuration validates ownership, participant membership and stale days", async () => {
+test("collective journey configuration validates ownership and stale days without trusting individual participant overrides", async () => {
   journeySetup(); party.testUserPermission=user=>user.isGM;
   await assert.rejects(configureJourney({},player),/not owned/);
-  await assert.rejects(configureJourney({participantRefs:["unrelated"]}),/not in the party/);
-  await assert.rejects(configureJourney({mounts:{hero:"unrelated"}}),/Invalid journey mount/);
+  assert.equal((await configureJourney({participantRefs:["unrelated"],mounts:{hero:"unrelated"}})).status,"configured");
+  assert.equal(Object.hasOwn(party.flags[MODULE_ID].expedition.travel,"participantRefs"),false);
+  assert.equal(Object.hasOwn(party.flags[MODULE_ID].expedition.travel,"mounts"),false);
+  assert.deepEqual(partyTravelPreview(party).profiles.map(p=>p.ref),[hero.id,companion.id]);
   assert.equal((await configureJourney()).status,"configured");
   assert.equal(party.flags[MODULE_ID].expedition.travel.configured,true);
   assert.equal(partyTravelPreview(party).rate,20);
@@ -947,10 +996,12 @@ test("manual choices and prepared events are invalidated by a change of journey 
   await assert.rejects(ExpeditionJourneyService.resolve(party,"detection","publicroll"),/No eligible encounter/);
 });
 
-test("travel is rejected before effort when a riding participant has no declared mount", async () => {
+test("collective riding resolves group effort without requiring per-person mount configuration", async () => {
   journeySetup(); await configureJourney({mode:"dayRide"}); nativeJourneyTest(5);
-  await assert.rejects(ExpeditionJourneyService.resolve(party,"effort","publicroll"),/blocked/);
-  assert.equal(chat.length,0);
+  assert.equal((await ExpeditionJourneyService.resolve(party,"effort","publicroll")).status,"rolled");
+  const result=(await journeyData()).effort;
+  assert.deepEqual(result.members.map(m=>m.ref),[hero.id,companion.id]);
+  assert.equal(result.members.every(m=>m.damage===0 && m.effort===0),true);
 });
 
 test("an active trusted player can configure an owned party but cannot apply another actor's effort", async () => {
@@ -1014,4 +1065,32 @@ test("a configuration change during protected storage cannot attach an obsolete 
   };
   assert.equal((await ExpeditionJourneyService.resolve(party,"effort","gmroll")).status,"stale");
   assert.equal(party.system.expedition.dayState.journey,undefined);
+});
+
+test("journey dialog saves collective options without individual controls or changing ruin search", async () => {
+  journeySetup();
+  party.system.expedition.activeSearch=false;
+  const previous = foundry.applications;
+  const sheet = Object.create(PartyActorSheet.prototype);
+  Object.defineProperty(sheet,"isEditable",{value:true});
+  sheet.actor=party; sheet.render=()=>{};
+  const fields={activity:{value:"stay"},site:{value:"Ruína"},mode:{value:"dayRide"},alongRiver:{checked:true},dailyEnemiesWhileStaying:{checked:false}};
+  foundry.applications={api:{DialogV2:{async prompt(config) {
+    assert.doesNotMatch(config.content,/name="searchRule"|data-journey-mount|data-journey-participant/);
+    const root={
+      querySelector(selector) { return fields[selector.match(/name="([^"]+)"/)[1]]; }
+    };
+    return config.ok.callback(null,null,{element:root});
+  }}}};
+  try {
+    await sheet._onConfigureJourney();
+    const config=partyTravelPreview(party).config;
+    assert.equal(config.activity,"stay"); assert.equal(config.site,"Ruína");
+    assert.equal(config.mode,"dayRide"); assert.equal(config.alongRiver,true);
+    assert.equal(Object.hasOwn(config,"searchRule"),false); assert.equal(config.dailyEnemiesWhileStaying,false);
+    assert.equal(Object.hasOwn(config,"participantRefs"),false);
+    assert.equal(Object.hasOwn(config,"mounts"),false);
+    assert.equal(party.system.expedition.activeSearch,false);
+    assert.equal(partyTravelPreview(party).profiles.length,2);
+  } finally { foundry.applications=previous; }
 });

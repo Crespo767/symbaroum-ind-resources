@@ -456,9 +456,8 @@
                         {{#if expedition.journey.config.alongRiver}}<p>{{localize "TENEBRE.Journey.RiverHint"}}</p>{{/if}}
                         {{#if expedition.journey.blocked}}<p>{{localize "TENEBRE.Journey.Blocked"}}</p>{{/if}}
                         {{#if expedition.journey.searchLimited}}<p>{{localize "TENEBRE.Journey.SearchLimited"}}</p>{{/if}}
-                        {{#unless expedition.journey.config.configured}}<p>{{localize "TENEBRE.Journey.ParticipantsHint"}}</p>{{/unless}}
+                        <p>{{localize "TENEBRE.Journey.GroupHint"}}</p>
                         {{#if editable}}<button type="button" data-action="configure-journey"><i class="fas fa-route"></i> {{localize "TENEBRE.Journey.Configure"}}</button>{{/if}}
-                        <ul>{{#each expedition.journey.participants}}<li>{{name}} — {{detail}}</li>{{/each}}</ul>
                         {{#if expedition.journey.isStaying}}<p>{{localize "TENEBRE.Journey.StayPolicy"}}</p>{{/if}}
                         {{#if expedition.journey.config.site}}<p>{{expedition.journey.config.site}} · {{expedition.journey.stayDays}} {{localize "TENEBRE.Travel.Days"}}</p>{{/if}}
                         {{#each expedition.journey.checks}}

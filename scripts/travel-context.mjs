@@ -26,16 +26,16 @@ export function getTravelRate({ terrain = "plains", mode = "dayMarch", alongRive
   return TRAVEL_RATES_KM_PER_DAY[TERRAINS[index]]?.[mode] ?? 20;
 }
 export function expeditionTravel(party) {
-  const raw = getActorExpeditionData(party).travel ?? {};
+  // Ignore os controles antigos: busca pertence ao passo 3 e jornada ao Grupo.
+  const { searchRule: _legacySearchRule, participantRefs: _legacyParticipants, mounts: _legacyMounts, ...raw } = getActorExpeditionData(party).travel ?? {};
   const region = party?.system?.location?.region || "ambria";
   return { ...raw, ...normalizeTravelConfiguration({ ...raw, terrain: { ambria: "plains", bright: "brightDavokar", wild: "brightDavokar", dark: "darkDavokar" }[region] }),
     region, activity: raw.activity === "stay" ? "stay" : "travel", site: String(raw.site ?? ""),
-    searchRule: raw.searchRule !== false, participantRefs: Array.isArray(raw.participantRefs) ? raw.participantRefs : null,
-    mounts: raw.mounts ?? {}, configured: Boolean(raw.configured) };
+    configured: Boolean(raw.configured) };
 }
 export function effectiveExpeditionSearch(party) {
   const travel = expeditionTravel(party);
-  return !travel.searchRule || (Boolean(getActorExpeditionData(party).activeSearch) && TRAVEL_MODES.indexOf(travel.mode) % 3 === 0 && travel.activity === "travel");
+  return Boolean(getActorExpeditionData(party).activeSearch) && TRAVEL_MODES.indexOf(travel.mode) % 3 === 0 && travel.activity === "travel";
 }
 export function partyTravelReferences(party) {
   const exp = getActorExpeditionData(party);
@@ -46,30 +46,29 @@ export async function resolvePartyTravelActors(party) {
   return (await Promise.all(partyTravelReferences(party).map(resolveActorReference))).filter(Boolean);
 }
 export function hasEnduringMarch(actor) { return orientationBoon(actor, ["enduring march", "enduringmarch", "marcha duradoura"]).level > 0; }
-export function travelMountKey(ref) { return encodeURIComponent(ref).replaceAll(".", "%2E"); }
-export function travelMount(config, ref) { return config.mounts?.[travelMountKey(ref)] ?? config.mounts?.[ref] ?? ""; }
-export function actorTravelProfile(actor, config, mount = null) {
+export function actorTravelProfile(actor, config, mount = null, { collective = false } = {}) {
   const riding = config.mode.endsWith("Ride");
+  // Na cavalgada coletiva, o modo presume montarias disponíveis ao grupo.
+  // Sem vínculos individuais, não atribua ao cavalo a carga ou Fome do cavaleiro.
+  const collectiveRide = collective && riding;
   const carrier = riding ? mount : actor;
   const load = carrier && travelSetting("enableEncumbrance") && travelSetting("enableMovementEncumbranceModifier") ? EncumbranceService.calculateLoad(carrier) : {};
   const hungry = Boolean(carrier && travelSetting("enableMovementHungerModifier") && globalThis.game?.settings && HungerService.hasHunger(carrier));
   const pace = TRAVEL_MODES.indexOf(config.mode) % 3;
   const incapacitated = Boolean(carrier && isDeathIncapacitated(carrier));
-  const blocked = incapacitated || !carrier || Boolean(load.isImmobilized) || (Boolean(load.isOverloaded) && pace === 2);
+  const blocked = incapacitated || (!carrier && !collectiveRide) || Boolean(load.isImmobilized) || (Boolean(load.isOverloaded) && pace === 2);
   const effort = Math.min(2, pace + (load.isOverloaded ? 1 : 0));
   return { ref: actorReference(actor), name: actor?.name ?? "", mountRef: actorReference(mount) ?? "",
-    hungry, incapacitated, overload: Number(load.overload) || 0, blocked, missingMount: riding && !mount,
+    hungry, incapacitated, overload: Number(load.overload) || 0, blocked, missingMount: riding && !mount && !collectiveRide,
     effort, enduring: hasEnduringMarch(actor), rate: blocked ? 0 : getTravelRate(config) * (hungry ? 0.5 : 1) };
 }
 export function partyTravelPreview(party, actors = partyTravelReferences(party).map(resolveActorReferenceSync).filter(Boolean)) {
   const config = expeditionTravel(party);
   const byRef = new Map(actors.map(a => [actorReference(a), a]));
-  const selected = config.participantRefs ?? [...byRef.keys()];
-  const mounts = new Set(Object.values(config.mounts));
-  const profiles = selected.map(ref => {
-    const actor = byRef.get(ref);
-    return actor ? actorTravelProfile(actor, config, byRef.get(travelMount(config, ref)) ?? (mounts.has(ref) ? actor : null)) : { ref, name: ref, blocked: true, rate: 0, missingActor: true };
-  });
+  const profiles = [...byRef.values()].map(actor => actorTravelProfile(actor, config, null, { collective: true }));
+  for (const ref of partyTravelReferences(party)) {
+    if (!actors.some(a => actorReference(a) === ref || a.uuid === ref)) profiles.push({ ref, name: ref, blocked: true, rate: 0, missingActor: true });
+  }
   const rate = config.activity === "stay" || !profiles.length ? 0 : Math.min(...profiles.map(p => p.rate));
   return { config, profiles, rate, activeSearch: effectiveExpeditionSearch(party),
     blocked: config.activity === "travel" && (!profiles.length || profiles.some(p => p.blocked)),

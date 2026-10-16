@@ -2,6 +2,8 @@
 
 Implementação de 15/10/2026 no código instalado. Sem alteração de versão, identidade ou compatibilidade declarada. **Implementada e verificada localmente; aceitação em sessões reais do Foundry pendente.**
 
+Revisão posterior de 16/10/2026: [conferência de regras, correções técnicas e novo cartão de orientação](EXPEDICOES-REVISAO-ORIENTACAO-E-CHAT.md). O registro abaixo preserva a entrega original; a revisão posterior está incluída na versão 0.18.46.
+
 ## Mecânica corrigida
 
 - Em Davokar, nível zero de Mateiro impede a tentativa; a interface informa o motivo sem gerar um teste fictício. Isso não implementa a resolução automática de um dia sem guia elegível.

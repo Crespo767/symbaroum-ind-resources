@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
+import fs from "node:fs";
 
 globalThis.Hooks = { once() {}, on() {} };
 const { orientationRequirements, orientationBoon, orientationContext, rollOrientationTest } = await import("../scripts/expedition-orientation.mjs");
-const { evaluateOrientationRoll, calculateDavokarEventModifiers } = await import("../scripts/party-actor.mjs");
+const { evaluateOrientationRoll, calculateDavokarEventModifiers, calculateBushcraftPenalty, getMishapsModifier, buildOrientationChatHtml } = await import("../scripts/party-actor.mjs");
 const { expeditionReadKey, sealExpeditionRead, openExpeditionRead } = await import("../scripts/expedition-private.mjs");
 
 let settings;
@@ -124,4 +125,57 @@ test("disabled or suppressed Hunger has no effect on orientation or the shared H
 test("an incompatible native API result is rejected instead of persisting an invalid target", async () => {
   game.symbaroum = { api: { baseRoll: async () => ({ hasSucceed: true }) } };
   await assert.rejects(rollOrientationTest({}, 0, 0), /Invalid native orientation test result/);
+});
+
+test("GM p92: every regional penalty is distinct from event and mishap modifiers", () => {
+  for(const [region, penalties, event, mishap] of [["bright",[0,0,0],0,0],["wild",[-3,0,0],2,5],["dark",[-5,-3,0],5,10]]) {
+    for(let level=1;level<=3;level++) assert.equal(calculateBushcraftPenalty(level,region),penalties[level-1]);
+    assert.equal(calculateDavokarEventModifiers({regionKey:region}).regionMod,event);
+    assert.equal(getMishapsModifier(region),mishap);
+  }
+});
+
+function orientationCard({ level=2, regionKey="wild", rollVal=17, target=15, activeSearch=true, context, guideActor }={}) {
+  const locale=JSON.parse(fs.readFileSync(new URL("../languages/pt-BR.json",import.meta.url),"utf8"));
+  game.i18n={localize:key=>locale[key]??key,format:(key,data)=>String(locale[key]??key).replace(/\{(\w+)\}/g,(_m,k)=>data[k]??"")};
+  return buildOrientationChatHtml({regionKey,rollVal,target,activeSearch,guideActor:guideActor??{name:"Odan",img:"actor.webp"},
+    bushcraft:{hasBushcraft:true,level,levelRoman:["","I","II","III"][level],baseVigilant:15,penalty:calculateBushcraftPenalty(level,regionKey),context},
+    evalResult:evaluateOrientationRoll(rollVal,target,orientationRequirements(level,regionKey))});
+}
+
+test("the reported Odan case explains 17 versus 15 and the wild mishap without claiming the party is Lost", () => {
+  const html=orientationCard();
+  assert.match(html,/Alvo final<\/span><strong>15/);
+  assert.match(html,/Resultado<\/span><strong>17/);
+  assert.match(html,/Resultado 17; para passar, precisava de 15 ou menos/);
+  assert.match(html,/Infortúnio: 1d20 \+ 5/);
+  assert.match(html,/não aplica o efeito Perdido/);
+  assert.doesNotMatch(html,/Desorientado|Modificador circunstancial|Detecção Antecipada|&bull;/);
+});
+
+test("successful orientation never promises ruins benefits when search is inactive or automatic detection", () => {
+  const html=orientationCard({rollVal:10,activeSearch:false});
+  assert.match(html,/Margem de sucesso: 5/);
+  assert.match(html,/Inimigos: -2/);assert.match(html,/Terreno: -2/);
+  assert.match(html,/Ruínas: sem bônus/);
+  assert.match(html,/A detecção não é automática/);
+  assert.doesNotMatch(html,/Ruínas: \+2|Infortúnio: 1d20/);
+});
+
+test("insufficient Bushcraft success shows the -3 penalty and avoidance without event bonuses", () => {
+  const html=orientationCard({level:1,rollVal:10,target:12});
+  assert.match(html,/Mateiro insuficiente para a região<\/dt><dd>-3/);
+  assert.match(html,/Infortúnio evitado/);
+  assert.doesNotMatch(html,/Inimigos: -1|Ruínas: \+2|Infortúnio: 1d20/);
+});
+
+test("chat separates prepared bonuses, system limits and human-readable chances and escapes names", () => {
+  const context={bonus:0,bonuses:[{name:"Cartógrafo <script>",additional:0}],circumstanceModifier:10,favour:1,pathfinder:true};
+  let html=orientationCard({rollVal:1,target:19,context,guideActor:{name:'<img onerror="bad">',img:'actor".webp'}});
+  assert.match(html,/Já incluído em Vigilante/);
+  assert.match(html,/Ajuste do sistema ao alvo<\/dt><dd>-6/);
+  assert.match(html,/2d20: usa o menor resultado · Desbravador/);
+  assert.match(html,/Cartógrafo &lt;script&gt;/);assert.doesNotMatch(html,/<script>|<img onerror=|2d20kl/);
+  html=orientationCard({context:{favour:-1}});
+  assert.match(html,/2d20: usa o maior resultado · Fome/);
 });

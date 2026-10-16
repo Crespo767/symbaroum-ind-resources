@@ -631,11 +631,11 @@ test("PartyActorSheet._onRollOrientation updates dayState after dice roll and po
   const sentMessage = sentMessages.find(m => m.flags?.["symbaroum-ind-resources"]?.orientationCheck) || sentMessages[0];
   assert.ok(sentMessage);
   assert.match(sentMessage.content, /class="symbaroum chat ability tenebre-orientation-chat"/);
-  assert.match(sentMessage.content, /class="tenebre-berserker-participants"/);
-  assert.match(sentMessage.content, /class="tenebre-attribute-test-title"/);
-  assert.match(sentMessage.content, /orienta a expedição em/);
+  assert.match(sentMessage.content, /class="tenebre-orientation-heading"/);
+  assert.match(sentMessage.content, /<h3>Orientação<\/h3>/);
+  assert.match(sentMessage.content, new RegExp(`Resultado ${orientData.rollTotal}; para passar, precisava de ${orientData.target} ou menos`));
   assert.doesNotMatch(sentMessage.content, /\[Davokar.*\((\+|-|±)\d+\)/);
-  assert.match(sentMessage.content, /icons\/environment\/wilderness\/tree-ash\.webp/);
+  assert.match(sentMessage.content, /Davokar Iluminada · Mateiro I/);
 
   await sheet._onResetOrientation();
   assert.equal(updates.length, 2);

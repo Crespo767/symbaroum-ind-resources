@@ -35,11 +35,23 @@ test("wild Davokar keeps its own region while sharing the bright speed column", 
   assert.equal(partyTravelPreview(party).rate,20);
   assert.equal(calculateDavokarEventModifiers({regionKey:"wild",alongRiver:true}).terrain.totalMod,4);
 });
-test("active search is effective only at normal pace and respects the adopted optional rule", () => {
+test("active search is controlled by step 3 and effective only at normal travelling pace", () => {
   for (const mode of ["dayMarch","dayRide"]) { config({mode}); assert.equal(effectiveExpeditionSearch(party),true); }
   for (const mode of ["forcedMarch","mortalMarch","forcedRide","mortalRide"]) { config({mode}); assert.equal(effectiveExpeditionSearch(party),false); }
-  config({ mode:"forcedMarch",searchRule:false }); assert.equal(effectiveExpeditionSearch(party),true);
   config({ activity:"stay" }); assert.equal(effectiveExpeditionSearch(party),false);
+});
+
+test("a legacy disabled search rule cannot override step 3 or bypass pace restrictions", () => {
+  config({searchRule:false});
+  party.system.expedition.activeSearch=false;
+  assert.equal(effectiveExpeditionSearch(party),false);
+  assert.equal(calculateDavokarEventModifiers({regionKey:"bright",activeSearch:effectiveExpeditionSearch(party),orientationVerdict:"success"}).ruins.searchMod,-5);
+  party.system.expedition.activeSearch=true;
+  assert.equal(effectiveExpeditionSearch(party),true);
+  config({mode:"forcedMarch",searchRule:false});
+  assert.equal(effectiveExpeditionSearch(party),false);
+  config({activity:"stay",searchRule:false});
+  assert.equal(effectiveExpeditionSearch(party),false);
 });
 test("hunger halves both standalone and shared journey estimates and honours its setting", () => {
   hero.effects.push({ statuses:new Set(["hunger"]) });
@@ -61,18 +73,34 @@ test("overload raises effort but never speed; excessive load and true mortal pac
   settings.enableMovementEncumbranceModifier=true; hero.items=[]; burden(hero,21); config();
   assert.equal(partyTravelPreview(party).rate,0);
 });
-test("mounted speed uses the explicitly selected mount; an absent mount is not inferred from actor type", () => {
-  config({mode:"dayRide"}); assert.equal(partyTravelPreview(party).blocked,true);
+test("collective riding uses one group pace without individual mount bindings or rider load assigned to horses", () => {
+  config({mode:"dayRide"}); assert.equal(partyTravelPreview(party).blocked,false);
   hero.effects.push({statuses:new Set(["hunger"])});
+  burden(hero,21);
   config({mode:"dayRide",mounts:{hero:"mount"}}); assert.equal(partyTravelPreview(party).rate,30);
-  mount.effects.push({statuses:new Set(["hunger"])}); assert.equal(partyTravelPreview(party).rate,15);
+  mount.effects.push({statuses:new Set(["hunger"])}); assert.equal(partyTravelPreview(party).rate,30);
   config({mode:"dayRide",participantRefs:[hero.id,mount.id],mounts:{hero:"mount"}});
   assert.equal(partyTravelPreview(party).blocked,false);
+  assert.equal(partyTravelPreview(party).profiles.every(p=>p.effort===0),true);
 });
-test("explicit participants determine the slowest pace, without monster-type exclusions", () => {
+test("party membership determines the collective pace automatically, ignoring legacy individual selection", () => {
   mount.type="monster"; mount.effects.push({statuses:new Set(["hunger"])});
   config({participantRefs:[hero.id,mount.id]}); assert.equal(partyTravelPreview(party).rate,10);
-  config({participantRefs:[hero.id]}); assert.equal(partyTravelPreview(party).rate,20);
+  config({participantRefs:[hero.id]}); assert.equal(partyTravelPreview(party).rate,10);
+  const context=journeyContextKey(party);
+  config({participantRefs:["unrelated"],mounts:{hero:"missing"}});
+  assert.equal(journeyContextKey(party),context,"obsolete selections must not change the collective context");
+  party.system.companions=[];
+  assert.equal(partyTravelPreview(party).rate,20);
+  assert.notEqual(journeyContextKey(party),context,"a real membership change invalidates prepared results");
+});
+
+test("group membership deduplicates guide references and blocks stale actor links instead of silently omitting them", () => {
+  party.system.expedition.guideUuid=hero.uuid;
+  assert.equal(partyTravelPreview(party).profiles.length,2);
+  party.system.members.push("missing");
+  assert.equal(partyTravelPreview(party).blocked,true);
+  assert.equal(partyTravelPreview(party).profiles.at(-1).missingActor,true);
 });
 test("forced recovery requires Enduring March or a reviewed daily permission", () => {
   config({mode:"forcedMarch"}); assert.equal(naturalRecoveryDuringJourney(hero),false);

@@ -1,11 +1,11 @@
 import { ExpeditionJourneyService } from "./expedition-journey.mjs";
-import { expeditionTravel, effectiveExpeditionSearch, partyTravelReferences, resolvePartyTravelActors, partyTravelPreview, journeyContextKey, TRAVEL_MODES, travelMount } from "./travel-context.mjs";
+import { expeditionTravel, effectiveExpeditionSearch, partyTravelReferences, resolvePartyTravelActors, partyTravelPreview, journeyContextKey, TRAVEL_MODES } from "./travel-context.mjs";
 import { MODULE_ID, CANONICAL_EXPEDITION_TABLE_IDS } from "./constants.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice, getRollMode, getRollVisibility } from "./dice.mjs";
-import { escapeHtml } from "./utils.mjs";
+import { escapeHtml, localize, format } from "./utils.mjs";
 import {
   getDavokarMishapsTableData,
   getDavokarRuinsTableData,
@@ -639,122 +639,69 @@ export function buildEventsChatHtml({
 /**
  * Monta o HTML do Card de Chat do Teste de Orientação
  */
-export function buildOrientationChatHtml({
-  guideActor,
-  regionKey = "ambria",
-  bushcraft,
-  rollVal,
-  target,
-  evalResult
-}) {
-  const regionNames = {
-    ambria: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameAmbria") || "Ambria",
-    bright: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameBright") || "Davokar Iluminada",
-    wild: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameWild") || "Davokar Selvagem",
-    dark: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameDark") || "Davokar Escura"
-  };
-  const rawRegion = regionNames[regionKey] || regionKey;
-  const regionName = String(rawRegion).replace(/\s*\([±+\-]\d+\)/, "").trim();
-
-  const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationCardTitle")
-    || "Teste de Orientação em Davokar";
-
-  let verdictTitle = "";
-  let verdictDesc = "";
-  if (evalResult.verdict === "avoidedMishap") {
-    verdictTitle = game.i18n.localize("TENEBRE.Party.OrientationAvoidedMishap");
-    verdictDesc = game.i18n.localize("TENEBRE.Party.OrientationAvoidedMishapDesc");
-  } else if (evalResult.verdict === "greatSuccess") {
-    verdictTitle = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationGreatSuccess") || "Grande Sucesso!";
-    verdictDesc = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationGreatSuccessDesc")
-      || "O guia encontra o caminho com maestria. Concede +2 Ruínas, -2 Inimigos, -2 Terreno e Detecção Antecipada.";
-  } else if (evalResult.verdict === "success") {
-    verdictTitle = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationSuccess") || "Sucesso";
-    verdictDesc = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationSuccessDesc")
-      || "O guia mantém o rumo correto. Concede +2 Ruínas, -1 Inimigos, -1 Terreno e Detecção Antecipada.";
-  } else {
-    verdictTitle = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationFailure") || "Desorientado (Falha)";
-    verdictDesc = globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationFailureDesc")
-      || "O grupo se desorienta nos ermos! Nenhum bônus é concedido e ocorre um Infortúnio na floresta.";
+export function buildOrientationChatHtml({ guideActor, regionKey = "ambria", bushcraft = {}, rollVal, target, evalResult, activeSearch = true }) {
+  const text = (key, fallback) => localize(`TENEBRE.Party.${key}`, fallback);
+  const regionName = text({ ambria: "RegionNameAmbria", bright: "RegionNameBright", wild: "RegionNameWild", dark: "RegionNameDark" }[regionKey] ?? "RegionNameAmbria", {ambria:"Ambria",bright:"Davokar Iluminada",wild:"Davokar Selvagem",dark:"Davokar Escura"}[regionKey] ?? regionKey);
+  const verdict = ["success", "greatSuccess", "avoidedMishap"].includes(evalResult.verdict) ? evalResult.verdict : "failure";
+  const verdictTitle = text({ success: "OrientationSuccess", greatSuccess: "OrientationGreatSuccess", avoidedMishap: "OrientationAvoidedMishap", failure: "OrientationFailure" }[verdict], {success:"Sucesso",greatSuccess:"Grande sucesso",avoidedMishap:"Infortúnio evitado",failure:"Falha"}[verdict]);
+  const bushcraftText = bushcraft.hasBushcraft ? `${text("BushcraftLabel", "Mateiro")} ${bushcraft.levelRoman}` : text("NoBushcraft", "Sem Mateiro");
+  const context = bushcraft.context ?? {};
+  const signed = value => Number(value) > 0 ? `+${Number(value)}` : String(Number(value) || 0);
+  const row = (label, value) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
+  const calculation = [row(localize("ATTRIBUTE.VIGILANT", "Vigilante"), Number(bushcraft.baseVigilant) || 0)];
+  if (bushcraft.penalty) calculation.push(row(text("OrientationInsufficientRank", "Mateiro insuficiente para a região"), signed(bushcraft.penalty)));
+  for (const bonus of context.bonuses ?? []) {
+    calculation.push(row(bonus.name, bonus.additional ? signed(bonus.additional) : text("OrientationAlreadyIncluded", "Já incluído em Vigilante")));
   }
-
-  const bushcraftText = bushcraft.hasBushcraft
-    ? `${globalThis.game?.i18n?.localize?.("TENEBRE.Party.BushcraftLabel") || "Mateiro"} ${bushcraft.levelRoman}`
-    : (globalThis.game?.i18n?.localize?.("TENEBRE.Party.NoBushcraft") || "Sem Mateiro");
-
-  const guideImg = guideActor?.img || "icons/svg/mystery-man.svg";
-  const guideName = guideActor?.name || "Guia";
-  const abilityImg = (bushcraft.item?.img && !bushcraft.item.img.includes("/unknown") && !bushcraft.item.img.endsWith("boon.png"))
-    ? bushcraft.item.img
-    : (bushcraft.hasBushcraft ? "icons/environment/wilderness/tree-ash.webp" : "icons/tools/navigation/compass-plain-blue.webp");
-
-  let bonusesList = "";
+  if (context.circumstanceModifier) calculation.push(row(text("OrientationModifier", "Modificador circunstancial"), signed(context.circumstanceModifier)));
+  const expectedTarget = (Number(bushcraft.baseVigilant) || 0) + (Number(bushcraft.penalty) || 0) + (Number(context.bonus) || 0) + (Number(context.circumstanceModifier) || 0);
+  if (Number(target) !== expectedTarget) calculation.push(row(text("OrientationSystemAdjustment", "Ajuste do sistema ao alvo"), signed(Number(target) - expectedTarget)));
+  const diceLabel = context.favour > 0 ? text("OrientationDiceBest", "2d20: usa o menor resultado") : context.favour < 0 ? text("OrientationDiceWorst", "2d20: usa o maior resultado") : "1d20";
+  const diceReason = context.favour > 0 && context.pathfinder ? text("OrientationPathfinder", "Desbravador") : context.favour < 0 ? localize("TENEBRE.Hunger.EffectName", "Fome") : "";
+  const explanation = format("TENEBRE.Party.OrientationRollComparison", "Resultado {roll}; para passar, precisava de {target} ou menos.", { roll: rollVal, target });
+  const consequences = [];
   if (evalResult.neutralDetection) {
-    bonusesList = `
-      <div class="tenebre-orientation-bonuses">
-        <span class="bonus-tag is-positive"><i class="fas fa-monument"></i> ${globalThis.game?.i18n?.localize?.("TENEBRE.Party.RuinsBonus") || "Ruínas"}: +${evalResult.ruinsMod}</span>
-        <span class="bonus-tag is-positive"><i class="fas fa-skull"></i> ${globalThis.game?.i18n?.localize?.("TENEBRE.Party.EnemiesBonus") || "Inimigos"}: ${evalResult.enemiesMod}</span>
-        <span class="bonus-tag is-positive"><i class="fas fa-mountain"></i> ${globalThis.game?.i18n?.localize?.("TENEBRE.Party.TerrainBonus") || "Terreno"}: ${evalResult.terrainMod}</span>
-        <span class="bonus-tag is-info"><i class="fas fa-binoculars"></i> ${globalThis.game?.i18n?.localize?.("TENEBRE.Party.EarlyDetection") || "Detecção Antecipada"}</span>
-      </div>
-    `;
-  } else if (evalResult.mishap) {
-    bonusesList = `
-      <div class="tenebre-orientation-bonuses is-mishap">
-        <span class="bonus-tag is-negative"><i class="fas fa-exclamation-triangle"></i> Infortúnio na Davokar (Tabela de Infortúnios)</span>
-      </div>
-    `;
+    consequences.push(activeSearch
+      ? `${text("RuinsBonus", "Ruínas")}: ${signed(evalResult.ruinsMod)}`
+      : text("OrientationRuinsInactive", "Ruínas: sem bônus de orientação, pois a busca está inativa."));
+    consequences.push(`${text("EnemiesBonus", "Inimigos")}: ${signed(evalResult.enemiesMod)}`);
+    consequences.push(`${text("TerrainBonus", "Terreno")}: ${signed(evalResult.terrainMod)}`);
+    consequences.push(text("OrientationDetectionTest", "Permite um teste para detectar encontros. A detecção não é automática."));
+  } else if (!evalResult.mishap) {
+    consequences.push(text("OrientationAvoidedMishapDesc", "O guia evita o Infortúnio, mas o nível insuficiente de Mateiro não concede os benefícios nos eventos."));
+  } else {
+    consequences.push(text("OrientationNoBenefits", "Sem benefícios de orientação nos eventos."));
+    const modifier = getMishapsModifier(regionKey);
+    consequences.push(format("TENEBRE.Party.OrientationMishapRoll", "Infortúnio: {formula}. Consulte o resultado da tabela no chat.", { formula: modifier ? `1d20 + ${modifier}` : "1d20" }));
+    consequences.push(text("OrientationNotLost", "A falha, por si só, não aplica o efeito Perdido."));
   }
-
-  const modText = bushcraft.penalty !== 0 ? `${bushcraft.penaltyText}` : "±0";
-  const vigilantLabel = globalThis.game?.i18n?.localize?.("ATTRIBUTE.VIGILANT") || "Vigilante";
-  const contextText = bushcraft.context ? [
-    ...bushcraft.context.bonuses.map(b => `${b.name}: +${b.additional}`),
-    `${game.i18n.localize("TENEBRE.Party.OrientationModifier")}: ${bushcraft.context.circumstanceModifier ?? 0}`,
-    `${game.i18n.localize("TENEBRE.Party.OrientationChances")}: ${bushcraft.context.favour > 0 ? "2d20kl" : bushcraft.context.favour < 0 ? "2d20kh" : "1d20"}`
-  ].join(" | ") : "";
-  const formulaText = `${vigilantLabel} (${bushcraft.baseVigilant}) ${modText} [${regionName} • ${bushcraftText}]${contextText ? ` | ${contextText}` : ""}`;
-  const outcomeClass = evalResult.success ? "tenebre-attribute-test-success" : "tenebre-attribute-test-failure";
-
-  return `
-    <div class="symbaroum chat ability tenebre-orientation-chat">
-      <div class="foreground">
-        <div class="tenebre-berserker-card tenebre-chat-card tenebre-orientation-card orientation-${evalResult.verdict}">
-          <h3 class="tenebre-attribute-test-title">${escapeHtml(title)}</h3>
-          <p class="tenebre-berserker-intro">${escapeHtml(guideName)} orienta a expedição em ${escapeHtml(regionName)}</p>
-
-          <div class="tenebre-berserker-participants">
-            <figure class="tenebre-berserker-actor">
-              <img src="${escapeHtml(guideImg)}" alt="${escapeHtml(guideName)}" loading="lazy">
-              <figcaption>${escapeHtml(guideName)}</figcaption>
-            </figure>
-            <span class="tenebre-berserker-flow-arrow" aria-hidden="true">→</span>
-            <figure class="tenebre-berserker-ability">
-              <img src="${escapeHtml(abilityImg)}" alt="${escapeHtml(bushcraftText)}" loading="lazy">
-              <figcaption><span class="tenebre-berserker-ability-link">${escapeHtml(bushcraftText)}</span></figcaption>
-            </figure>
-          </div>
-
-          <p class="tenebre-opposed-test-formula">${escapeHtml(formulaText)}</p>
-
-          <div class="tenebre-opposed-test-roll-summary">
-            <p class="tenebre-opposed-test-objective">Alvo: <strong>${target}</strong></p>
-            <p class="tenebre-opposed-test-roll">Rolagem: <strong>${rollVal}</strong></p>
-          </div>
-
-          <p class="tenebre-opposed-test-outcome ${outcomeClass}">
-            ${escapeHtml(verdictTitle)}
-          </p>
-
-          <div class="tenebre-orientation-details">
-            <p class="tenebre-orientation-desc">${escapeHtml(verdictDesc)}</p>
-            ${bonusesList}
-          </div>
+  return `<div class="symbaroum chat ability tenebre-orientation-chat">
+    <div class="foreground">
+      <section class="tenebre-orientation-card orientation-${verdict}">
+        <header class="tenebre-orientation-heading">
+          <img src="${escapeHtml(guideActor?.img || "icons/svg/mystery-man.svg")}" alt="" loading="lazy">
+          <div><h3>${escapeHtml(text("OrientationCardTitle", "Orientação"))}</h3><p>${escapeHtml(guideActor?.name || text("GuideBadgeLabel", "Guia"))}</p></div>
+        </header>
+        <p class="tenebre-orientation-location">${escapeHtml(regionName)} · ${escapeHtml(bushcraftText)}</p>
+        <dl class="tenebre-orientation-calculation">${calculation.join("")}</dl>
+        <div class="tenebre-orientation-numbers">
+          <div><span>${escapeHtml(text("OrientationTargetLabel", "Alvo final"))}</span><strong>${escapeHtml(target)}</strong></div>
+          <div><span>${escapeHtml(text("OrientationResultLabel", "Resultado"))}</span><strong>${escapeHtml(rollVal)}</strong></div>
         </div>
-      </div>
+        <p class="tenebre-orientation-dice">${escapeHtml(diceLabel)}${diceReason ? ` · ${escapeHtml(diceReason)}` : ""}</p>
+        <h4 class="tenebre-orientation-verdict">${escapeHtml(verdictTitle)}</h4>
+        <p class="tenebre-orientation-explanation">${escapeHtml(explanation)}</p>
+        ${evalResult.success ? `<p class="tenebre-orientation-margin">${escapeHtml(format("TENEBRE.Party.OrientationMargin", "Margem de sucesso: {margin}.", { margin: evalResult.margin }))}</p>` : ""}
+        <div class="tenebre-orientation-consequences">
+          <h5>${escapeHtml(text("OrientationConsequences", "Consequências"))}</h5>
+          <ul>${consequences.map(line => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
+          ${evalResult.neutralDetection ? `<p class="tenebre-orientation-note">${escapeHtml(text("OrientationEventModifiersOnly", "Estes modificadores se aplicam às tabelas de eventos, não ao teste de orientação."))}</p>` : ""}
+        </div>
+      </section>
     </div>
-  `;
+  </div>`;
 }
+
 
 /** Presets oficiais de locais de armazenamento (veículos, animais, recipientes) */
 export const OFFICIAL_STORAGE_PRESETS = [
@@ -1310,7 +1257,7 @@ export class PartyActorSheet extends BaseActorSheet {
         avoidedMishap: game.i18n.localize("TENEBRE.Party.OrientationAvoidedMishap"),
         greatSuccess: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationGreatSuccess") || "Grande Sucesso!",
         success: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationSuccess") || "Sucesso",
-        failure: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationFailure") || "Desorientado"
+        failure: globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationFailure") || "Falha"
       };
       const icons = {
         greatSuccess: "fas fa-star",
@@ -1318,14 +1265,15 @@ export class PartyActorSheet extends BaseActorSheet {
         failure: "fas fa-exclamation-triangle"
       };
       let summaryTooltip = "";
-      if (verdict === "greatSuccess") {
-        summaryTooltip = "+2 Ruínas | -2 Inimigos | -2 Terreno | Detecção Antecipada";
-      } else if (verdict === "success") {
-        summaryTooltip = "+2 Ruínas | -1 Inimigos | -1 Terreno | Detecção Antecipada";
-      } else if (verdict === "avoidedMishap" || verdict === "restricted") {
+      if (verdict === "greatSuccess" || verdict === "success") {
+        const modifier = verdict === "greatSuccess" ? -2 : -1;
+        summaryTooltip = [journeyPreview.activeSearch ? `+2 ${localize("TENEBRE.Party.RuinsBonus", "Ruínas")}` : localize("TENEBRE.Party.OrientationRuinsInactive", "Ruínas: sem bônus de orientação, pois a busca está inativa."),
+          `${modifier} ${localize("TENEBRE.Party.EnemiesBonus", "Inimigos")}`, `${modifier} ${localize("TENEBRE.Party.TerrainBonus", "Terreno")}`,
+          localize("TENEBRE.Party.OrientationDetectionTest", "Permite um teste para detectar encontros. A detecção não é automática.")].join(" | ");
+      } else if (verdict === "avoidedMishap" || verdict === "restricted" || verdict === "stale") {
         summaryTooltip = verdictLabels[verdict];
       } else {
-        summaryTooltip = "Infortúnio na Davokar! Sem bônus nas tabelas.";
+        summaryTooltip = localize("TENEBRE.Party.OrientationFailureDesc", "Sem benefícios nos eventos; consulte a tabela de Infortúnios.");
       }
 
       orientationDayView = {
@@ -2489,36 +2437,37 @@ export class PartyActorSheet extends BaseActorSheet {
     return { ...preview, modeLabel: globalThis.game?.i18n?.localize?.(`TENEBRE.Travel.Mode${preview.config.mode[0].toUpperCase()}${preview.config.mode.slice(1)}`) ?? preview.config.mode,
       activityLabel: t(preview.config.activity === "stay" ? "Staying" : "Travelling"),
       isStaying: preview.config.activity === "stay",
-      searchUnavailable: preview.config.searchRule && (preview.config.activity === "stay" || TRAVEL_MODES.indexOf(preview.config.mode) % 3 !== 0),
-      searchLimited: preview.config.searchRule && getActorExpeditionData(this.actor).activeSearch && !preview.activeSearch,
-      checks, participants: preview.profiles.map(p => ({ ...p, detail: p.missingActor ? t("MissingActor") : p.missingMount ? t("MissingMount") : p.blocked ? t("Blocked") : `${p.rate} km/${t("Day")}` })) };
+      searchUnavailable: preview.config.activity === "stay" || TRAVEL_MODES.indexOf(preview.config.mode) % 3 !== 0,
+      searchLimited: getActorExpeditionData(this.actor).activeSearch && !preview.activeSearch,
+      checks };
   }
 
   async _onConfigureJourney() {
     if (!this.isEditable && !game.user?.isGM) return;
-    const actors = await resolvePartyTravelActors(this.actor), preview = partyTravelPreview(this.actor, actors);
-    const t = key => game.i18n.localize(`TENEBRE.Journey.${key}`), config = preview.config;
-    const selected = new Set(config.participantRefs ?? actors.map(actorReference));
+    const t = key => game.i18n.localize(`TENEBRE.Journey.${key}`), config = expeditionTravel(this.actor);
     const options = (list, value) => list.map(([key,label]) => `<option value="${escapeHtml(key)}"${key === value ? " selected" : ""}>${escapeHtml(label)}</option>`).join("");
     const content = `<div class="tenebre-journey-dialog">
-      <label>${t("Activity")}<select name="activity">${options([["travel",t("Travelling")],["stay",t("Staying")]], config.activity)}</select></label>
-      <label>${t("Site")}<input name="site" type="text" maxlength="200" value="${escapeHtml(config.site)}"></label>
-      <label>${game.i18n.localize("TENEBRE.Travel.Mode")}<select name="mode">${options(TRAVEL_MODES.map(mode => [mode,game.i18n.localize(`TENEBRE.Travel.Mode${mode[0].toUpperCase()}${mode.slice(1)}`)]),config.mode)}</select></label>
-      <label><input name="alongRiver" type="checkbox"${config.alongRiver ? " checked" : ""}>${game.i18n.localize("TENEBRE.Travel.AlongRiver")}</label>
-      <label><input name="searchRule" type="checkbox"${config.searchRule ? " checked" : ""}>${t("SearchRule")}</label>
-      <label><input name="dailyEnemiesWhileStaying" type="checkbox"${config.dailyEnemiesWhileStaying !== false ? " checked" : ""}>${t("DailyStayEnemies")}</label>
-      <p>${t("StayPolicy")}</p><p>${t("ParticipantsHint")}</p>
-      ${actors.map(actor => { const ref = actorReference(actor); return `<div><label><input type="checkbox" data-journey-participant="${escapeHtml(ref)}"${selected.has(ref) ? " checked" : ""}>${escapeHtml(actor.name)}</label><label>${t("Mount")}<select data-journey-mount="${escapeHtml(ref)}">${options([["",t("NoMount")],...actors.filter(a => a !== actor).map(a => [actorReference(a),a.name])],travelMount(config, ref))}</select></label></div>`; }).join("")}
+      <section class="tenebre-journey-options">
+        <label class="tenebre-journey-field"><span>${t("Activity")}</span><select name="activity">${options([["travel",t("Travelling")],["stay",t("Staying")]], config.activity)}</select></label>
+        <label class="tenebre-journey-field"><span>${t("Site")}</span><input name="site" type="text" maxlength="200" value="${escapeHtml(config.site)}"></label>
+        <label class="tenebre-journey-field"><span>${game.i18n.localize("TENEBRE.Travel.Mode")}</span><select name="mode">${options(TRAVEL_MODES.map(mode => [mode,game.i18n.localize(`TENEBRE.Travel.Mode${mode[0].toUpperCase()}${mode.slice(1)}`)]),config.mode)}</select></label>
+      </section>
+      <section class="tenebre-journey-group">
+        <p>${t("GroupHint")}</p>
+        <div class="tenebre-journey-toggles">
+          <label class="tenebre-journey-checkbox"><input name="alongRiver" type="checkbox"${config.alongRiver ? " checked" : ""}><span>${game.i18n.localize("TENEBRE.Travel.AlongRiver")}</span></label>
+          <label class="tenebre-journey-checkbox"><input name="dailyEnemiesWhileStaying" type="checkbox"${config.dailyEnemiesWhileStaying !== false ? " checked" : ""}><span>${t("DailyStayEnemies")}</span></label>
+        </div>
+        <p>${t("StayPolicy")}</p>
+      </section>
     </div>`;
     try {
-      const value = await foundry.applications.api.DialogV2.prompt({ window: { title: t("Configure") }, position: { width: 560 }, content, rejectClose: false,
+      const value = await foundry.applications.api.DialogV2.prompt({ classes: ["tenebre-journey-config"], window: { title: t("Configure") }, position: { width: 860 }, content, rejectClose: false,
         ok: { label: game.i18n.localize("TENEBRE.Common.Save"), callback: (_e,_b,dialog) => {
-          const root = dialog.element, mounts = {};
-          for (const element of root.querySelectorAll('[data-journey-mount]')) if (element.value) mounts[element.dataset.journeyMount] = element.value;
+          const root = dialog.element;
           return { activity: root.querySelector('[name="activity"]').value, site: root.querySelector('[name="site"]').value,
             mode: root.querySelector('[name="mode"]').value, alongRiver: root.querySelector('[name="alongRiver"]').checked,
-            searchRule: root.querySelector('[name="searchRule"]').checked, dailyEnemiesWhileStaying: root.querySelector('[name="dailyEnemiesWhileStaying"]').checked,
-            participantRefs: [...root.querySelectorAll('[data-journey-participant]:checked')].map(e => e.dataset.journeyParticipant), mounts };
+            dailyEnemiesWhileStaying: root.querySelector('[name="dailyEnemiesWhileStaying"]').checked };
         } } });
       if (value) await PartyActorService.setTravel(this.actor, value);
     } catch (error) { console.warn("Tenebre Resources | Journey configuration failed.", error); ui.notifications.error(t("Failed")); }
@@ -3640,18 +3589,22 @@ async function performOrientationRoll(party, guideActor, expData, expectedDay, r
   const vigilantVal = getAttrVal(attrs.vigilant);
   const requirements = orientationRequirements(bushcraftData.level, regionKey);
   if (!requirements.eligible) return { status: "ineligible" };
-  if (rollMode !== "publicroll") await ensureExpeditionPrivateStorage();
   const requestKey = expeditionOrientationKey(party);
   const guideKey = orientationGuideKey(guideActor);
-  const isCurrent = () => expeditionDayKey(party) === expectedDay && expeditionOrientationKey(party) === requestKey && orientationGuideKey(guideActor) === guideKey;
   const contextKey = journeyContextKey(party, await resolvePartyTravelActors(party));
+  const isCurrent = async () => {
+    const actors = await resolvePartyTravelActors(party);
+    return expeditionDayKey(party) === expectedDay && expeditionOrientationKey(party) === requestKey && orientationGuideKey(guideActor) === guideKey && journeyContextKey(party, actors) === contextKey;
+  };
+  if (rollMode !== "publicroll") await ensureExpeditionPrivateStorage();
+  if (!await isCurrent()) return { status: "stale" };
   const context = { ...orientationContext(guideActor), circumstanceModifier };
   const orientationTargetData = calculateOrientationTarget(vigilantVal, bushcraftData.level, regionKey);
   const test = await rollOrientationTest(guideActor, orientationTargetData.penalty + context.bonus + circumstanceModifier, context.favour);
   const target = test.target;
   const rollVal = test.total;
   const evalResult = evaluateOrientationRoll(rollVal, target, { eventBenefits: requirements.eventBenefits, hasSucceeded: test.success });
-  if (!isCurrent()) return { status: "stale" };
+  if (!await isCurrent()) return { status: "stale" };
 
   const romanLevels = ["—", "I", "II", "III"];
   const bushcraftView = {
@@ -3672,7 +3625,8 @@ async function performOrientationRoll(party, guideActor, expData, expectedDay, r
     bushcraft: bushcraftView,
     rollVal,
     target,
-    evalResult
+    evalResult,
+    activeSearch: effectiveExpeditionSearch(party)
   });
 
   const orientationUpdate = {
@@ -3707,9 +3661,9 @@ async function performOrientationRoll(party, guideActor, expData, expectedDay, r
   });
 
   // Persiste o resultado e atualiza a ficha apenas após o dado parar
-  if (!isCurrent()) return { status: "stale" };
+  if (!await isCurrent()) return { status: "stale" };
   const stored = await storePrivateExpeditionResult(party, "orientation", orientationUpdate, expeditionVisibility(rollMode, rollUser));
-  if (!isCurrent() || !await resolveActorReference(expData.guideUuid || expData.guideId)) return { status: "stale" };
+  if (!await isCurrent() || !await resolveActorReference(expData.guideUuid || expData.guideId)) return { status: "stale" };
   await party.update({
     "system.expedition.dayState.==orientation": stored,
     [`flags.${MODULE_ID}.expedition.dayState.==orientation`]: stored
