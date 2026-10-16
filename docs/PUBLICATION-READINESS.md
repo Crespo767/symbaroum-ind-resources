@@ -3,6 +3,15 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.18.47 — 16/10/2026
+
+- Janela completa do Calendário (ApplicationV2) com relógio analógico e digital em SVG, almanaque com fases da lua e estações do ano, controles de navegação e avanço de tempo mundial (±10m, ±1h).
+- Integração com as tabelas oficiais de eventos diários do Master's Guide (GMG), resolvendo por IDs canônicos e descontinuando tabelas duplicadas geradas pelo módulo.
+- Modificador inline de orientação na Ficha de Grupo exclusivo para GM com suporte a inteiros com sinal, sem necessidade de diálogo modal.
+- Mateiro integrado na linha de identidade do guia da expedição.
+- Menu de contexto (botão direito) no membro para opções de alimentação pelo grupo ou pessoalmente.
+- Manifesto, metadados de desenvolvimento e README atualizados para 0.18.47; compatibilidade declarada e URLs de atualização mantidas.
+
 ## Release v0.18.44 — 16/10/2026
 
 - Calendario de Symbaroum em todas as abas da lateral direita, com controles
