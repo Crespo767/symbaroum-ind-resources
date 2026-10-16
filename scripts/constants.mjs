@@ -403,3 +403,11 @@ export const CANONICAL_EXPEDITION_TABLE_IDS = Object.freeze({
   enemies: "tblEnemiesDav001",
   terrain: "tblTerrainDav001"
 });
+
+// IDs shipped in the Master’s Guide Adventure; independent of translated names.
+export const OFFICIAL_DAVOKAR_EVENT_TABLE_IDS = Object.freeze({
+  ruins: "WHGv7lMW9JjOic9b",
+  encounters: "3JXvQNXAGx48h0dA",
+  enemies: "dBCs4ljcMtcc8PCq",
+  terrain: "2QLKnXBZdvEcRNI1"
+});

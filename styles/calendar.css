@@ -1,12 +1,13 @@
 #tenebre-calendar {
   display: flex;
+  flex-direction: column;
   flex: 0 0 auto;
   align-items: center;
-  gap: 3px;
+  gap: 5px;
   width: var(--sidebar-width, 300px);
   box-sizing: border-box;
   margin: 0 0 5px;
-  padding: 5px;
+  padding: 5px 6px;
   color: var(--color-text-primary, #eee);
   background: var(--background, rgba(15, 15, 20, 0.92));
   border: 1px solid var(--color-border-dark, #555);
@@ -14,13 +15,45 @@
   pointer-events: auto;
 }
 
+#tenebre-calendar .tenebre-calendar-heading {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+}
+
 #tenebre-calendar .tenebre-calendar-date {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   flex: 1;
   min-width: 0;
   text-align: center;
   font-size: var(--font-size-13, 13px);
   overflow-wrap: anywhere;
 }
+
+#tenebre-calendar .tenebre-sidebar-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: #c7aa70;
+  letter-spacing: 1px;
+}
+
+#tenebre-calendar-window .tenebre-calendar-clock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 7px;
+}
+
+#tenebre-calendar-window .tenebre-clock-display { display: flex; align-items: center; gap: 9px; color: #e6ce9e; }
+#tenebre-calendar-window .tenebre-clock-display time { font-size: 25px; font-variant-numeric: tabular-nums; letter-spacing: 2px; }
+#tenebre-calendar-window .tenebre-clock-face { width: 34px; height: 34px; }
+#tenebre-calendar-window .tenebre-clock-controls { display: flex; gap: 4px; }
+#tenebre-calendar-window .tenebre-clock-controls button { min-height: 27px; padding: 3px 6px; font-size: 11px; }
 
 #tenebre-calendar button {
   flex: 0 0 26px;
@@ -30,3 +63,148 @@
   margin: 0;
   line-height: 24px;
 }
+
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-calendar-almanac {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: #b8bdc8;
+}
+
+#tenebre-calendar .tenebre-calendar-almanac {
+  width: 100%;
+  border-top: 1px solid #ffffff12;
+  padding-top: 4px;
+  font-size: 11px;
+  gap: 5px 12px;
+}
+
+:is(#tenebre-calendar, #tenebre-calendar-window) :is(.tenebre-season, .tenebre-moon) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+:is(#tenebre-calendar, #tenebre-calendar-window) :is(.tenebre-moon-icon, .tenebre-season-icon) {
+  display: inline-block;
+  flex: none;
+  width: 17px;
+  height: 17px;
+}
+
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-season-spring { color: #a1c4a1; }
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-season-summer { color: #ddc38a; }
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-season-autumn { color: #d5a17e; }
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-season-winter { color: #b1cce4; }
+
+#tenebre-calendar-window {
+  max-width: calc(100vw - 24px);
+  --tenebre-calendar-gold: #c7aa70;
+}
+
+#tenebre-calendar-window .window-content {
+  padding: 0;
+  background: linear-gradient(155deg, #20212b, #11121a 65%);
+  color: #e1ded7;
+  overflow-y: auto;
+}
+
+#tenebre-calendar-window .tenebre-calendar-page { padding: 18px; }
+
+#tenebre-calendar-window .tenebre-calendar-world {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 17px;
+  text-align: center;
+}
+
+#tenebre-calendar-window .tenebre-calendar-world > strong {
+  color: #eee5d3;
+  font-size: 22px;
+  font-family: var(--font-h1, Georgia, serif);
+  font-weight: 500;
+}
+
+#tenebre-calendar-window .tenebre-calendar-eyebrow {
+  color: #a7a3a0;
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+#tenebre-calendar-window .tenebre-calendar-navigation {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 80px 30px;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 0;
+  border-block: 1px solid #c7aa7033;
+}
+
+#tenebre-calendar-window :is(button, select, input) {
+  color: #e1ded7;
+  background: #ffffff06;
+  border: 1px solid #ffffff20;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+#tenebre-calendar-window :is(select, input) {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  font: inherit;
+}
+
+#tenebre-calendar-window option { background: #22232d; color: #e1ded7; }
+#tenebre-calendar-window button { margin: 0; cursor: pointer; }
+#tenebre-calendar-window button:disabled { opacity: .4; cursor: default; }
+#tenebre-calendar-window button:not(:disabled):hover { background: #c7aa7020; border-color: #c7aa7099; }
+#tenebre-calendar-window :is(button, select, input):focus-visible { outline: 2px solid var(--tenebre-calendar-gold); outline-offset: 2px; }
+
+#tenebre-calendar-window .tenebre-calendar-grid { margin: 10px 0 12px; }
+#tenebre-calendar-window .tenebre-week-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 4px; }
+#tenebre-calendar-window .tenebre-week-headings { margin-bottom: 9px; }
+#tenebre-calendar-window .tenebre-weekday { text-align: center; font-size: 11px; color: #a7a3a0; }
+
+#tenebre-calendar-window .tenebre-month-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 49px;
+  padding: 5px 2px;
+  line-height: 1;
+  border-color: #ffffff0c;
+  font-size: 14px;
+}
+
+#tenebre-calendar-window .tenebre-month-day .tenebre-moon-icon { width: 14px; height: 14px; color: #a8b2c3; }
+#tenebre-calendar-window .tenebre-month-day.is-today { border-color: #c7aa7099; color: #f3d99f; }
+#tenebre-calendar-window .tenebre-month-day.is-selected { background: #732b39; border-color: #b46c77; }
+#tenebre-calendar-window .tenebre-today-mark { position: absolute; top: 5px; right: 5px; width: 4px; height: 4px; border-radius: 50%; background: var(--tenebre-calendar-gold); }
+
+#tenebre-calendar-window .tenebre-calendar-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border-top: 1px solid #c7aa7033;
+  background: #ffffff03;
+  text-align: center;
+}
+
+#tenebre-calendar-window .tenebre-calendar-selection > strong { font-size: 15px; font-weight: 500; }
+#tenebre-calendar-window .tenebre-calendar-footer { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+#tenebre-calendar-window .tenebre-calendar-footer button { min-height: 34px; padding: 3px 14px; }
+#tenebre-calendar-window .tenebre-calendar-apply { flex: 1; background: #732b39; border-color: #b46c77; }
+#tenebre-calendar-window .tenebre-calendar-readonly { flex: 1; text-align: right; color: #a7a3a0; font-size: 11px; }
+#tenebre-calendar-window .tenebre-calendar-time-hint { margin: 9px 0 0; color: #a7a3a0; font-size: 11px; line-height: 1.4; text-align: center; }

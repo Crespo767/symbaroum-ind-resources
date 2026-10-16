@@ -9,7 +9,7 @@ globalThis.ActorSheet = class {
 };
 globalThis.foundry = { utils: { deepClone: structuredClone } };
 
-const { MODULE_ID, DEFAULTS, CANONICAL_EXPEDITION_TABLE_IDS } = await import("../scripts/constants.mjs");
+const { MODULE_ID, DEFAULTS, CANONICAL_EXPEDITION_TABLE_IDS, OFFICIAL_DAVOKAR_EVENT_TABLE_IDS } = await import("../scripts/constants.mjs");
 const { PartyActorSheet, PARTY_ACTOR_TYPE, getActorExpeditionData, resolveMishapsTable, resolveDavokarEventTable } = await import("../scripts/party-actor.mjs");
 const { RationService } = await import("../scripts/rations.mjs");
 const { createChatMessageAfterDice, showDice3dRoll, registerDiceHooks } = await import("../scripts/dice.mjs");
@@ -230,7 +230,7 @@ for (const [slot, resolve] of [
   ["ruins", reference => resolveDavokarEventTable("ruins", reference)]
 ]) {
   test(`a missing configured ${slot} table does not silently use the available default`, async () => {
-    const fallback = { id: CANONICAL_EXPEDITION_TABLE_IDS[slot], name: "Default" };
+    const fallback = { id: (OFFICIAL_DAVOKAR_EVENT_TABLE_IDS[slot] ?? CANONICAL_EXPEDITION_TABLE_IDS[slot]), name: "Default" };
     game.tables = [fallback];
     globalThis.fromUuid = async () => { throw new Error("pack removed"); };
     assert.equal(await resolve("Compendium.removed.tables.custom"), null);

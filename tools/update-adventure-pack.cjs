@@ -836,7 +836,9 @@ async function run() {
 
   const originalTables = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'original-tables.json'), 'utf8'));
   const expeditionTables = getExpeditionPackTables(tableRootFolderId);
-  const filteredOriginal = originalTables.filter(t => !expeditionTables.some(exp => exp._id === t._id || exp.name === t.name || t.flags?.['symbaroum-ind-resources']?.tableKey === exp.flags['symbaroum-ind-resources'].tableKey));
+  const { CANONICAL_EXPEDITION_TABLE_IDS } = await import("../scripts/constants.mjs");
+  const dailyIds = new Set(Object.entries(CANONICAL_EXPEDITION_TABLE_IDS).filter(([key]) => key !== "mishaps").map(([, id]) => id));
+  const filteredOriginal = originalTables.filter(t => !dailyIds.has(t._id) && !["ruins", "encounters", "enemies", "terrain"].includes(t.flags?.["symbaroum-ind-resources"]?.tableKey) && !expeditionTables.some(exp => exp._id === t._id || exp.name === t.name || t.flags?.['symbaroum-ind-resources']?.tableKey === exp.flags['symbaroum-ind-resources'].tableKey));
 
   adventure.tables = [
     ...filteredOriginal,

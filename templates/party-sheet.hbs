@@ -496,6 +496,19 @@
                                     <span class="guide-role-badge">
                                         <i class="fas fa-compass"></i> {{localize "TENEBRE.Party.ExpeditionGuideBadge"}}
                                     </span>
+                                    <div class="guide-bushcraft-badge {{#if expedition.guide.bushcraft.hasBushcraft}}has-bushcraft{{else}}no-bushcraft{{/if}}" data-tooltip="{{#if expedition.guide.bushcraft.hasBushcraft}}{{localize "TENEBRE.Party.BushcraftTierTooltip"}}{{else}}{{localize "TENEBRE.Party.NoBushcraftTooltip"}}{{/if}}">
+                                        <i class="fas fa-tree"></i>
+                                        <span class="bushcraft-title">
+                                            {{#if expedition.guide.bushcraft.hasBushcraft}}
+                                                {{localize "TENEBRE.Party.BushcraftLabel"}} {{expedition.guide.bushcraft.levelRoman}}
+                                            {{else}}
+                                                {{localize "TENEBRE.Party.NoBushcraft"}}
+                                            {{/if}}
+                                        </span>
+                                        {{#if expedition.guide.bushcraft.penalty}}
+                                            <span class="bushcraft-penalty" data-tooltip="{{localize "TENEBRE.Party.BushcraftPenaltyTooltip"}}">({{expedition.guide.bushcraft.penaltyText}})</span>
+                                        {{/if}}
+                                    </div>
                                 </div>
 
                                 <div class="guide-stats-row">
@@ -514,46 +527,34 @@
                                 {{/if}}
                             </div>
 
-                            <!-- Painel de Orientação e Mateiro -->
+                            <!-- Modificador, rolagem e resultado da orientação -->
                             <div class="guide-orientation-panel">
-                                <div class="guide-bushcraft-badge {{#if expedition.guide.bushcraft.hasBushcraft}}has-bushcraft{{else}}no-bushcraft{{/if}}" data-tooltip="{{#if expedition.guide.bushcraft.hasBushcraft}}{{localize "TENEBRE.Party.BushcraftTierTooltip"}}{{else}}{{localize "TENEBRE.Party.NoBushcraftTooltip"}}{{/if}}">
-                                    <i class="fas fa-tree"></i>
-                                    <span class="bushcraft-title">
-                                        {{#if expedition.guide.bushcraft.hasBushcraft}}
-                                            {{localize "TENEBRE.Party.BushcraftLabel"}} {{expedition.guide.bushcraft.levelRoman}}
-                                        {{else}}
-                                            {{localize "TENEBRE.Party.NoBushcraft"}}
+                                {{#if expedition.canAdjustOrientation}}
+                                <label class="orientation-modifier-field">
+                                    <span>{{localize "TENEBRE.Party.OrientationModifierLabel"}}</span>
+                                    <input type="text" data-orientation-modifier value="{{expedition.orientationModifier}}" placeholder="0" maxlength="4" pattern="[+-]?[0-9]+" autocomplete="off" spellcheck="false" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.OrientationModifierHint"}}" />
+                                </label>
+                                {{/if}}
+                                <button type="button" class="btn-orientation-roll" data-action="roll-orientation" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{#if expedition.dayState.orientation.rolled}}{{localize "TENEBRE.Party.RerollOrientationTooltip"}}{{else}}{{localize "TENEBRE.Party.RollOrientationTooltip"}}{{/if}}">
+                                    <i class="fas fa-dice-d20"></i> {{localize "TENEBRE.Party.OrientationRollTest"}}
+                                </button>
+                                <div class="orientation-result-area">
+                                    <span class="orientation-result-label">{{localize "TENEBRE.Party.OrientationResultLabel"}}</span>
+                                    {{#if expedition.dayState.orientation.rolled}}
+                                    <div class="orientation-result-row">
+                                        <div class="orientation-result-badge is-{{expedition.dayState.orientation.verdict}}" data-tooltip="{{expedition.dayState.orientation.summaryTooltip}}">
+                                            <i class="{{expedition.dayState.orientation.icon}}"></i>
+                                            <span class="orientation-verdict-text">{{expedition.dayState.orientation.verdictLabel}}</span>
+                                            {{#unless expedition.dayState.orientation.restricted}}<span class="orientation-roll-score">({{expedition.dayState.orientation.rollTotal}}/{{expedition.dayState.orientation.target}})</span>{{/unless}}
+                                        </div>
+                                        {{#if editable}}
+                                        <button type="button" class="btn-orientation-reset" data-action="reset-orientation" data-tooltip="{{localize "TENEBRE.Party.ResetOrientationTooltip"}}"><i class="fas fa-times"></i></button>
                                         {{/if}}
-                                    </span>
-                                    {{#if expedition.guide.bushcraft.penalty}}
-                                        <span class="bushcraft-penalty" data-tooltip="{{localize "TENEBRE.Party.BushcraftPenaltyTooltip"}}">({{expedition.guide.bushcraft.penaltyText}})</span>
+                                    </div>
+                                    {{else}}
+                                    <span class="orientation-result-pending">{{localize "TENEBRE.Journey.Pending"}}</span>
                                     {{/if}}
                                 </div>
-
-                                {{#if expedition.dayState.orientation.rolled}}
-                                    <div class="orientation-result-badge is-{{expedition.dayState.orientation.verdict}}" data-tooltip="{{expedition.dayState.orientation.summaryTooltip}}">
-                                        <i class="{{expedition.dayState.orientation.icon}}"></i>
-                                        <span class="orientation-verdict-text">{{expedition.dayState.orientation.verdictLabel}}</span>
-                                        {{#unless expedition.dayState.orientation.restricted}}<span class="orientation-roll-score">({{expedition.dayState.orientation.rollTotal}}/{{expedition.dayState.orientation.target}})</span>{{/unless}}
-                                    </div>
-                                    <div class="orientation-btn-group">
-                                        <button type="button" class="btn-orientation-roll is-reroll" data-action="roll-orientation" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.RerollOrientationTooltip"}}">
-                                            <i class="fas fa-sync-alt"></i> {{localize "TENEBRE.Party.RerollOrientationBtn"}}
-                                        </button>
-                                        {{#if editable}}
-                                        <button type="button" class="btn-orientation-reset" data-action="reset-orientation" data-tooltip="{{localize "TENEBRE.Party.ResetOrientationTooltip"}}">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        {{/if}}
-                                    </div>
-                                {{else}}
-                                    <button type="button" class="btn-orientation-roll" data-action="roll-orientation" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.RollOrientationTooltip"}}">
-                                        <i class="fas fa-compass"></i> {{localize "TENEBRE.Party.RollOrientationBtn"}} ({{localize "TENEBRE.Party.TargetLabel"}}: {{expedition.guide.bushcraft.target}})
-                                    </button>
-                                {{/if}}
-                                {{#if expedition.canAdjustOrientation}}
-                                <button type="button" class="btn-orientation-roll" data-action="roll-orientation-modified" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.OrientationModifierHint"}}"><i class="fas fa-sliders-h"></i> {{localize "TENEBRE.Party.OrientationModifier"}}</button>
-                                {{/if}}
                             </div>
                         </div>
                         {{else}}
@@ -599,7 +600,7 @@
                         <div class="party-rations-roster">
                             {{#if expedition.rations.hasMembers}}
                                 {{#each expedition.rations.members as |m|}}
-                                <div class="party-ration-member-row {{#if m.isFed}}is-fed{{else}}is-hungry{{/if}}">
+                                <div class="party-ration-member-row {{#if m.isFed}}is-fed{{else}}is-hungry{{/if}}" data-member-id="{{m.id}}" {{#if ../editable}}tabindex="0" data-tooltip="{{localize "TENEBRE.Party.RationsContextHint"}}"{{/if}}>
                                     <div class="ration-member-identity">
                                         <img class="ration-member-avatar" src="{{m.img}}" alt="{{m.name}}" />
                                         <div class="ration-member-names">
@@ -619,11 +620,7 @@
                                             <span class="ration-status-badge is-fed" data-tooltip="{{m.fedSourceLabel}}">
                                                 <i class="fas fa-check-circle"></i> {{localize "TENEBRE.Party.FedStatus"}}
                                             </span>
-                                            {{#if ../editable}}
-                                            <button type="button" class="btn-ration-undo" data-action="toggle-feed-member" data-member-id="{{m.id}}" data-tooltip="{{localize "TENEBRE.Party.ToggleFedTooltip"}}">
-                                                <i class="fas fa-undo"></i>
-                                            </button>
-                                            {{/if}}
+
                                         {{else}}
                                             <span class="ration-status-badge is-hungry">
                                                 <i class="fas fa-exclamation-circle"></i> {{localize "TENEBRE.Party.HungryStatus"}}
@@ -631,18 +628,7 @@
                                         {{/if}}
                                     </div>
 
-                                    <div class="ration-member-actions">
-                                        {{#if ../editable}}
-                                            {{#unless m.isFed}}
-                                            <button type="button" class="btn-feed-action is-group" data-action="feed-member-group" data-member-id="{{m.id}}" data-tooltip="{{localize "TENEBRE.Party.FeedMemberGroupTooltip"}}" {{#unless m.canFeedFromGroup}}disabled{{/unless}}>
-                                                <i class="fas fa-utensils"></i> {{localize "TENEBRE.Party.FeedMemberGroupBtn"}}
-                                            </button>
-                                            <button type="button" class="btn-feed-action is-personal" data-action="feed-member-personal" data-member-id="{{m.id}}" data-tooltip="{{localize "TENEBRE.Party.FeedMemberPersonalTooltip"}}" {{#unless m.canFeedFromPersonal}}disabled{{/unless}}>
-                                                <i class="fas fa-bread-slice"></i> {{localize "TENEBRE.Party.FeedMemberPersonalBtn"}}
-                                            </button>
-                                            {{/unless}}
-                                        {{/if}}
-                                    </div>
+
                                 </div>
                                 {{/each}}
                             {{else}}
@@ -705,8 +691,7 @@
 
                                 <div class="event-slot-result-area">
                                     {{#if slot.hasResult}}
-                                        <div class="event-slot-result-box" data-tooltip="{{slot.result.resultText}}{{#unless slot.result.restricted}} ({{localize "TENEBRE.Party.EventRollDetails"}}: {{slot.result.rollTotal}} [{{slot.result.formula}}]){{/unless}}">
-                                            {{#unless slot.result.restricted}}<span class="event-result-score">[{{slot.result.rollTotal}}]</span>{{/unless}}
+                                        <div class="event-slot-result-box" data-tooltip="{{slot.result.resultText}}">
                                             <span class="event-result-text">{{#if slot.stale}}{{localize "TENEBRE.Journey.Stale"}} — {{/if}}{{slot.result.resultText}}</span>
                                         </div>
                                     {{else}}
@@ -715,7 +700,6 @@
                                 </div>
 
                                 <div class="event-slot-actions">
-                                    {{#if @root.expedition.canAdjustOrientation}}<button type="button" data-action="choose-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Journey.Manual"}}"><i class="fas fa-hand-pointer"></i></button>{{/if}}
                                     {{#if ../editable}}
                                     <button type="button" class="btn-roll-single-event" {{#if slot.unavailable}}disabled{{/if}} data-action="roll-single-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Party.RollSingleEventTooltip"}}">
                                         <i class="fas fa-dice"></i>

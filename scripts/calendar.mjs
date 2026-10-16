@@ -2,9 +2,12 @@ import { MODULE_ID } from "./constants.mjs";
 import { SocketService } from "./sockets.mjs";
 import { escapeHtml } from "./utils.mjs";
 import {
-  SYMBAROUM_MONTHS, MAX_CALENDAR_YEAR, CALENDAR_DAY_SECONDS, validateCalendarDate,
-  advanceCalendarDate, calendarDayNumber, createCalendarAnchor, calendarDateAtTime
+  CALENDAR_DAY_SECONDS, validateCalendarDate,
+  advanceCalendarDate, calendarDayNumber, createCalendarAnchor, calendarDateAtTime, shiftCalendarMonth, calendarClock
 } from "./calendar-date.mjs";
+import { formatCalendarDate, buildCalendarAlmanac, buildCalendarPage, updateCalendarClock } from "./calendar-view.mjs";
+
+const ApplicationBase = globalThis.foundry?.applications?.api?.ApplicationV2 ?? class {};
 
 const PANEL_ID = "tenebre-calendar";
 const HANDLER = "changeCalendarDate";
@@ -14,7 +17,7 @@ const label = (key) => game.i18n.localize(`TENEBRE.Calendar.${key}`);
 
 export class CalendarService {
   static #registered = false;
-  static #dialogOpen = false;
+  static #application = null;
 
   static register() {
     if (this.#registered) return;
@@ -47,6 +50,7 @@ export class CalendarService {
     const host = document.getElementById("sidebar-content");
     if (game.system.id !== "symbaroum" || !game.settings.get(MODULE_ID, "enableCalendar") || !host) {
       existing?.remove();
+      if (this.#application?.rendered) this.#application.close().catch(error => this.reportError(error));
       return;
     }
     const panel = existing ?? document.createElement("section");
@@ -55,16 +59,17 @@ export class CalendarService {
       panel.setAttribute("aria-label", label("Title"));
       panel.addEventListener("click", (event) => {
         const action = event.target.closest?.("button[data-calendar-action]")?.dataset.calendarAction;
-        if (!game.user?.isGM || !action) return;
-        const operation = action === "set" ? this.openDateDialog()
+        if (!action || (action !== "open" && !game.user?.isGM)) return;
+        const operation = action === "open" ? this.openDateDialog()
           : this.change({ type: "advance", days: action === "previous" ? -1 : 1 });
         operation.catch((error) => this.reportError(error));
       });
     }
     if (panel.parentElement !== host || host.firstElementChild !== panel) host.prepend(panel);
     const html = buildCalendarPanel(this.getDate(), Boolean(game.user?.isGM));
-    // Time modules may tick every second; keep focus and live text until the day changes.
+    // Time modules may tick every second; replace the sidebar only when its displayed values change.
     if (panel.innerHTML !== html) panel.innerHTML = html;
+    this.#application?.syncDate();
   }
 
   static async change(operation) {
@@ -73,26 +78,10 @@ export class CalendarService {
   }
 
   static async openDateDialog() {
-    if (!game.user?.isGM || this.#dialogOpen || !game.settings.get(MODULE_ID, "enableCalendar")) return;
-    this.#dialogOpen = true;
-    try {
-      const date = this.getDate() ?? { year: 1, month: 1, day: 1 };
-      const result = await foundry.applications.api.DialogV2.prompt({
-        window: { title: label("SetDate") },
-        content: buildCalendarDateForm(date),
-        rejectClose: false,
-        ok: {
-          label: "TENEBRE.Common.Save",
-          callback: (_event, button) => {
-            const form = new FormData(button.form);
-            return validateCalendarDate({ year: Number(form.get("year")), month: Number(form.get("month")), day: Number(form.get("day")) });
-          }
-        }
-      });
-      if (result) await this.change({ type: "set", date: result });
-    } finally {
-      this.#dialogOpen = false;
-    }
+    if (!game.settings.get(MODULE_ID, "enableCalendar")) return;
+    this.#application ??= new CalendarApplication();
+    if (!this.#application.rendered) this.#application.showCurrent(false);
+    return this.#application.render({ force: true });
   }
 
   static reportError(error) {
@@ -116,12 +105,20 @@ export function changeCalendarDateAsGM(operation) {
   if (operation?.type === "set") request = { type: "set", date: validateCalendarDate(operation.date) };
   else if (operation?.type === "advance" && (operation.days === 1 || operation.days === -1)) {
     request = { type: "advance", days: operation.days };
+  } else if (operation?.type === "time" && [-3600, -600, 600, 3600].includes(operation.seconds)) {
+    request = { type: "time", seconds: operation.seconds };
   } else throw new RangeError("Invalid calendar operation.");
   const next = pendingChange.catch(() => {}).then(async () => {
     authorize();
     const current = CalendarService.getDate();
-    const date = request.type === "set" ? request.date : advanceCalendarDate(current, request.days);
     const anchor = game.settings.get(MODULE_ID, "calendarDate");
+    if (request.type === "time") {
+      calendarClock(game.time.worldTime);
+      if (current) calendarDateAtTime(anchor, game.time.worldTime + request.seconds);
+      await game.time.advance(request.seconds);
+      return CalendarService.getDate();
+    }
+    const date = request.type === "set" ? request.date : advanceCalendarDate(current, request.days);
     if (!current) {
       // First configuration gives the shared time a Symbaroum date without resetting it.
       await game.settings.set(MODULE_ID, "calendarDate", createCalendarAnchor(date, game.time.worldTime));
@@ -136,21 +133,105 @@ export function changeCalendarDateAsGM(operation) {
   return next;
 }
 
-export function buildCalendarPanel(date, isGM) {
-  const text = date ? game.i18n.format("TENEBRE.Calendar.Date", {
-    day: date.day, month: SYMBAROUM_MONTHS[date.month - 1], year: date.year
-  }) : label("Undefined");
+export function buildCalendarPanel(date, isGM, worldTime = game.time.worldTime) {
+  const clock = calendarClock(worldTime);
   const button = (action, icon, title, disabled = false) => `<button type="button" data-calendar-action="${action}" title="${escapeHtml(label(title))}" aria-label="${escapeHtml(label(title))}"${disabled ? " disabled" : ""}><i class="fa-solid ${icon}" aria-hidden="true"></i></button>`;
-  return `${isGM ? button("previous", "fa-chevron-left", "Previous", !date) : ""}
-    <span class="tenebre-calendar-date" role="status" aria-live="polite">${escapeHtml(text)}</span>
-    ${isGM ? button("next", "fa-chevron-right", "Next", !date) + button("set", "fa-calendar-days", "SetDate") : ""}`;
+  return `<div class="tenebre-calendar-heading">${isGM ? button("previous", "fa-chevron-left", "Previous", !date) : ""}
+    <span class="tenebre-calendar-date" role="status" aria-live="polite"><span>${escapeHtml(formatCalendarDate(date))}</span><time class="tenebre-sidebar-time" datetime="${clock.text}" aria-label="${escapeHtml(label("WorldTime"))}">${clock.text}</time></span>
+    ${isGM ? button("next", "fa-chevron-right", "Next", !date) : ""}${button("open", "fa-calendar-days", "Title")}</div>
+    ${date ? `<div class="tenebre-calendar-almanac">${buildCalendarAlmanac(date)}</div>` : ""}`;
 }
 
-export function buildCalendarDateForm(date) {
-  const options = SYMBAROUM_MONTHS.map((month, i) => `<option value="${i + 1}"${date.month === i + 1 ? " selected" : ""}>${escapeHtml(month)}</option>`).join("");
-  return `<div class="standard-form tenebre-calendar-form"><p class="hint">${escapeHtml(label("TimeHint"))}</p>
-    <div class="form-group"><label>${escapeHtml(label("Day"))}</label><div class="form-fields"><input aria-label="${escapeHtml(label("Day"))}" name="day" type="number" required min="1" max="30" step="1" value="${date.day}"></div></div>
-    <div class="form-group"><label>${escapeHtml(label("Month"))}</label><div class="form-fields"><select aria-label="${escapeHtml(label("Month"))}" name="month">${options}</select></div></div>
-    <div class="form-group"><label>${escapeHtml(label("Year"))}</label><div class="form-fields"><input aria-label="${escapeHtml(label("Year"))}" name="year" type="number" required min="0" max="${MAX_CALENDAR_YEAR}" step="1" value="${date.year}"></div></div>
-  </div>`;
+export class CalendarApplication extends ApplicationBase {
+  static DEFAULT_OPTIONS = {
+    id: "tenebre-calendar-window",
+    classes: ["tenebre-calendar-window"],
+    window: { title: "TENEBRE.Calendar.Title", icon: "fa-solid fa-calendar-days", resizable: false },
+    position: { width: 490, height: "auto" },
+    actions: {
+      previousMonth() { this.browseMonth(-1); },
+      nextMonth() { this.browseMonth(1); },
+      today() { this.showCurrent(); },
+      selectDay(_event, target) { this.selectDay(Number(target.dataset.day)); },
+      changeTime(_event, target) { CalendarService.change({ type: "time", seconds: Number(target.dataset.seconds) }).catch(error => CalendarService.reportError(error)); },
+      applyDate() { this.applyDate().catch(error => CalendarService.reportError(error)); }
+    }
+  };
+
+  #snapshot = "";
+  followCurrent = true;
+
+  constructor(options = {}) {
+    super(options);
+    this.showCurrent(false);
+  }
+
+  showCurrent(render = true) {
+    const date = CalendarService.getDate() ?? { year: 1, month: 1, day: 1 };
+    this.view = { ...date };
+    this.selected = { ...date };
+    this.followCurrent = true;
+    if (render) this.refresh();
+  }
+
+  browseMonth(months) {
+    try {
+      this.view = shiftCalendarMonth(this.view, months);
+      this.selected = { ...this.view };
+      this.followCurrent = false;
+      this.refresh();
+    } catch (error) { CalendarService.reportError(error); }
+  }
+
+  selectDay(day) {
+    this.selected = validateCalendarDate({ ...this.view, day });
+    this.view = { ...this.selected };
+    this.followCurrent = false;
+    this.refresh();
+  }
+
+  setView(year, month) {
+    this.view = validateCalendarDate({ year, month, day: this.selected.day });
+    this.selected = { ...this.view };
+    this.followCurrent = false;
+    this.refresh();
+  }
+
+  async applyDate() {
+    // Browsing is public; mutation still uses the authenticated GM executor.
+    await CalendarService.change({ type: "set", date: { ...this.selected } });
+    this.showCurrent();
+  }
+
+  syncDate() {
+    if (!this.rendered) return;
+    updateCalendarClock(this.element, game.time.worldTime);
+    const snapshot = JSON.stringify([CalendarService.getDate(), Boolean(game.user?.isGM)]);
+    if (snapshot === this.#snapshot) return;
+    this.#snapshot = snapshot;
+    if (this.followCurrent) this.showCurrent(false);
+    this.refresh();
+  }
+
+  refresh() { this.render({ force: true }).catch(error => CalendarService.reportError(error)); }
+
+  async _renderHTML() {
+    return buildCalendarPage({ current: CalendarService.getDate(), selected: this.selected, view: this.view, isGM: Boolean(game.user?.isGM) });
+  }
+
+  _replaceHTML(result, content) { content.innerHTML = result; }
+
+  _onRender() {
+    // Inputs belong to the newly replaced content, never to the persistent frame.
+    for (const name of ["calendarMonth", "calendarYear"]) {
+      this.element.querySelector(`[name="${name}"]`)?.addEventListener("change", () => {
+        const month = this.element.querySelector('[name="calendarMonth"]');
+        const year = this.element.querySelector('[name="calendarYear"]');
+        try {
+          if (!year.value.trim()) throw new RangeError("Missing calendar year.");
+          this.setView(Number(year.value), Number(month.value));
+        } catch (error) { CalendarService.reportError(error); this.refresh(); }
+      });
+    }
+  }
 }

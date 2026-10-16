@@ -6,6 +6,18 @@ export const SYMBAROUM_MONTHS = Object.freeze([
 export const MAX_CALENDAR_YEAR = 9999;
 export const CALENDAR_DAY_SECONDS = 86400;
 
+export function calendarClock(worldTime) {
+  if (!Number.isFinite(worldTime)) throw new RangeError("Invalid world time.");
+  const seconds = ((Math.floor(worldTime) % CALENDAR_DAY_SECONDS) + CALENDAR_DAY_SECONDS) % CALENDAR_DAY_SECONDS;
+  const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds / 60) % 60;
+  return {
+    hours, minutes,
+    text: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+    hourAngle: (hours % 12) * 30 + minutes / 2,
+    minuteAngle: minutes * 6
+  };
+}
+
 /** Public dates use one-based months and days. Year zero is supported. */
 export function validateCalendarDate(date) {
   if (!date || !Number.isInteger(date.year) || date.year < 0 || date.year > MAX_CALENDAR_YEAR
@@ -40,4 +52,44 @@ export function createCalendarAnchor(date, worldTime) {
 export function calendarDateAtTime(anchor, worldTime) {
   if (!Number.isFinite(anchor?.worldTime) || !Number.isFinite(worldTime)) throw new RangeError("Invalid calendar anchor.");
   return advanceCalendarDate(anchor, Math.floor((worldTime - anchor.worldTime) / CALENDAR_DAY_SECONDS));
+}
+
+export const CALENDAR_WEEKDAYS = Object.freeze(["Earth", "Water", "Wind", "Forest", "Mountain", "People", "Feast"]);
+const MOON_PHASES = Object.freeze([
+  [0, "New"], [1, "WaxingCrescent"], [7, "FirstQuarter"], [8, "WaxingGibbous"],
+  [14, "Full"], [15, "WaningGibbous"], [21, "LastQuarter"], [22, "WaningCrescent"]
+]);
+
+/** Symbaroum preset: continuous 28-day cycle, new moon on 1 Ynedar, year zero. */
+export function calendarMoon(date) {
+  const cycleDay = calendarDayNumber(date) % 28;
+  const phase = MOON_PHASES.findLast(([start]) => cycleDay >= start)[1];
+  return { phase, cycleDay: cycleDay + 1 };
+}
+
+/** Preset season boundaries: Olandan, Serliela, Agani and Konelia, day one. */
+export function calendarSeason(date) {
+  const { month } = validateCalendarDate(date);
+  if (month >= 2 && month <= 4) return "Autumn";
+  if (month >= 5 && month <= 7) return "Winter";
+  if (month >= 8 && month <= 10) return "Spring";
+  return "Summer";
+}
+
+export function calendarMonthDays(year, month) {
+  const first = validateCalendarDate({ year, month, day: 1 });
+  return {
+    offset: calendarDayNumber(first) % 7,
+    days: Array.from({ length: 30 }, (_, i) => {
+      const date = { year, month, day: i + 1 };
+      return { ...date, weekday: CALENDAR_WEEKDAYS[calendarDayNumber(date) % 7], moon: calendarMoon(date), season: calendarSeason(date) };
+    })
+  };
+}
+
+export function shiftCalendarMonth(date, months) {
+  validateCalendarDate(date);
+  if (!Number.isInteger(months)) throw new RangeError("Invalid month interval.");
+  const index = date.year * 12 + date.month - 1 + months;
+  return validateCalendarDate({ year: Math.floor(index / 12), month: index % 12 + 1, day: date.day });
 }

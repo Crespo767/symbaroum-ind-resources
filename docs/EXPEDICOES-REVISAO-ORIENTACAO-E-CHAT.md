@@ -31,7 +31,7 @@ Continuam preservados o executor GM único, a autenticação do solicitante, a a
 
 - Um cabeçalho com o guia, região real e nível de Mateiro substitui os dois retratos e a seta sem significado mecânico.
 - O cálculo lista Vigilante e somente os ajustes pertinentes. Bônus já preparados são identificados como incluídos; limites nativos do alvo aparecem como ajuste do sistema quando alteram a soma.
-- Alvo final e resultado ficam separados e destacados. Uma frase explica que é preciso obter o alvo ou menos; em sucessos, a margem também é mostrada.
+- Alvo final e resultado ficam separados e destacados. A pedido do usuário, a frase explicativa sobre o alvo e a margem de sucesso foram retiradas do cartão. A margem continua sendo usada internamente para calcular os benefícios.
 - As chances aparecem como “usa o menor/maior resultado”, com a origem pertinente, em vez de depender de `kl`/`kh`.
 - Consequências ficam em uma lista própria. A busca inativa não promete +2 em Ruínas. Detecção é descrita como outro teste.
 - “Desorientado” foi substituído por “Falha”. A falha não significa automaticamente o efeito específico Perdido; a consequência depende do Infortúnio sorteado.
@@ -57,3 +57,13 @@ O cartão foi renderizado em navegador headless com o CSS do módulo e do sistem
 ## Distribuição 0.18.46
 
 A árvore de release, com o calendário publicado e sem seu desenvolvimento local posterior, foi validada com 575 testes aprovados. O total local de 586 acima inclui 11 testes de calendário não distribuídos. Os limites de regras e runtime permanecem os registrados nesta revisão.
+
+## Ajuste local posterior — painel e modificador em campo
+
+Mateiro foi movido para a linha de identificação do guia, ao lado de Guia da expedição. O painel da direita passa a seguir a ordem Modificador, Rolar teste e Resultado, mantendo a ação de limpar junto ao resultado.
+
+O campo de texto aceita inteiros com sinal, como `+1` e `-2`, conservando o limite de −20 a +20 já imposto pelo executor. Vazio equivale a zero. O botão normal usa o valor; o diálogo de modificador foi removido. Somente o GM recebe esse campo e somente pedidos de GM podem aplicar modificador diferente de zero.
+
+O valor é um rascunho local da ficha, sem nome de campo no formulário do Actor e sem gravação de flags durante edição/renderização. Sobrevive às renderizações da ficha aberta e reinicia em zero ao mudar dia, guia ou região. Não é restaurado em outra instância da ficha ou após recarregar o mundo. Não altera a regra de orientação nem o tratamento do aviso de contexto alterado.
+
+Validação: 162 testes focados e 590 testes na suíte completa aprovados, sintaxe de 142 módulos e paridade de 1177 chaves de idioma. A prévia usa o template real e foi conferida em 650 e 760 px, com Mateiro na identidade do guia e a ordem vertical correta. Conferidos também o campo ausente para jogador, resultado privado sem pontuação e resultado pendente. Esses ensaios de navegador/documentos simulados não substituem os testes em sessão real do Foundry v13/v14. Ajustes ainda locais, sem novo release.

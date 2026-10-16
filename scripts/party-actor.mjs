@@ -1,17 +1,13 @@
 import { ExpeditionJourneyService } from "./expedition-journey.mjs";
 import { expeditionTravel, effectiveExpeditionSearch, partyTravelReferences, resolvePartyTravelActors, partyTravelPreview, journeyContextKey, TRAVEL_MODES } from "./travel-context.mjs";
-import { MODULE_ID, CANONICAL_EXPEDITION_TABLE_IDS } from "./constants.mjs";
+import { MODULE_ID, CANONICAL_EXPEDITION_TABLE_IDS, OFFICIAL_DAVOKAR_EVENT_TABLE_IDS } from "./constants.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice, getRollMode, getRollVisibility } from "./dice.mjs";
 import { escapeHtml, localize, format } from "./utils.mjs";
 import {
-  getDavokarMishapsTableData,
-  getDavokarRuinsTableData,
-  getDavokarEncountersTableData,
-  getDavokarEnemiesTableData,
-  getDavokarTerrainTableData
+  getDavokarMishapsTableData
 } from "./expedition-data.mjs";
 import { RationService } from "./rations.mjs";
 import { SocketService, getRequestUser, hasOwnerPermission } from "./sockets.mjs";
@@ -312,6 +308,12 @@ export function isDavokarTerrainTable(target = "") {
   return false;
 }
 
+function isLegacyEventTable(table) {
+  const id = table?.id ?? table?._id;
+  return Object.keys(OFFICIAL_DAVOKAR_EVENT_TABLE_IDS).some(slot =>
+    id === CANONICAL_EXPEDITION_TABLE_IDS[slot] || table?.flags?.[MODULE_ID]?.tableKey === slot);
+}
+
 /**
  * Lista todas as RollTables disponíveis no mundo e nos compêndios carregados
  */
@@ -321,6 +323,7 @@ export function getAvailableRollTables() {
   const list = [];
 
   for (const table of (game.tables ?? [])) {
+    if (isLegacyEventTable(table)) continue;
     list.push({
       id: table.id,
       uuid: table.uuid || `RollTable.${table.id}`,
@@ -334,6 +337,7 @@ export function getAvailableRollTables() {
     const packLabel = pack.title || pack.metadata?.label || pack.metadata?.name || pack.name;
     const index = pack.index ? (Array.isArray(pack.index) ? pack.index : Array.from(pack.index.values ? pack.index.values() : pack.index)) : [];
     for (const entry of index) {
+      if (isLegacyEventTable(entry)) continue;
       list.push({
         id: entry._id,
         uuid: `Compendium.${pack.metadata?.id || pack.collection}.${entry._id}`,
@@ -353,60 +357,46 @@ export async function resolveDavokarEventTable(slot, configuredUuidOrId) {
   const game = globalThis.game;
   if (!game) return null;
 
+  const legacyId = CANONICAL_EXPEDITION_TABLE_IDS[slot];
+  if (configuredUuidOrId === legacyId || configuredUuidOrId === `RollTable.${legacyId}`
+    || configuredUuidOrId === `Compendium.${MODULE_ID}.expedition-tables.${legacyId}`
+    || configuredUuidOrId === `Compendium.${MODULE_ID}.expedition-tables.RollTable.${legacyId}`) configuredUuidOrId = "";
+
   // 1. UUID ou ID explicitamente configurado na ficha do grupo
   if (configuredUuidOrId) {
     if (configuredUuidOrId.startsWith("Compendium.") && globalThis.fromUuid) {
       try {
         const doc = await globalThis.fromUuid(configuredUuidOrId);
-        if (doc) return doc;
+        if (doc && !isLegacyEventTable(doc)) return doc;
+        if (doc && isLegacyEventTable(doc)) return resolveDavokarEventTable(slot);
       } catch {}
     }
     const worldTable = game.tables?.get?.(configuredUuidOrId)
       || Array.from(game.tables ?? []).find(t => t.uuid === configuredUuidOrId || t.id === configuredUuidOrId);
-    if (worldTable) return worldTable;
+    if (worldTable && !isLegacyEventTable(worldTable)) return worldTable;
+    if (worldTable && isLegacyEventTable(worldTable)) return resolveDavokarEventTable(slot);
     // Deixa o chamador avisar sobre a seleção quebrada em vez de sortear em outra tabela.
     return null;
   }
 
-  const canonicalId = CANONICAL_EXPEDITION_TABLE_IDS[slot];
+  // Existing selections pointing at IND-generated copies now use the official default.
+  const officialId = OFFICIAL_DAVOKAR_EVENT_TABLE_IDS[slot];
+  if (!officialId) return null;
+  const worldTable = game.tables?.get?.(officialId)
+    || Array.from(game.tables ?? []).find(t => t.id === officialId || t._id === officialId
+      || t._stats?.compendiumSource === `RollTable.${officialId}`);
+  if (worldTable) return worldTable;
 
-  // 2. ID canônico no mundo (tabela oficial criada pelo módulo ou identificada pela flag tableKey)
-  if (canonicalId) {
-    const canonicalWorldTable = game.tables?.get?.(canonicalId)
-      || Array.from(game.tables ?? []).find(t => t.id === canonicalId || t.flags?.[MODULE_ID]?.tableKey === slot);
-    if (canonicalWorldTable) return canonicalWorldTable;
-  }
-
-  // 3. ID canônico no compêndio do módulo (symbaroum-ind-resources.expedition-tables)
-  const modPack = typeof game.packs?.get === "function"
-    ? game.packs.get(`${MODULE_ID}.expedition-tables`)
-    : (Array.isArray(game.packs) ? game.packs.find(p => p.metadata?.id === `${MODULE_ID}.expedition-tables` || p.name === "expedition-tables") : null);
-  if (modPack && canonicalId) {
+  // The installed GMG ships an Adventure: its tables become world documents after import.
+  // Also support editions exposing a separate RollTable pack, without copying documents.
+  const packs = game.packs?.values ? Array.from(game.packs.values()) : Array.from(game.packs ?? []);
+  for (const pack of packs) {
+    if (pack.documentName !== "RollTable" || !(pack.collection || pack.metadata?.id || "").startsWith("symbaroum-gmg.")) continue;
     try {
-      const entry = await modPack.getDocument(canonicalId);
-      if (entry) return entry;
+      const table = await pack.getDocument(officialId);
+      if (table) return table;
     } catch {}
   }
-
-  // 4. Fallback: cria automaticamente a RollTable padrão no mundo com seu ID canônico e flag oficial
-  let defaultDataGetter = null;
-  if (slot === "ruins") defaultDataGetter = getDavokarRuinsTableData;
-  else if (slot === "encounters") defaultDataGetter = getDavokarEncountersTableData;
-  else if (slot === "enemies") defaultDataGetter = getDavokarEnemiesTableData;
-  else if (slot === "terrain") defaultDataGetter = getDavokarTerrainTableData;
-
-  if (defaultDataGetter && globalThis.RollTable?.create && (game.user?.isGM || game.user?.can?.("TABLE_CREATE"))) {
-    try {
-      const data = defaultDataGetter();
-      const created = await globalThis.RollTable.create(data);
-      if (created) return created;
-    } catch (createErr) {
-      console.warn("symbaroum-ind-resources | Falha ao auto-criar tabela padrão:", createErr);
-    }
-  }
-
-  // Não encontrou por ID/UUID e não foi possível criar:
-  // NUNCA busca por nome difuso em outros módulos ou compêndios!
   return null;
 }
 
@@ -543,6 +533,7 @@ export async function drawTableResult(table, roll) {
   }
 
   const textPieces = [];
+  const displayPieces = [];
   let resultImg = table.img || "icons/svg/d20-grey.svg";
   for (const r of results) {
     let txt = r.text || r.description || r.name || "";
@@ -555,6 +546,9 @@ export async function drawTableResult(table, roll) {
     if (!txt && typeof r.getChatText === "function") {
       try { txt = r.getChatText(); } catch {}
     }
+    const displayText = String(txt || "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n")
+      .replace(/<[^>]+>/g, "").replace(/[^\S\n]+/g, " ").replace(/ *\n */g, "\n").replace(/\n+/g, "\n").trim();
+    if (displayText) displayPieces.push(displayText);
     txt = (txt || "")
       .replace(/<br\s*\/?>/gi, " ")
       .replace(/<\/p>/gi, " ")
@@ -571,6 +565,7 @@ export async function drawTableResult(table, roll) {
   return {
     results,
     text: textPieces.join("; ") || "Sem resultado",
+    displayText: displayPieces.join("\n\n"),
     img: resultImg
   };
 }
@@ -606,22 +601,20 @@ export function buildEventsChatHtml({
         <div class="event-item-header">
           <i class="${escapeHtml(r.icon)}"></i>
           <span class="event-item-title">${escapeHtml(r.title)}</span>
-          <span class="event-item-score">[${r.rollTotal}]</span>
-          <span class="event-item-formula">(${escapeHtml(r.formula)})</span>
         </div>
         <div class="event-item-body">
-          <p class="event-item-text">${r.resultText}</p>
+          <p class="event-item-text">${escapeHtml(r.displayText || r.resultText)}</p>
         </div>
       </div>
     `;
   }
 
   return `
-    <div class="symbaroum chat ability tenebre-events-chat">
-      <div class="foreground">
+    <div class="tenebre-events-chat">
+      <div class="tenebre-events-content">
         <div class="tenebre-events-card">
           <h3 class="tenebre-events-title">${escapeHtml(title)}</h3>
-          <p class="tenebre-events-subtitle">Dia ${day} • ${escapeHtml(regionName)} • Guia: ${escapeHtml(guideName)}</p>
+          <p class="tenebre-events-subtitle">${escapeHtml(format("TENEBRE.Party.EventsContext", "Dia {day} • {region} • Guia: {guide}", { day, region: regionName, guide: guideName }))}</p>
           <div class="tenebre-events-meta-badge">
             <span class="meta-tag"><i class="fas fa-search-location"></i> ${escapeHtml(searchStatus)}</span>
           </div>
@@ -658,7 +651,6 @@ export function buildOrientationChatHtml({ guideActor, regionKey = "ambria", bus
   if (Number(target) !== expectedTarget) calculation.push(row(text("OrientationSystemAdjustment", "Ajuste do sistema ao alvo"), signed(Number(target) - expectedTarget)));
   const diceLabel = context.favour > 0 ? text("OrientationDiceBest", "2d20: usa o menor resultado") : context.favour < 0 ? text("OrientationDiceWorst", "2d20: usa o maior resultado") : "1d20";
   const diceReason = context.favour > 0 && context.pathfinder ? text("OrientationPathfinder", "Desbravador") : context.favour < 0 ? localize("TENEBRE.Hunger.EffectName", "Fome") : "";
-  const explanation = format("TENEBRE.Party.OrientationRollComparison", "Resultado {roll}; para passar, precisava de {target} ou menos.", { roll: rollVal, target });
   const consequences = [];
   if (evalResult.neutralDetection) {
     consequences.push(activeSearch
@@ -666,7 +658,7 @@ export function buildOrientationChatHtml({ guideActor, regionKey = "ambria", bus
       : text("OrientationRuinsInactive", "Ruínas: sem bônus de orientação, pois a busca está inativa."));
     consequences.push(`${text("EnemiesBonus", "Inimigos")}: ${signed(evalResult.enemiesMod)}`);
     consequences.push(`${text("TerrainBonus", "Terreno")}: ${signed(evalResult.terrainMod)}`);
-    consequences.push(text("OrientationDetectionTest", "Permite um teste para detectar encontros. A detecção não é automática."));
+    consequences.push(text("OrientationDetectionTest", "Permite um teste para detectar encontros."));
   } else if (!evalResult.mishap) {
     consequences.push(text("OrientationAvoidedMishapDesc", "O guia evita o Infortúnio, mas o nível insuficiente de Mateiro não concede os benefícios nos eventos."));
   } else {
@@ -690,8 +682,6 @@ export function buildOrientationChatHtml({ guideActor, regionKey = "ambria", bus
         </div>
         <p class="tenebre-orientation-dice">${escapeHtml(diceLabel)}${diceReason ? ` · ${escapeHtml(diceReason)}` : ""}</p>
         <h4 class="tenebre-orientation-verdict">${escapeHtml(verdictTitle)}</h4>
-        <p class="tenebre-orientation-explanation">${escapeHtml(explanation)}</p>
-        ${evalResult.success ? `<p class="tenebre-orientation-margin">${escapeHtml(format("TENEBRE.Party.OrientationMargin", "Margem de sucesso: {margin}.", { margin: evalResult.margin }))}</p>` : ""}
         <div class="tenebre-orientation-consequences">
           <h5>${escapeHtml(text("OrientationConsequences", "Consequências"))}</h5>
           <ul>${consequences.map(line => `<li>${escapeHtml(line)}</li>`).join("")}</ul>
@@ -1269,7 +1259,7 @@ export class PartyActorSheet extends BaseActorSheet {
         const modifier = verdict === "greatSuccess" ? -2 : -1;
         summaryTooltip = [journeyPreview.activeSearch ? `+2 ${localize("TENEBRE.Party.RuinsBonus", "Ruínas")}` : localize("TENEBRE.Party.OrientationRuinsInactive", "Ruínas: sem bônus de orientação, pois a busca está inativa."),
           `${modifier} ${localize("TENEBRE.Party.EnemiesBonus", "Inimigos")}`, `${modifier} ${localize("TENEBRE.Party.TerrainBonus", "Terreno")}`,
-          localize("TENEBRE.Party.OrientationDetectionTest", "Permite um teste para detectar encontros. A detecção não é automática.")].join(" | ");
+          localize("TENEBRE.Party.OrientationDetectionTest", "Permite um teste para detectar encontros.")].join(" | ");
       } else if (verdict === "avoidedMishap" || verdict === "restricted" || verdict === "stale") {
         summaryTooltip = verdictLabels[verdict];
       } else {
@@ -1413,8 +1403,11 @@ export class PartyActorSheet extends BaseActorSheet {
 
     const eventSlotsView = [];
     for (const s of slotsConfig) {
-      const selectedUuid = configuredTables[s.key] || "";
-      let resolvedTableName = s.defaultName;
+      const configured = configuredTables[s.key] || "";
+      const legacyId = CANONICAL_EXPEDITION_TABLE_IDS[s.key];
+      const selectedUuid = configured === legacyId || configured.endsWith(`.${legacyId}`) ? "" : configured;
+      const officialTable = availableTables.find(t => t.id === OFFICIAL_DAVOKAR_EVENT_TABLE_IDS[s.key]);
+      let resolvedTableName = officialTable?.name || s.defaultName;
       if (selectedUuid) {
         const found = availableTables.find(t => t.uuid === selectedUuid || t.id === selectedUuid);
         if (found) resolvedTableName = found.name;
@@ -1477,6 +1470,7 @@ export class PartyActorSheet extends BaseActorSheet {
       isFirstDay: expeditionDay <= 1,
       guideId: guideId,
       canAdjustOrientation: Boolean(globalThis.game?.user?.isGM),
+      orientationModifier: this._getOrientationModifierDraft(),
       guide: guideData,
       activeSearch: isActivelySearching,
       availableTables,
@@ -1843,12 +1837,20 @@ export class PartyActorSheet extends BaseActorSheet {
     root.querySelectorAll('[data-action="configure-journey"]').forEach(el => el.addEventListener("click", ev => { ev.preventDefault(); void this._onConfigureJourney(); }));
     root.querySelectorAll('[data-action="journey-check"]').forEach(el => el.addEventListener("click", ev => { ev.preventDefault(); void this._onResolveJourney(el.dataset.kind); }));
     root.querySelectorAll('[data-action="journey-apply"]').forEach(el => el.addEventListener("click", ev => { ev.preventDefault(); void this._onResolveJourney("effort", true); }));
-    root.querySelectorAll('[data-action="choose-event"]').forEach(el => el.addEventListener("click", ev => { ev.preventDefault(); void this._onChooseEvent(el.dataset.eventSlot); }));
-    root.querySelectorAll('[data-action="roll-orientation"], [data-action="roll-orientation-modified"]').forEach(el => {
+    root.querySelectorAll('[data-orientation-modifier]').forEach(el => {
+      el.addEventListener("input", () => {
+        if (!game.user?.isGM) return;
+        this._getOrientationModifierDraft();
+        this._orientationModifierDraft = el.value;
+        el.setCustomValidity("");
+      });
+      el.addEventListener("keydown", ev => { if (ev.key === "Enter") ev.preventDefault(); });
+    });
+    root.querySelectorAll('[data-action="roll-orientation"]').forEach(el => {
       el.addEventListener("click", async (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        await this._onRollOrientation(el.dataset.action === "roll-orientation-modified");
+        await this._onRollOrientation();
       });
     });
 
@@ -1992,6 +1994,52 @@ export class PartyActorSheet extends BaseActorSheet {
 
     this._bindMemberContextMenu(root);
     this._bindGuideContextMenu(root);
+    this._bindRationContextMenu(root);
+  }
+
+  _bindRationContextMenu(root) {
+    if (!this.isEditable || this._rationMenuRoot === root) return;
+    const Base = globalThis.foundry?.applications?.ux?.ContextMenu ?? globalThis.ContextMenu;
+    const ContextMenuClass = Base?.implementation ?? Base;
+    if (typeof ContextMenuClass !== "function") return;
+    const state = target => {
+      const element = target?.[0] ?? target;
+      const row = element?.closest?.(".party-ration-member-row[data-member-id]") ?? element;
+      const id = row?.dataset?.memberId;
+      const actor = id ? this._resolveActor(id) : null;
+      if (!this.isEditable || !actor) return null;
+      const expedition = this._getExpeditionData();
+      if (!expedition.active) return null;
+      return { id, actor, fed: Boolean(expedition.dayState.rations?.[actorStateKey(actor)]?.fed) };
+    };
+    const canFeed = (target, source) => {
+      const member = state(target);
+      return Boolean(member && !member.fed && (source === "group"
+        ? RationService.getTotalUses(this.actor) > 0
+        : !member.actor.pack && !member.actor.compendium && RationService.getTotalUses(member.actor) > 0));
+    };
+    const feedEntry = (source, key, label, icon) => CompatibilityService.buildContextMenuEntry({
+      label: localize(key, label), icon,
+      visible: target => canFeed(target, source),
+      onClick: async target => {
+        if (!canFeed(target, source)) return;
+        const member = state(target);
+        return source === "group" ? this._onFeedMemberGroup(member.id) : this._onFeedMemberPersonal(member.id);
+      }
+    });
+    const entries = [
+      feedEntry("group", "TENEBRE.Party.FeedFromGroupMenu", "Alimentar com provisões do grupo", '<i class="fas fa-utensils"></i>'),
+      feedEntry("personal", "TENEBRE.Party.FeedFromPersonalMenu", "Alimentar com pão da mochila", '<i class="fas fa-bread-slice"></i>'),
+      CompatibilityService.buildContextMenuEntry({
+        label: localize("TENEBRE.Party.ToggleFedTooltip", "Desmarcar alimentação (voltar para em jejum)"), icon: '<i class="fas fa-undo"></i>',
+        visible: target => Boolean(state(target)?.fed),
+        onClick: async target => { const member = state(target); if (member?.fed) return this._onToggleFeedMember(member.id); }
+      })
+    ];
+    try {
+      new ContextMenuClass(root, ".party-ration-member-row[data-member-id]", entries, { fixed: true, jQuery: false });
+      this._rationMenuRoot = root;
+    } catch (error) { console.warn("Tenebre Resources | Could not register ration ContextMenu:", error); }
   }
 
   _bindMemberContextMenu(root) {
@@ -2208,11 +2256,39 @@ export class PartyActorSheet extends BaseActorSheet {
     globalThis.ui?.notifications?.info?.(msg);
   }
 
-  async _onRollOrientation(modified = false) {
+  _getOrientationModifierDraft() {
+    const exp = this._getExpeditionData();
+    const key = JSON.stringify([expeditionDayKey(this.actor), exp.guideUuid || exp.guideId, this.actor?.system?.location?.region]);
+    if (this._orientationModifierKey !== key) {
+      this._orientationModifierKey = key;
+      this._orientationModifierDraft = "0";
+    }
+    return this._orientationModifierDraft;
+  }
+
+  async _onRollOrientation() {
     if (this._rollingOrientation) return;
-    this._rollingOrientation = true;
 
     const rootEl = this.element?.[0] ?? this.element;
+    const modifierInput = rootEl?.querySelector?.('[data-orientation-modifier]');
+    const draft = game.user?.isGM ? String(modifierInput?.value ?? this._getOrientationModifierDraft()).trim() : "0";
+    const circumstanceModifier = draft === "" ? 0 : Number(draft);
+    if ((draft !== "" && !/^[+-]?\d+$/.test(draft)) || !Number.isInteger(circumstanceModifier) || Math.abs(circumstanceModifier) > 20) {
+      const message = localize("TENEBRE.Party.OrientationModifierInvalid", "Informe um número inteiro entre −20 e +20, como +1 ou -2.");
+      modifierInput?.setCustomValidity?.(message);
+      modifierInput?.reportValidity?.();
+      modifierInput?.focus?.();
+      globalThis.ui?.notifications?.warn?.(message);
+      return;
+    }
+    modifierInput?.setCustomValidity?.("");
+    if (game.user?.isGM) {
+      this._getOrientationModifierDraft();
+      this._orientationModifierDraft = draft || "0";
+    }
+    this._rollingOrientation = true;
+    const modifierWasDisabled = modifierInput?.disabled;
+    if (modifierInput) modifierInput.disabled = true;
     const rollBtn = rootEl?.querySelector?.('[data-action="roll-orientation"]');
     const resetBtn = rootEl?.querySelector?.('[data-action="reset-orientation"]');
     const resultBadge = rootEl?.querySelector?.('.orientation-result-badge');
@@ -2231,28 +2307,16 @@ export class PartyActorSheet extends BaseActorSheet {
     }
 
     try {
-      let circumstanceModifier = 0;
-      if (modified && game.user?.isGM) {
-        const Dialog = globalThis.foundry?.applications?.api?.DialogV2;
-        if (!Dialog?.prompt) throw new Error("Orientation modifier dialog is unavailable.");
-        const value = await Dialog.prompt({
-          window: { title: game.i18n.localize("TENEBRE.Party.OrientationModifier") },
-          content: `<p>${escapeHtml(game.i18n.localize("TENEBRE.Party.OrientationModifierHint"))}</p><input type="number" name="orientationModifier" value="0" min="-20" max="20" step="1" aria-label="${escapeHtml(game.i18n.localize("TENEBRE.Party.OrientationModifier"))}">`,
-          ok: { label: game.i18n.localize("TENEBRE.Party.RollOrientationBtn"), callback: (_event, _button, dialog) => Number(dialog.element.querySelector('[name="orientationModifier"]').value) },
-          rejectClose: false
-        });
-        if (value == null) return;
-        circumstanceModifier = value;
-      }
       const result = await PartyActorService.rollOrientation(this.actor, undefined, undefined, undefined, circumstanceModifier);
       if (result?.status === "notTravelling") globalThis.ui?.notifications?.warn?.(game.i18n.localize("TENEBRE.Journey.NotTravelling"));
       if (result?.status === "ineligible") globalThis.ui?.notifications?.warn?.(game.i18n.localize("TENEBRE.Party.OrientationIneligible"));
-      if (result.status === "stale") globalThis.ui?.notifications?.warn?.(game.i18n.localize("TENEBRE.Party.ExpeditionChangedNotice"));
+      if (result?.status === "stale") globalThis.ui?.notifications?.warn?.(game.i18n.localize("TENEBRE.Party.ExpeditionChangedNotice"));
     } catch (error) {
       console.warn("Tenebre Resources | Orientation failed.", error);
       globalThis.ui?.notifications?.error?.(game.i18n.localize("TENEBRE.Party.OrientationFailedNotice"));
     } finally {
       this._rollingOrientation = false;
+      if (modifierInput) modifierInput.disabled = modifierWasDisabled;
       this.render(false);
     }
   }
@@ -2491,20 +2555,6 @@ export class PartyActorSheet extends BaseActorSheet {
       } else await ExpeditionJourneyService.resolve(this.actor, kind);
     } catch (error) { console.warn("Tenebre Resources | Journey check failed.", error); ui.notifications.error(game.i18n.localize("TENEBRE.Journey.Failed")); }
     finally { this._resolvingJourney = false; this.render(false); }
-  }
-
-  async _onChooseEvent(slot) {
-    if (!game.user?.isGM || !["ruins","encounters","enemies","terrain"].includes(slot)) return;
-    try {
-      const table = await resolveDavokarEventTable(slot, this._getExpeditionData().tables?.[slot]);
-      if (!table) throw new Error("Event table unavailable.");
-      const entries = Array.from(table.results?.values?.() ?? table.results?.contents ?? table.results ?? []);
-      const selected = await foundry.applications.api.DialogV2.prompt({ window: { title: game.i18n.localize("TENEBRE.Journey.Manual") },
-        content: `<select name="result">${entries.map(r => `<option value="${escapeHtml(r.id ?? r._id)}">${escapeHtml(String(r.name ?? r.text ?? r.description ?? r.id).replace(/<[^>]*>/g," "))}</option>`).join("")}</select>`,
-        rejectClose: false, ok: { label: game.i18n.localize("TENEBRE.Common.Confirm"), callback: (_e,_b,d) => d.element.querySelector('[name="result"]').value } });
-      if (selected) await PartyActorService.rollEvents(this.actor, [slot], getRollMode(), { [slot]: selected });
-    } catch (error) { console.warn("Tenebre Resources | Manual event failed.", error); ui.notifications.error(game.i18n.localize("TENEBRE.Journey.Failed")); }
-    this.render(false);
   }
 
   async _onRollSingleEvent(slotKey) {
@@ -3780,7 +3830,7 @@ async function performEventRoll(party, exp, slots, { orientation, visibility, ex
     const roll = selected ? { total: Number(selected.range?.[0]) || 1 } : await evaluateRoll(mods[slot].formula);
     if (!selected) rolls.push(roll);
     const drawn = selected ? await drawTableResult({ img: table.img, getResultsForRoll: () => [selected] }, roll) : table ? await drawTableResult(table, roll) : { text: game.i18n.localize("TENEBRE.Party.EventMissingTable"), img: "icons/svg/hazard.svg" };
-    const result = { revision: globalThis.foundry?.utils?.randomID?.() ?? crypto.randomUUID(), rolled: Boolean(table), missingTable: !table, manual: Boolean(selected), contextKey, orientationRevision: orientation?.revision, rollTotal: rollTotal(roll), formula: selected ? game.i18n.localize("TENEBRE.Journey.Manual") : mods[slot].formula, resultText: drawn.text, resultImg: drawn.img, tableName: table?.name || "" };
+    const result = { revision: globalThis.foundry?.utils?.randomID?.() ?? crypto.randomUUID(), rolled: Boolean(table), missingTable: !table, manual: Boolean(selected), contextKey, orientationRevision: orientation?.revision, rollTotal: rollTotal(roll), formula: selected ? game.i18n.localize("TENEBRE.Journey.Manual") : mods[slot].formula, resultText: drawn.text, displayText: drawn.displayText || drawn.text, resultImg: drawn.img, tableName: table?.name || "" };
     if (slot === "encounters") result.detectionModifier = encounterDetectionModifier(table, drawn);
     updates[slot] = result;
     results.push({ ...result, slotKey: slot, title: game.i18n.localize(`TENEBRE.Party.${titles[slot]}`), icon: icons[slot] });
@@ -3828,6 +3878,6 @@ export function encounterDetectionModifier(table, drawn) {
   if (entries.length !== 1) return null;
   const explicit = entries[0].flags?.[MODULE_ID]?.detectionModifier;
   if (Number.isFinite(explicit) && Math.abs(explicit) <= 20) return explicit;
-  if (table?.id !== CANONICAL_EXPEDITION_TABLE_IDS.encounters && table?._id !== CANONICAL_EXPEDITION_TABLE_IDS.encounters && table?.flags?.[MODULE_ID]?.canonicalId !== CANONICAL_EXPEDITION_TABLE_IDS.encounters) return null;
-  return ({ 1: 0, 2: 3, 3: 1, 4: 5, 5: 0, 6: 3, 7: -1, 8: -5 })[Number(entries[0].range?.[0])] ?? null;
+  if (table?.id !== OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.encounters && table?._id !== OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.encounters && table?._stats?.compendiumSource !== `RollTable.${OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.encounters}` && table?.id !== CANONICAL_EXPEDITION_TABLE_IDS.encounters && table?._id !== CANONICAL_EXPEDITION_TABLE_IDS.encounters && table?.flags?.[MODULE_ID]?.canonicalId !== CANONICAL_EXPEDITION_TABLE_IDS.encounters) return null;
+  return ({ 1: 0, 2: 3, 3: 1, 4: 5, 5: 0, 6: -1, 7: -1, 8: -5 })[Number(entries[0].range?.[0])] ?? null;
 }

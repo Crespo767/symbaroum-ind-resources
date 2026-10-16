@@ -1,12 +1,10 @@
 import {
-  getDavokarMishapsTableData, getDavokarRuinsTableData, getDavokarEncountersTableData,
-  getDavokarEnemiesTableData, getDavokarTerrainTableData
+  getDavokarMishapsTableData
 } from "../scripts/expedition-data.mjs";
 
-/** Os dois geradores usam os mesmos IDs, flags, imagens e intervalos do runtime. */
+/** Only mishaps remain in IND; daily event tables come from the official GMG. */
 export function getExpeditionPackTables(folder = null) {
-  const getters = [getDavokarMishapsTableData, getDavokarRuinsTableData, getDavokarEncountersTableData,
-    getDavokarEnemiesTableData, getDavokarTerrainTableData];
+  const getters = [getDavokarMishapsTableData];
   return getters.map(getData => {
     const table = getData();
     const key = table.flags["symbaroum-ind-resources"].tableKey;

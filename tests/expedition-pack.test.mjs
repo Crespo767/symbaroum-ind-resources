@@ -8,10 +8,10 @@ import { getExpeditionPackTables } from "../tools/expedition-pack-data.mjs";
 import { CANONICAL_EXPEDITION_TABLE_IDS, MODULE_ID } from "../scripts/constants.mjs";
 import { buildTablePack } from "../tools/build-expedition-tables.cjs";
 
-test("pack data includes all five canonical tables with stable result IDs and intact intervals", () => {
+test("pack data includes only mishaps and excludes duplicate daily events with stable result IDs and intact intervals", () => {
   const tables = getExpeditionPackTables("folder");
-  assert.equal(tables.length, 5);
-  assert.deepEqual(tables.map(table => table._id), Object.values(CANONICAL_EXPEDITION_TABLE_IDS));
+  assert.equal(tables.length, 1);
+  assert.deepEqual(tables.map(table => table._id), [CANONICAL_EXPEDITION_TABLE_IDS.mishaps]);
   assert.deepEqual(getExpeditionPackTables("folder"), tables);
   for (const table of tables) {
     const key = table.flags[MODULE_ID].tableKey;

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import {
-  advanceCalendarDate, validateCalendarDate, createCalendarAnchor, calendarDateAtTime
+  advanceCalendarDate, validateCalendarDate, createCalendarAnchor, calendarDateAtTime,
+  calendarMoon, calendarSeason, calendarMonthDays, shiftCalendarMonth, calendarClock
 } from "../scripts/calendar-date.mjs";
 
 const hooks = new Map();
@@ -10,7 +11,8 @@ globalThis.Hooks = {
   on: (key, fn) => { hooks.set(key, [...(hooks.get(key) ?? []), fn]); },
   once: (key, fn) => { hooks.set(key, [...(hooks.get(key) ?? []), fn]); }
 };
-const { CalendarService, changeCalendarDateAsGM, buildCalendarPanel } = await import("../scripts/calendar.mjs");
+const { CalendarService, CalendarApplication, changeCalendarDateAsGM, buildCalendarPanel } = await import("../scripts/calendar.mjs");
+const { buildCalendarPage, updateCalendarClock } = await import("../scripts/calendar-view.mjs");
 const { SocketService } = await import("../scripts/sockets.mjs");
 const translations = Object.fromEntries(["en", "pt-BR"].map(lang => [lang,
   JSON.parse(fs.readFileSync(new URL(`../languages/${lang}.json`, import.meta.url), "utf8"))]));
@@ -124,7 +126,8 @@ test("external changes refresh all clients without advancing time again; reload 
   assert.match(nodes.get("tenebre-calendar").innerHTML, /1 de Olandan, 22/);
   assert.equal(advances.length, 0);
   game.user = player; CalendarService.refresh();
-  assert.doesNotMatch(nodes.get("tenebre-calendar").innerHTML, /<button/);
+  assert.doesNotMatch(nodes.get("tenebre-calendar").innerHTML, /data-calendar-action="(?:previous|next)"/);
+  assert.match(nodes.get("tenebre-calendar").innerHTML, /data-calendar-action="open"/);
   nodes.clear(); values.set("calendarDate", anchor); CalendarService.refresh();
   assert.deepEqual(CalendarService.getDate(), { year: 22, month: 2, day: 1 });
 });
@@ -176,6 +179,151 @@ test("PT-BR and English panels show the same date; only GM gets controls", () =>
     const html = buildCalendarPanel(date, true);
     assert.match(html, /Leandro/); assert.doesNotMatch(html, /TENEBRE\./);
     assert.equal((html.match(/<button/g) ?? []).length, 3);
-    assert.doesNotMatch(buildCalendarPanel(date, false), /<button/);
+    assert.doesNotMatch(buildCalendarPanel(date, false), /data-calendar-action="(?:previous|next)"/);
+    assert.match(buildCalendarPanel(date, false), /data-calendar-action="open"/);
   }
+});
+
+test("all eight lunar phases follow the preset, continuous across months and years", () => {
+  const reference = { year: 0, month: 1, day: 1 };
+  const boundaries = [[0,"New"],[1,"WaxingCrescent"],[6,"WaxingCrescent"],[7,"FirstQuarter"],
+    [8,"WaxingGibbous"],[13,"WaxingGibbous"],[14,"Full"],[15,"WaningGibbous"],
+    [20,"WaningGibbous"],[21,"LastQuarter"],[22,"WaningCrescent"],[27,"WaningCrescent"],[28,"New"]];
+  for (const [offset, phase] of boundaries) assert.equal(calendarMoon(advanceCalendarDate(reference, offset)).phase, phase);
+  assert.equal(calendarMoon({ year: 1, month: 1, day: 1 }).cycleDay, 25, "the lunar cycle does not reset each year");
+  assert.equal(calendarMoon({ year: 0, month: 2, day: 1 }).cycleDay, 3);
+});
+
+test("seasons respect the four preset month boundaries and wrap through Ynedar", () => {
+  const expected = ["Summer","Autumn","Autumn","Autumn","Winter","Winter","Winter","Spring","Spring","Spring","Summer","Summer"];
+  expected.forEach((season, i) => {
+    assert.equal(calendarSeason({ year: 21, month: i + 1, day: 1 }), season);
+    assert.equal(calendarSeason({ year: 21, month: i + 1, day: 30 }), season);
+  });
+});
+
+test("monthly grid has 30 days and continuous seven-day weeks; navigation respects year bounds", () => {
+  const first = calendarMonthDays(0, 1), second = calendarMonthDays(0, 2);
+  assert.equal(first.days.length, 30); assert.equal(first.offset, 0); assert.equal(second.offset, 2);
+  assert.equal(first.days[0].weekday, "Earth"); assert.equal(second.days[0].weekday, "Wind");
+  assert.equal(calendarMonthDays(1, 1).offset, 3);
+  assert.deepEqual(shiftCalendarMonth({ year: 21, month: 12, day: 30 }, 1), { year: 22, month: 1, day: 30 });
+  assert.deepEqual(shiftCalendarMonth({ year: 22, month: 1, day: 30 }, -1), { year: 21, month: 12, day: 30 });
+  assert.throws(() => shiftCalendarMonth({ year: 0, month: 1, day: 1 }, -1), RangeError);
+  assert.throws(() => shiftCalendarMonth({ year: 9999, month: 12, day: 1 }, 1), RangeError);
+});
+
+test("calendar page distinguishes selected and current dates and gives players only browsing actions", () => {
+  setup(); const current = { year: 21, month: 8, day: 16 }, selected = { ...current, day: 17 };
+  for (language of ["en", "pt-BR"]) {
+    const page = buildCalendarPage({ current, selected, view: current, isGM: true });
+    assert.equal((page.match(/data-action="selectDay"/g) ?? []).length, 30);
+    assert.equal((page.match(/aria-current="date"/g) ?? []).length, 1);
+    assert.equal((page.match(/aria-selected="true"/g) ?? []).length, 1);
+    assert.doesNotMatch(page, /TENEBRE\./);
+    assert.match(page, /data-action="applyDate"/);
+    const playerPage = buildCalendarPage({ current, selected, view: current, isGM: false });
+    assert.doesNotMatch(playerPage, /data-action="applyDate"/);
+    assert.match(playerPage, /data-action="nextMonth"/);
+    assert.match(playerPage, /tenebre-moon-icon/);
+    assert.match(playerPage, /tenebre-season-spring/);
+  }
+});
+
+test("month browsing and selection never mutate world time; explicit application does", async () => {
+  setup(); await request({ type: "set", date: { year: 21, month: 8, day: 16 } });
+  const app = new CalendarApplication(); app.refresh = () => {};
+  app.browseMonth(1); app.selectDay(20); app.setView(22, 2);
+  assert.equal(advances.length, 0);
+  assert.deepEqual(CalendarService.getDate(), { year: 21, month: 8, day: 16 });
+  await app.applyDate();
+  assert.deepEqual(CalendarService.getDate(), { year: 22, month: 2, day: 20 });
+  assert.equal(advances.length, 1);
+  assert.equal(app.followCurrent, true);
+  game.user = player; app.selectDay(21);
+  await assert.rejects(app.applyDate(), /GM/);
+  assert.equal(advances.length, 1);
+});
+
+test("open calendar updates on a new day without losing a browsed month or repainting each second", async () => {
+  setup(); await request({ type: "set", date: { year: 21, month: 8, day: 16 } });
+  const app = new CalendarApplication(); let paints = 0;
+  app.refresh = () => { paints++; }; app.rendered = true;
+  app.syncDate(); const initial = paints;
+  game.time.worldTime++; app.syncDate(); assert.equal(paints, initial);
+  game.time.worldTime += 86400; app.syncDate();
+  assert.equal(app.selected.day, 17);
+  app.browseMonth(1); const viewed = { ...app.view };
+  game.time.worldTime += 86400; app.syncDate();
+  assert.deepEqual(app.view, viewed);
+  assert.match(await app._renderHTML(), /18 de Agani, 21/);
+  app.showCurrent(); assert.equal(app.selected.day, 18); assert.equal(app.view.month, 8);
+});
+
+test("world clock formats 24-hour time, negative timestamps and analog hands", () => {
+  for (const [seconds, text] of [[0,"00:00"],[43200,"12:00"],[86399.9,"23:59"],[86400,"00:00"],[-1,"23:59"],[-86400,"00:00"]]) {
+    assert.equal(calendarClock(seconds).text, text);
+  }
+  assert.equal(calendarClock(3 * 3600 + 30 * 60).hourAngle, 105);
+  assert.equal(calendarClock(3 * 3600 + 30 * 60).minuteAngle, 180);
+  assert.throws(() => calendarClock(NaN), RangeError);
+});
+
+test("hour controls cross midnight and year boundaries through shared world time", async () => {
+  setup(); await request({ type: "set", date: { year: 21, month: 12, day: 30 } });
+  await request({ type: "time", seconds: 3600 });
+  assert.deepEqual(CalendarService.getDate(), { year: 22, month: 1, day: 1 });
+  assert.equal(calendarClock(game.time.worldTime).text, "00:00");
+  await request({ type: "time", seconds: -600 });
+  assert.deepEqual(CalendarService.getDate(), { year: 21, month: 12, day: 30 });
+  assert.equal(calendarClock(game.time.worldTime).text, "23:50");
+  await Promise.all([request({ type: "time", seconds: 600 }), request({ type: "time", seconds: 3600 }, secondary)]);
+  assert.equal(calendarClock(game.time.worldTime).text, "01:00");
+  assert.equal(writes.length, 1, "clock changes never rewrite the date anchor");
+  assert.deepEqual(advances, [3600, -600, 600, 3600]);
+});
+
+test("time controls require an active GM and only accept the four supported intervals", async () => {
+  setup();
+  for (const sender of [player, trusted]) assert.throws(() => request({ type: "time", seconds: 3600 }, sender), /Unauthorized/);
+  for (const seconds of [0, 1, 86400, "600", Infinity]) assert.throws(() => request({ type: "time", seconds }), RangeError);
+  await request({ type: "time", seconds: 600 });
+  assert.equal(calendarClock(game.time.worldTime).text, "23:10");
+  assert.equal(CalendarService.getDate(), null, "time can move before initial date setup");
+  assert.equal(writes.length, 0);
+  values.set("enableCalendar", false);
+  assert.throws(() => request({ type: "time", seconds: 600 }), /Unauthorized/);
+});
+
+test("window and sidebar show the clock to players, but time controls remain GM-only", () => {
+  setup(); const date = { year: 21, month: 8, day: 16 };
+  for (language of ["en", "pt-BR"]) {
+    assert.match(buildCalendarPanel(date, false), /23:00/);
+    const args = { current: date, selected: date, view: date };
+    const gmPage = buildCalendarPage({ ...args, isGM: true });
+    assert.equal((gmPage.match(/data-action="changeTime"/g) ?? []).length, 4);
+    const playerPage = buildCalendarPage({ ...args, isGM: false });
+    assert.match(playerPage, /23:00/);
+    assert.doesNotMatch(playerPage, /data-action="changeTime"/);
+    assert.doesNotMatch(gmPage, /TENEBRE\./);
+  }
+});
+
+test("minute changes update only clock nodes, preserving calendar input and navigation state", async () => {
+  setup(); await request({ type: "set", date: { year: 21, month: 8, day: 16 } });
+  const app = new CalendarApplication(); let paints = 0;
+  const attributes = new Map(), time = { textContent: "23:00", setAttribute: (key, value) => attributes.set(key, value) };
+  const hand = { dataset: { calendarHand: "hour" }, getAttribute: () => null, setAttribute: (key, value) => attributes.set('hand-' + key, value) };
+  app.element = { querySelectorAll: selector => selector === '[data-calendar-time]' ? [time] : [hand] };
+  app.refresh = () => { paints++; }; app.rendered = true;
+  app.syncDate(); app.browseMonth(1); const view = { ...app.view }, count = paints;
+  game.time.worldTime += 600;
+  app.syncDate();
+  assert.equal(time.textContent, "23:10");
+  assert.equal(attributes.get('datetime'), "23:10");
+  assert.equal(attributes.get('hand-transform'), "rotate(335 12 12)");
+  assert.equal(paints, count);
+  assert.deepEqual(app.view, view);
+  updateCalendarClock(app.element, 0);
+  assert.equal(time.textContent, "00:00");
 });

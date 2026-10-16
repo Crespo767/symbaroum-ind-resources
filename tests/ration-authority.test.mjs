@@ -668,6 +668,128 @@ test("private reads reject unrelated observers and event sockets reject arbitrar
 });
 
 
+for (const generation of [13,14]) test(`ration menu v${generation} reuses feeding and undo with live stock, permissions and fed-state checks`, async () => {
+  game.release={generation};
+  const previous=foundry.applications;
+  let registrations=0,entries,options,selector;
+  foundry.applications={ux:{ContextMenu:class {constructor(_root,s,e,o){registrations++;selector=s;entries=e;options=o;}}}};
+  const sheet=Object.create(PartyActorSheet.prototype);sheet.actor=party;sheet.render=()=>{};
+  Object.defineProperty(sheet,"isEditable",{value:true,configurable:true});
+  sheet._resolveActor=ref=>game.actors.get(ref);
+  const calls=[];
+  sheet._onFeedMemberGroup=async id=>calls.push(["group",id]);
+  sheet._onFeedMemberPersonal=async id=>calls.push(["personal",id]);
+  sheet._onToggleFeedMember=async id=>calls.push(["undo",id]);
+  const row={dataset:{memberId:hero.id}},root={};
+  const visible=entry=>generation>=14?entry.visible(row):entry.condition(row);
+  const click=entry=>generation>=14?entry.onClick(null,row):entry.callback([row]);
+  try {
+    sheet._bindRationContextMenu(root);sheet._bindRationContextMenu(root);
+    assert.equal(registrations,1);assert.equal(selector,".party-ration-member-row[data-member-id]");
+    assert.equal(options.fixed,true);assert.equal(options.jQuery,false);
+    assert.equal(visible(entries[0]),true);assert.equal(visible(entries[1]),true);assert.equal(visible(entries[2]),false);
+    await click(entries[0]);await click(entries[1]);assert.deepEqual(calls,[["group",hero.id],["personal",hero.id]]);
+    party.items.clear();hero.items.clear();
+    assert.equal(visible(entries[0]),false);assert.equal(visible(entries[1]),false);
+    await click(entries[0]);await click(entries[1]);assert.equal(calls.length,2,"stock disappearing after opening must not invoke feeding");
+    party.system.expedition.dayState.rations={hero:{fed:true,source:"group"}};
+    assert.equal(visible(entries[2]),true);await click(entries[2]);assert.deepEqual(calls.at(-1),["undo",hero.id]);
+    Object.defineProperty(sheet,"isEditable",{value:false,configurable:true});
+    assert.equal(visible(entries[2]),false);await click(entries[2]);assert.equal(calls.length,3);
+    sheet._bindRationContextMenu({});assert.equal(registrations,1,"read-only sheets do not register feeding menus");
+  } finally { foundry.applications=previous; }
+});
+
+test("ration menu hides personal consumption for compendium templates and when the expedition is inactive", () => {
+  const previous=foundry.applications;let entries;
+  foundry.applications={ux:{ContextMenu:class {constructor(_root,_selector,e){entries=e;}}}};
+  game.release={generation:13};
+  const sheet=Object.create(PartyActorSheet.prototype);sheet.actor=party;
+  Object.defineProperty(sheet,"isEditable",{value:true});sheet._resolveActor=()=>hero;
+  const row={dataset:{memberId:hero.id}};
+  try {
+    sheet._bindRationContextMenu({});hero.pack="world.templates";
+    assert.equal(entries[1].condition(row),false);
+    party.system.expedition.active=false;
+    assert.equal(entries.some(e=>e.condition(row)),false);
+  } finally { foundry.applications=previous; }
+});
+
+test("ration menu feeds through the authoritative service once and retains the existing undo behavior", async () => {
+  const previous=foundry.applications;let entries;
+  foundry.applications={ux:{ContextMenu:class {constructor(_root,_selector,e){entries=e;}}}};
+  game.release={generation:13};
+  const sheet=Object.create(PartyActorSheet.prototype);sheet.actor=party;sheet.render=()=>{};
+  Object.defineProperty(sheet,"isEditable",{value:true});sheet._resolveActor=ref=>game.actors.get(ref);
+  const row={dataset:{memberId:hero.id}};
+  try {
+    sheet._bindRationContextMenu({});
+    await entries[0].callback(row);await entries[0].callback(row);
+    assert.equal(RationService.getTotalUses(party),6);
+    assert.equal(RationService.getTotalUses(hero),7);
+    assert.equal(party.system.expedition.dayState.rations.hero.source,"group");
+    assert.equal(entries[0].condition(row),false);assert.equal(entries[1].condition(row),false);
+    await entries[2].callback(row);
+    assert.equal(RationService.getTotalUses(party),6,"undo does not refund food, matching the existing action");
+    await entries[1].callback(row);
+    assert.equal(RationService.getTotalUses(hero),6);
+    assert.equal(party.system.expedition.dayState.rations.hero.source,"personal");
+  } finally { foundry.applications=previous; }
+});
+
+function modifierSheet(value) {
+  const input={value,disabled:false,setCustomValidity(){},reportValidity(){},focus(){}};
+  const sheet=Object.create(PartyActorSheet.prototype);sheet.actor=party;sheet.render=()=>{};
+  Object.defineProperty(sheet,"element",{value:{querySelector:selector=>selector==='[data-orientation-modifier]'?input:null}});
+  return {sheet,input};
+}
+
+test("the standard orientation button reads signed modifiers from the inline field without a dialog", async () => {
+  prepareForestGuide(2,"wild");
+  const {sheet,input}=modifierSheet("+1");
+  for (const [value,target] of [["+1",16],["-2",13],["",15]]) {
+    input.value=value;
+    await sheet._onRollOrientation();
+    const result=party.system.expedition.dayState.orientation;
+    assert.equal(result.target,target);
+    assert.equal(result.context.circumstanceModifier,target-15);
+    assert.equal(input.disabled,false);
+    assert.equal(sheet._getOrientationModifierDraft(),value||"0");
+  }
+});
+
+test("inline orientation modifiers reject invalid text before rolling or persisting", async () => {
+  prepareForestGuide(2,"wild");
+  const {sheet,input}=modifierSheet("");
+  for(const value of ["+","-","1.5","1e1","21","-21","1+2","texto"]) {
+    input.value=value;await sheet._onRollOrientation();
+    assert.equal(party.system.expedition.dayState.orientation,undefined);
+    assert.equal(chat.length,0);assert.equal(input.disabled,false);
+  }
+});
+
+test("a player's forged inline modifier is ignored before the orientation request is routed", async () => {
+  prepareForestGuide(2,"wild");game.user=player;
+  const {sheet}=modifierSheet("+10");
+  await sheet._onRollOrientation();
+  assert.equal(routed.at(-1)[0],"rollExpeditionOrientation");
+  assert.equal(routed.at(-1).at(-1),0);
+});
+
+test("the inline modifier draft survives renders but resets when the day, guide or region changes", () => {
+  prepareForestGuide(2,"wild");
+  const {sheet}=modifierSheet("+2");
+  assert.equal(sheet._getOrientationModifierDraft(),"0");
+  sheet._orientationModifierDraft="+2";
+  assert.equal(sheet._getOrientationModifierDraft(),"+2");
+  party.system.expedition.day++;
+  assert.equal(sheet._getOrientationModifierDraft(),"0");
+  sheet._orientationModifierDraft="-2";party.system.expedition.guideId=companion.id;
+  assert.equal(sheet._getOrientationModifierDraft(),"0");
+  sheet._orientationModifierDraft="+1";party.system.location.region="dark";
+  assert.equal(sheet._getOrientationModifierDraft(),"0");
+});
+
 test("circumstance modifiers are bounded, GM-only, recorded and applied once", async () => {
   prepareForestGuide();
   const args = [party.uuid, expeditionDayKey(party), "publicroll", expeditionOrientationKey(party)];
@@ -750,7 +872,18 @@ test("a day changed during native evaluation is rejected before publishing an ob
 
 const { ExpeditionJourneyService } = await import("../scripts/expedition-journey.mjs");
 const { partyTravelPreview, journeyContextKey, naturalRecoveryDuringJourney } = await import("../scripts/travel-context.mjs");
-const { getDavokarEncountersTableData, getDavokarEnemiesTableData } = await import("../scripts/expedition-data.mjs");
+const { OFFICIAL_DAVOKAR_EVENT_TABLE_IDS } = await import("../scripts/constants.mjs");
+// Minimal fixtures model imported official tables, not module-generated copies.
+function encounterTableFixture() {
+  return { _id: OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.encounters, name: "Tabela 27", results: [
+    { range:[1,1], description:"Encontro de teste A" },
+    { range:[2,2], description:"Encontro de teste B" },
+    { range:[3,3], description:"Encontro de teste C" }
+  ] };
+}
+function enemyTableFixture() {
+  return { _id: OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.enemies, name:"Tabela 28", results:[{range:[1,35],description:"Inimigos de teste"}] };
+}
 function journeySetup() {
   prepareForestGuide();
   settings.enableHunger = true; settings.enableEncumbrance = true; settings.enableContainers = false;
@@ -873,7 +1006,7 @@ test("private effort remains hidden from other players while public authoritativ
 
 test("the second day at a site resolves the best Discreet and a failed test draws enemies without orientation discount", async () => {
   journeySetup(); companion.system.attributes.discreet.total=16;
-  installEventTable(getDavokarEnemiesTableData());
+  installEventTable(enemyTableFixture());
   await configureJourney({activity:"stay",site:"Ruína"}); nativeJourneyTest(20);
   await assert.rejects(ExpeditionJourneyService.resolve(party,"stay","publicroll"),/second day/);
   party.system.expedition.day=2;
@@ -893,18 +1026,18 @@ test("staying policy may skip general daily enemies while preserving the daily e
 });
 
 test("GM event choice uses an existing result and players cannot inject text or choose results", async () => {
-  journeySetup(); const table=installEventTable(getDavokarEncountersTableData()); await configureJourney();
+  journeySetup(); const table=installEventTable(encounterTableFixture()); await configureJourney();
   await assert.rejects(request("rollExpeditionEvents",player,party.uuid,expeditionDayKey(party),expeditionOrientationKey(party),["encounters"],"publicroll",expeditionEventKey(party,["encounters"]),{encounters:"2"}),/Invalid manual event/);
   await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"2"});
   const result=party.system.expedition.dayState.events.encounters;
   assert.equal(result.manual,true); assert.equal(result.detectionModifier,1);
-  assert.match(result.resultText,/tesouros rivais/);
+  assert.equal(result.resultText,"Encontro de teste C");
   assert.equal(chat.at(-1).rolls,undefined,"manual selection must not fabricate random dice");
 });
 
 test("detection tests the best eligible Vigilant with the table modifier and preserves blind parents", async () => {
   journeySetup(); companion.system.attributes.vigilant={total:19};
-  await configureJourney(); installEventTable(getDavokarEncountersTableData());
+  await configureJourney(); installEventTable(encounterTableFixture());
   await orientation(player,"blindroll");
   await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"2"});
   assert.equal(chat.at(-1).user,gm.id,"a blind message without dice must not use the player as its author");
@@ -919,7 +1052,7 @@ test("detection tests the best eligible Vigilant with the table modifier and pre
 });
 
 test("a new encounter permits a fresh detection but a stale orientation never grants detection", async () => {
-  journeySetup(); await configureJourney(); installEventTable(getDavokarEncountersTableData());
+  journeySetup(); await configureJourney(); installEventTable(encounterTableFixture());
   await orientation(player,"publicroll"); await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"0"});
   nativeJourneyTest(5); await ExpeditionJourneyService.resolve(party,"detection","publicroll");
   await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"1"});
@@ -988,7 +1121,7 @@ test("ruler and sheet read the same newly configured group pace without copying 
 });
 
 test("manual choices and prepared events are invalidated by a change of journey context", async () => {
-  journeySetup(); await configureJourney(); installEventTable(getDavokarEncountersTableData());
+  journeySetup(); await configureJourney(); installEventTable(encounterTableFixture());
   await orientation(player,"publicroll"); await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"0"});
   const before=party.system.expedition.dayState.events.encounters.contextKey;
   await configureJourney({alongRiver:true});
@@ -1036,7 +1169,7 @@ test("staying is a separate activity: orientation and discovery of new ruins are
 
 
 test("players cannot probe a blind orientation through eligibility for encounter detection", async () => {
-  journeySetup(); await configureJourney(); installEventTable(getDavokarEncountersTableData());
+  journeySetup(); await configureJourney(); installEventTable(encounterTableFixture());
   await orientation(player,"blindroll"); await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"0"});
   const args=[party.uuid,expeditionDayKey(party),journeyContextKey(party),"detection","publicroll",""];
   await assert.rejects(request("resolveExpeditionJourney",player,...args),/Private detection must be handled by a GM/);

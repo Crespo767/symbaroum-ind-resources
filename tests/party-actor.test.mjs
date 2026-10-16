@@ -633,7 +633,9 @@ test("PartyActorSheet._onRollOrientation updates dayState after dice roll and po
   assert.match(sentMessage.content, /class="symbaroum chat ability tenebre-orientation-chat"/);
   assert.match(sentMessage.content, /class="tenebre-orientation-heading"/);
   assert.match(sentMessage.content, /<h3>Orientação<\/h3>/);
-  assert.match(sentMessage.content, new RegExp(`Resultado ${orientData.rollTotal}; para passar, precisava de ${orientData.target} ou menos`));
+  assert.match(sentMessage.content, new RegExp(`Alvo final</span><strong>${orientData.target}</strong>`));
+  assert.match(sentMessage.content, new RegExp(`Resultado</span><strong>${orientData.rollTotal}</strong>`));
+  assert.doesNotMatch(sentMessage.content, /para passar|Margem de sucesso/);
   assert.doesNotMatch(sentMessage.content, /\[Davokar.*\((\+|-|±)\d+\)/);
   assert.match(sentMessage.content, /Davokar Iluminada · Mateiro I/);
 
@@ -907,10 +909,10 @@ test("PartyActorSheet._onPrevExpeditionDay decrements day down to 1", async () =
 test("Party sheet template includes Step 2 daily sustenance box and roster", () => {
   const tpl = fs.readFileSync(path.join(root, "templates/party-sheet.hbs"), "utf8");
   assert.match(tpl, /class="party-rations-box/);
-  assert.match(tpl, /data-action="feed-member-group"/);
-  assert.match(tpl, /data-action="feed-member-personal"/);
+  assert.match(tpl, /data-member-id="\{\{m.id\}\}"/);
+  assert.doesNotMatch(tpl, /data-action="feed-member-group"|data-action="feed-member-personal"/);
   assert.match(tpl, /data-action="feed-all-group"/);
-  assert.match(tpl, /data-action="toggle-feed-member"/);
+  assert.match(tpl, /TENEBRE.Party.RationsContextHint/);
   assert.match(tpl, /class="party-rations-roster"/);
   assert.match(tpl, /class="group-provisions-badge"/);
 });
@@ -1167,20 +1169,13 @@ test("calculateDavokarEventModifiers applies region, orientation and activeSearc
   assert.equal(darkFailInactive.ruins.formula, "1d20");
 });
 
-test("Davokar Event Table Matchers and fallback datasets are valid", async () => {
+test("Davokar event table matchers recognize Portuguese and English names", async () => {
   const {
     isDavokarRuinsTable,
     isDavokarEncountersTable,
     isDavokarEnemiesTable,
     isDavokarTerrainTable
   } = await import("../scripts/party-actor.mjs");
-
-  const {
-    getDavokarRuinsTableData,
-    getDavokarEncountersTableData,
-    getDavokarEnemiesTableData,
-    getDavokarTerrainTableData
-  } = await import("../scripts/expedition-data.mjs");
 
   // Matchers
   assert.ok(isDavokarRuinsTable({ name: "Ruínas na Davokar" }));
@@ -1196,22 +1191,7 @@ test("Davokar Event Table Matchers and fallback datasets are valid", async () =>
   assert.ok(isDavokarTerrainTable({ name: "Terreno & Perigos" }));
   assert.ok(isDavokarTerrainTable({ name: "Davokar Terrain & Hazards" }));
 
-  // Fallback data
-  const ruinsData = getDavokarRuinsTableData();
-  assert.ok(ruinsData.name.includes("Ruínas"));
-  assert.ok(ruinsData.results.length >= 8);
 
-  const encountersData = getDavokarEncountersTableData();
-  assert.ok(encountersData.name.includes("Encontros"));
-  assert.ok(encountersData.results.length >= 8);
-
-  const enemiesData = getDavokarEnemiesTableData();
-  assert.ok(enemiesData.name.includes("Inimigos"));
-  assert.ok(enemiesData.results.length >= 8);
-
-  const terrainData = getDavokarTerrainTableData();
-  assert.ok(terrainData.name.includes("Terreno"));
-  assert.ok(terrainData.results.length >= 8);
 });
 
 test("Party Sheet template and stylesheet contain Step 3 Event elements", () => {
@@ -1223,6 +1203,7 @@ test("Party Sheet template and stylesheet contain Step 3 Event elements", () => 
   assert.match(templateSource, /data-action="change-event-table"/);
   assert.match(templateSource, /data-action="roll-single-event"/);
   assert.match(templateSource, /data-action="reset-single-event"/);
+  assert.doesNotMatch(templateSource, /data-action="choose-event"|class="event-result-score"|slot.result.rollTotal/);
 
   assert.match(cssSource, /\.party-events-box/);
   assert.match(cssSource, /\.btn-toggle-active-search/);
@@ -1344,6 +1325,8 @@ test("PartyActorSheet._onRollAllEvents respects inactive activeSearch from flags
 
   let createdMessage = null;
   const originalChatMessage = globalThis.ChatMessage;
+  const originalRoll = globalThis.Roll;
+  globalThis.Roll = class { constructor(formula) { this.formula = formula; this.total = 10; } async evaluate() { return this; } };
   globalThis.ChatMessage = {
     getSpeaker: () => ({ alias: "Grupo" }),
     create: async (data) => {
@@ -1389,9 +1372,10 @@ test("PartyActorSheet._onRollAllEvents respects inactive activeSearch from flags
 
     assert.ok(createdMessage, "Chat message should be created");
     assert.match(createdMessage.content, /ActiveSearchInactive|Busca Ativa de Ruínas: Não/, "Chat message must reflect inactive search");
-    assert.match(createdMessage.content, /1d20 - 3/, "Ruins formula must be 1d20 - 3 in wild davokar when search is inactive");
+    assert.equal(createdMessage.rolls[0].formula, "1d20 - 3", "Ruins roll retains the inactive search penalty without cluttering the chat");
   } finally {
     globalThis.ChatMessage = originalChatMessage;
+    globalThis.Roll = originalRoll;
   }
 });
 
@@ -1415,7 +1399,8 @@ test("drawTableResult sanitizes multiline HTML and CSS enforces compact single l
   assert.match(drawn.text, /Encontro: Número de PJ de inimigos Fracos Exemplo: Ladrões/);
 
   const updatedCss = fs.readFileSync(path.join(root, "styles/symbaroum-ind-resources.css"), "utf8");
-  assert.match(updatedCss, /\.tenebre-party-sheet \.event-slot-result-box[\s\S]*?max-height:\s*26px/);
+  assert.match(updatedCss, /\.tenebre-party-sheet \.event-result-text[\s\S]*?-webkit-line-clamp:\s*2/);
+  assert.equal(drawn.displayText, "Encontro:\nNúmero de PJ de inimigos Fracos\nExemplo: Ladrões");
   assert.match(updatedCss, /\.tenebre-event-result-item \.event-item-text \*[\s\S]*?color:\s*#e2ddd3\s*!important/);
 });
 
@@ -1493,9 +1478,9 @@ test("isDavokarTerrainTable and other matchers reject Monster Codex and match of
   assert.equal(isDavokarEnemiesTable("Table 28 - Enemies in Davokar"), true);
 });
 
-test("resolveDavokarEventTable strictly resolves by configured ID/UUID or canonical ID without fuzzy guessing", async () => {
+test("resolveDavokarEventTable strictly resolves by configured ID/UUID or official GMG ID without fuzzy guessing", async () => {
   const { resolveDavokarEventTable } = await import("../scripts/party-actor.mjs");
-  const { CANONICAL_EXPEDITION_TABLE_IDS } = await import("../scripts/constants.mjs");
+  const { OFFICIAL_DAVOKAR_EVENT_TABLE_IDS } = await import("../scripts/constants.mjs");
 
   // 1. Explicitly configured UUID / ID
   globalThis.game = {
@@ -1510,26 +1495,27 @@ test("resolveDavokarEventTable strictly resolves by configured ID/UUID or canoni
   // 2. Canonical world table ID for terrain (tblTerrainDav001)
   globalThis.game = {
     tables: [
-      { id: CANONICAL_EXPEDITION_TABLE_IDS.terrain, name: "Tabela 29 - Terreno na Davokar" }
+      { id: OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.terrain, name: "Tabela 29 - Terreno na Davokar" }
     ],
     packs: []
   };
   const resolvedCanonical = await resolveDavokarEventTable("terrain");
-  assert.equal(resolvedCanonical?.id, CANONICAL_EXPEDITION_TABLE_IDS.terrain);
+  assert.equal(resolvedCanonical?.id, OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.terrain);
 
   // 3. Compendium canonical pack lookup
   const mockPack = {
+    collection: "symbaroum-gmg.tables",
     documentName: "RollTable",
     indexed: true,
-    index: [{ _id: CANONICAL_EXPEDITION_TABLE_IDS.ruins, name: "Ruínas na Davokar" }],
-    getDocument: async (id) => (id === CANONICAL_EXPEDITION_TABLE_IDS.ruins ? { id, name: "Ruínas na Davokar", compendium: true } : null)
+    index: [{ _id: OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.ruins, name: "Ruínas na Davokar" }],
+    getDocument: async (id) => (id === OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.ruins ? { id, name: "Ruínas na Davokar", compendium: true } : null)
   };
   globalThis.game = {
     tables: [],
-    packs: new Map([["symbaroum-ind-resources.expedition-tables", mockPack]])
+    packs: new Map([["symbaroum-gmg.tables", mockPack]])
   };
   const resolvedPack = await resolveDavokarEventTable("ruins");
-  assert.equal(resolvedPack?.id, CANONICAL_EXPEDITION_TABLE_IDS.ruins);
+  assert.equal(resolvedPack?.id, OFFICIAL_DAVOKAR_EVENT_TABLE_IDS.ruins);
 
   // 4. Returns null (no random name hijacking when ID does not match)
   globalThis.game = {
@@ -1540,4 +1526,42 @@ test("resolveDavokarEventTable strictly resolves by configured ID/UUID or canoni
   };
   const notFound = await resolveDavokarEventTable("terrain");
   assert.equal(notFound, null);
+});
+
+test("official daily tables replace legacy defaults without creating or deleting documents", async () => {
+  const { resolveDavokarEventTable, getAvailableRollTables } = await import("../scripts/party-actor.mjs");
+  const { OFFICIAL_DAVOKAR_EVENT_TABLE_IDS: official, CANONICAL_EXPEDITION_TABLE_IDS: legacy } = await import("../scripts/constants.mjs");
+  const originalCreate = globalThis.RollTable;
+  globalThis.RollTable = { create: () => { throw new Error("Must never create a daily table"); } };
+  try {
+    for (const slot of Object.keys(official)) {
+      const copy = { id: legacy[slot], name: "IND copy" };
+      const table = { id: official[slot], name: "Nome oficial traduzido", results: [] };
+      game.tables = [copy, table]; game.packs = [];
+      for (const reference of [undefined, legacy[slot], `RollTable.${legacy[slot]}`, `Compendium.symbaroum-ind-resources.expedition-tables.${legacy[slot]}`]) {
+        assert.equal(await resolveDavokarEventTable(slot, reference), table);
+      }
+      assert.deepEqual(getAvailableRollTables().map(t => t.id), [official[slot]]);
+      assert.equal(game.tables.length, 2, "Existing world documents stay intact");
+      game.tables = [copy];
+      assert.equal(await resolveDavokarEventTable(slot), null, "No fallback to a fabricated copy");
+    }
+  } finally { globalThis.RollTable = originalCreate; }
+});
+
+test("daily event chat preserves official result lines, escapes text and omits numeric clutter", async () => {
+  const { drawTableResult, buildEventsChatHtml, encounterDetectionModifier } = await import("../scripts/party-actor.mjs");
+  const { OFFICIAL_DAVOKAR_EVENT_TABLE_IDS: official } = await import("../scripts/constants.mjs");
+  const entry = { range: [2,2], description: "<strong>Encontro:</strong> Missionários<br/><strong>Número:</strong> PJs+[[1d6]]<br/><strong>Detecção:</strong> +3" };
+  const drawn = await drawTableResult({ getResultsForRoll: () => [entry] }, { total: 2 });
+  assert.equal(drawn.displayText, "Encontro: Missionários\nNúmero: PJs+[[1d6]]\nDetecção: +3");
+  assert.equal(encounterDetectionModifier({ id: official.encounters }, drawn), 3);
+  for (const [index, modifier] of [0, 3, 1, 5, 0, -1, -1, -5].entries()) {
+    assert.equal(encounterDetectionModifier({ id: official.encounters }, { results: [{ range: [index + 1, index + 1] }] }), modifier);
+  }
+  assert.equal(encounterDetectionModifier({ id: official.encounters }, { results: [{ range: [9, 20] }] }), null);
+  const html = buildEventsChatHtml({ guideName: "<Guia>", results: [{ slotKey: "encounters", title: "Encontros", icon: "fas fa-users", rollTotal: 2, formula: "1d20 + 2", resultText: "fallback", displayText: drawn.displayText + "\n<script>bad</script>" }] });
+  assert.match(html, /Número: PJs\+\[\[1d6\]\]/);
+  assert.match(html, /&lt;Guia&gt;/);
+  assert.doesNotMatch(html, /<script>|event-item-score|event-item-formula|class="foreground"|1d20/);
 });

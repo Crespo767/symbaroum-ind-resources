@@ -147,7 +147,7 @@ test("the reported Odan case explains 17 versus 15 and the wild mishap without c
   const html=orientationCard();
   assert.match(html,/Alvo final<\/span><strong>15/);
   assert.match(html,/Resultado<\/span><strong>17/);
-  assert.match(html,/Resultado 17; para passar, precisava de 15 ou menos/);
+  assert.doesNotMatch(html,/para passar|Margem de sucesso|tenebre-orientation-explanation|tenebre-orientation-margin/);
   assert.match(html,/Infortúnio: 1d20 \+ 5/);
   assert.match(html,/não aplica o efeito Perdido/);
   assert.doesNotMatch(html,/Desorientado|Modificador circunstancial|Detecção Antecipada|&bull;/);
@@ -155,10 +155,11 @@ test("the reported Odan case explains 17 versus 15 and the wild mishap without c
 
 test("successful orientation never promises ruins benefits when search is inactive or automatic detection", () => {
   const html=orientationCard({rollVal:10,activeSearch:false});
-  assert.match(html,/Margem de sucesso: 5/);
+  assert.doesNotMatch(html,/para passar|Margem de sucesso|tenebre-orientation-explanation|tenebre-orientation-margin/);
   assert.match(html,/Inimigos: -2/);assert.match(html,/Terreno: -2/);
   assert.match(html,/Ruínas: sem bônus/);
-  assert.match(html,/A detecção não é automática/);
+  assert.match(html,/Permite um teste para detectar encontros\./);
+  assert.doesNotMatch(html,/A detecção não é automática/);
   assert.doesNotMatch(html,/Ruínas: \+2|Infortúnio: 1d20/);
 });
 
