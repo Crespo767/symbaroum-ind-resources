@@ -52,13 +52,17 @@ export function boundOrientationTarget(target) {
 
 /** A API nativa avalia dados/opções sem criar chat. O fallback cobre ambientes sem API. */
 export async function rollOrientationTest(actor, modifier, favour) {
+  return rollExpeditionAttribute(actor, "vigilant", modifier, favour);
+}
+
+export async function rollExpeditionAttribute(actor, attribute, modifier = 0, favour = 0) {
   const api = globalThis.game?.symbaroum?.api;
   if (typeof api?.baseRoll === "function") {
-    const result = await api.baseRoll(actor, "vigilant", null, null, favour, modifier, false);
+    const result = await api.baseRoll(actor, attribute, null, null, favour, modifier, false);
     if (!Number.isFinite(result?.diceResult) || !Number.isFinite(result?.diceTarget) || typeof result?.hasSucceed !== "boolean" || !Array.isArray(result?.rolls) || !result.rolls.length) throw new Error("Invalid native orientation test result.");
     return { total: result.diceResult, target: result.diceTarget, success: result.hasSucceed, rolls: result.rolls };
   }
-  const value = actor?.system?.attributes?.vigilant;
+  const value = actor?.system?.attributes?.[attribute];
   let target = (Number(typeof value === "object" ? value?.total ?? value?.value : value) || 0) + modifier;
   target = boundOrientationTarget(target);
   const roll = await evaluateRoll(favour > 0 ? "2d20kl" : favour < 0 ? "2d20kh" : "1d20");

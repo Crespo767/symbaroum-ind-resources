@@ -408,6 +408,8 @@ function onSettingChanged(key, value) {
     "enableOtherRations",
     "extraRationFoods",
     "enableHunger",
+    "enableMovementHungerModifier",
+    "enableMovementEncumbranceModifier",
     "enableRestButton",
     "enableClearEffectsButton",
     "enableAmmoConsumption",

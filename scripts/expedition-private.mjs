@@ -47,8 +47,8 @@ export async function readPrivateExpeditionResult(reference, party, slot) {
   return record;
 }
 
-export async function storePrivateExpeditionResult(party, slot, result, visibility) {
-  if (visibility.mode === "publicroll") return result;
+export async function storePrivateExpeditionResult(party, slot, result, visibility, { authoritative = false } = {}) {
+  if (visibility.mode === "publicroll" && !authoritative) return result;
   const pack = await privatePack(true);
   const revision = result.revision ?? globalThis.foundry?.utils?.randomID?.() ?? crypto.randomUUID();
   const record = { ...result, revision, party: party.uuid, day: expeditionDayKey(party), slot, visibility };

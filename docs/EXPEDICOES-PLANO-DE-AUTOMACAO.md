@@ -1,6 +1,6 @@
 # Plano de automação das expedições
 
-Proposta de implementação de 15/10/2026, baseada nos PDFs da mesa e no código atual do Ind Resources. Não altera a versão, IDs do módulo, UUIDs dos documentos ou valores dos mundos existentes. O estudo inicial entregou documentação e diagnóstico. A etapa A foi implementada depois, com validação local e aceitação em runtime pendente; as demais etapas continuam futuras. Consulte o [registro da etapa A](EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md).
+Proposta de implementação de 15/10/2026, baseada nos PDFs da mesa e no código do Ind Resources. O estudo inicial entregou documentação e diagnóstico. As etapas A e B estão implementadas localmente, com aceitação em runtime pendente; as etapas C–F continuam futuras. Consulte os registros de [orientação e privacidade](EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md) e [jornada, esforço e eventos](EXPEDICOES-ETAPA-B-JORNADA-E-EVENTOS.md). A entrega B de 16/10/2026 não altera versão, IDs, UUIDs ou bancos distribuídos de compêndio.
 
 Fontes: [regras e referências](EXPEDICOES-REGRAS-E-FONTES.md). Evidências e prioridades: [auditoria de conformidade](EXPEDICOES-AUDITORIA-DE-CONFORMIDADE.md).
 
@@ -92,7 +92,7 @@ O `dayState` não deve carregar sozinho tudo que sobrevive ao dia. As leituras l
 
 ### Etapa B — ligar rota, procura ativa e eventos
 
-Corrige C07/C10, E04, E10/E11 e parte de E16/E17.
+**Implementada localmente em 16/10/2026; validação interativa pendente.** Abrange C07/C10, E04, E10/E11 e parte de E16/E17. Regras, políticas explícitas, limites e validações constam no [registro da etapa B](EXPEDICOES-ETAPA-B-JORNADA-E-EVENTOS.md). A próxima etapa de implementação é C.
 
 1. Compartilhar um contexto de viagem entre Grupo e régua, mantendo a régua tática isolada das mudanças de expedição.
 2. Separar região real, coluna usada para velocidade e dificuldade do esforço. Viajar por rio não reduz Mateiro ou risco regional.

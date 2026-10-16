@@ -1,3 +1,4 @@
+import { naturalRecoveryDuringJourney } from "./travel-context.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { HungerService } from "./hunger.mjs";
@@ -87,7 +88,7 @@ export class RestService {
       ? (healingPerDay !== null ? healingPerDay : (Number(TenebreSettings.get("restHealing")) || 0))
       : 0;
 
-    if (!HungerService.naturalHealingAllowed(actor)) {
+    if (!HungerService.naturalHealingAllowed(actor) || !naturalRecoveryDuringJourney(actor)) {
       finalHealing = 0;
     }
 

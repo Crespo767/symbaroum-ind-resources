@@ -177,3 +177,11 @@ Passar na suíte local não encerra esses casos. O plano permanece aberto para o
 O registro detalhado está em [EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md](EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md). O código passou a distinguir elegibilidade, evitar Infortúnio e benefícios de eventos, usar a API nativa para o teste, compor dádivas/Fome e oferecer ajuste circunstancial ao GM. Resultados privados novos deixam o Actor compartilhado; sua leitura é autorizada pelo GM e cifrada no transporte do módulo. Eventos dependentes conservam a privacidade da orientação.
 
 Os textos dos lotes anteriores são registros históricos. As pendências atuais incluem aceitação em sessões reais, resultados legados e as etapas B–F; não há release novo.
+
+## Entrega de jornada e eventos — etapa B — 16/10/2026
+
+Implementada localmente conforme o [registro da etapa B](EXPEDICOES-ETAPA-B-JORNADA-E-EVENTOS.md): contexto comum ao Grupo e régua de viagem, participantes/montarias, modificador de rio, procura ativa por ritmo, Fome/carga, esforço diário com revisão do GM, detecção e permanência. Escolhas manuais usam resultados existentes das tabelas. Contextos alterados invalidam preparações; recibos por ator protegem contra dano duplicado após falhas de gravação.
+
+Validação: 210 testes focados e 564 na suíte completa aprovados; sintaxe de 141 módulos JavaScript validada. Template da ficha compilado e traduções/manifesto conferidos. A suíte completa inclui testes do calendário desenvolvido em paralelo, cujos arquivos foram preservados. Sem nova versão ou publicação.
+
+Pendências atuais: aceitação real em Foundry v13/v14, permissões e dois GMs, privacidade nativa/DSN, aparência dos diálogos e idiomas, tokens/compêndios, recarga do mundo e efeitos de morte após perda de Vitalidade. As etapas C–F permanecem futuras; resultados legados mantêm os limites registrados na etapa A.

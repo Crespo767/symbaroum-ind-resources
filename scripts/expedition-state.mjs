@@ -12,6 +12,7 @@ export function getActorExpeditionData(actor) {
   else merged.activeSearch = true;
   merged.guideId = sysExp.guideId || flagExp.guideId || "";
   merged.guideUuid = sysExp.guideUuid || flagExp.guideUuid || "";
+  merged.travel = flagExp.travel ?? sysExp.travel ?? {};
   merged.tables = { ...(flagExp.tables || {}), ...(sysExp.tables || {}) };
   merged.day = sysExp.day !== undefined ? sysExp.day : (flagExp.day !== undefined ? flagExp.day : 1);
   merged.active = sysExp.active !== undefined ? sysExp.active : (flagExp.active !== undefined ? flagExp.active : false);
@@ -36,7 +37,7 @@ export function expeditionOrientationKey(actor) {
   const exp = getActorExpeditionData(actor);
   const state = exp.dayState.orientation;
   return JSON.stringify([state?.timestamp ?? null, state?.revision ?? null, Boolean(state?.rolled),
-    actor?.system?.location?.region ?? "ambria", exp.guideUuid || exp.guideId, exp.activeSearch, exp.tables]);
+    exp.travel, actor?.system?.location?.region ?? "ambria", exp.guideUuid || exp.guideId, exp.activeSearch, exp.tables]);
 }
 
 export function expeditionEventKey(actor, slots) {

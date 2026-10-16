@@ -699,3 +699,319 @@ test("a day changed during native evaluation is rejected before publishing an ob
   assert.equal(chat.length, 0);
   assert.equal(party.system.expedition.dayState.orientation, undefined);
 });
+
+
+const { ExpeditionJourneyService } = await import("../scripts/expedition-journey.mjs");
+const { partyTravelPreview, journeyContextKey, naturalRecoveryDuringJourney } = await import("../scripts/travel-context.mjs");
+const { getDavokarEncountersTableData, getDavokarEnemiesTableData } = await import("../scripts/expedition-data.mjs");
+function journeySetup() {
+  prepareForestGuide();
+  settings.enableHunger = true; settings.enableEncumbrance = true; settings.enableContainers = false;
+  for (const actor of [hero,companion]) {
+    actor.system.health = { toughness: { value:20,max:20 } };
+    actor.system.attributes = { ...actor.system.attributes, strong:{total:10}, discreet:{total:12} };
+    actor.effects=[];
+  }
+}
+async function configureJourney(extra = {}, user = gm) {
+  return request("setExpeditionTravel", user, party.uuid, expeditionDayKey(party), {
+    mode:"dayMarch", activity:"travel", site:"", alongRiver:false, searchRule:true,
+    participantRefs:[hero.id,companion.id], mounts:{}, ...extra
+  });
+}
+function nativeJourneyTest(total, callback) {
+  const calls=[];
+  game.symbaroum={api:{async baseRoll(actor,attribute,_target,_targetAttribute,favour,modifier) {
+    calls.push({actor:actor.id,attribute,favour,modifier});
+    if (callback) callback();
+    const value = typeof total === "function" ? total(actor,attribute) : total;
+    const target = (Number(actor.system.attributes[attribute]?.total)||0) + modifier;
+    const roll=new Roll("1d20"); roll.total=value;
+    return {diceTarget:target,diceResult:value,hasSucceed:value<=target,rolls:[roll]};
+  }}};
+  return calls;
+}
+async function journeyData(user = gm) { return (await readExpeditionFor(user)).data.journey; }
+function installEventTable(data) {
+  const table={...data,id:data._id,results:new Map(data.results.map((r,i)=>[String(i),{...r,id:String(i)}])), getResultsForRoll(total) { return [...this.results.values()].filter(r=>total>=r.range[0]&&total<=r.range[1]); }};
+  game.tables ??= new Collection(); if (!game.tables.set) game.tables=new Collection(); game.tables.set(table.id,table); return table;
+}
+
+test("journey configuration validates ownership, participant membership and stale days", async () => {
+  journeySetup(); party.testUserPermission=user=>user.isGM;
+  await assert.rejects(configureJourney({},player),/not owned/);
+  await assert.rejects(configureJourney({participantRefs:["unrelated"]}),/not in the party/);
+  await assert.rejects(configureJourney({mounts:{hero:"unrelated"}}),/Invalid journey mount/);
+  assert.equal((await configureJourney()).status,"configured");
+  assert.equal(party.flags[MODULE_ID].expedition.travel.configured,true);
+  assert.equal(partyTravelPreview(party).rate,20);
+  assert.equal(await request("setExpeditionTravel",gm,party.uuid,"old-day",{mode:"dayMarch",activity:"travel",site:"",alongRiver:false,searchRule:true,participantRefs:[hero.id]}).then(r=>r.status),"stale");
+});
+
+test("mortal effort is reviewed before damage and repeated application cannot debit twice", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(10);
+  assert.equal((await ExpeditionJourneyService.resolve(party,"effort","publicroll")).status,"rolled");
+  assert.equal(hero.system.health.toughness.value,20);
+  assert.equal(party.system.expedition.dayState.journey.effort.members,undefined,"even public effort keeps its authoritative calculation off the editable Actor");
+  assert.equal((await journeyData()).effort.members[0].damage,1);
+  assert.equal((await ExpeditionJourneyService.applyEffort(party)).status,"applied");
+  assert.equal(hero.system.health.toughness.value,19);
+  assert.equal(companion.system.health.toughness.value,19);
+  assert.equal((await ExpeditionJourneyService.applyEffort(party)).status,"alreadyApplied");
+  assert.equal(hero.system.health.toughness.value,19);
+});
+
+test("a natural 20 stays pending until the GM explicitly selects the zero-Toughness interpretation", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(20);
+  await ExpeditionJourneyService.resolve(party,"effort","blindroll");
+  const before=await journeyData(); assert.equal(before.effort.members[0].mortalWound,true);
+  assert.equal((await ExpeditionJourneyService.applyEffort(party)).status,"pendingWound");
+  assert.equal(hero.system.health.toughness.value,20);
+  assert.equal((await ExpeditionJourneyService.applyEffort(party,"zeroToughness")).status,"applied");
+  assert.equal(hero.system.health.toughness.value,0);
+  assert.equal(hero.system.nbrOfFailedDeathRoll,undefined);
+});
+
+test("Enduring March waives its owner's mortal test, grants a companion chance, but keeps base damage", async () => {
+  journeySetup(); hero.items.set("enduring",{type:"boon",name:"Marcha Duradoura",system:{}});
+  await configureJourney({mode:"mortalMarch"}); const calls=nativeJourneyTest(5);
+  await ExpeditionJourneyService.resolve(party,"effort","gmroll");
+  assert.equal(calls.length,1); assert.equal(calls[0].actor,companion.id); assert.equal(calls[0].favour,1);
+  assert.deepEqual((await journeyData()).effort.members.map(m=>m.damage),[1,1]);
+});
+
+test("forced-march recovery permissions reach the shared rest guard only after review", async () => {
+  journeySetup(); hero.items.set("enduring",{type:"boon",name:"Marcha Duradoura",system:{}});
+  await configureJourney({mode:"forcedMarch"}); nativeJourneyTest(5);
+  assert.equal(naturalRecoveryDuringJourney(companion),false);
+  await ExpeditionJourneyService.resolve(party,"effort","publicroll");
+  assert.equal(naturalRecoveryDuringJourney(companion),false);
+  await ExpeditionJourneyService.applyEffort(party);
+  assert.equal(naturalRecoveryDuringJourney(companion),true);
+  assert.equal(naturalRecoveryDuringJourney(hero),true);
+});
+
+test("effort rejects stale health, settings changes, arbitrary public calculations and player application", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(5);
+  await ExpeditionJourneyService.resolve(party,"effort","gmroll");
+  const revision=party.system.expedition.dayState.journey.effort.revision;
+  await assert.rejects(request("applyExpeditionEffort",player,party.uuid,expeditionDayKey(party),revision,"manual"),/Only a GM/);
+  hero.system.health.toughness.value=18;
+  await assert.rejects(ExpeditionJourneyService.applyEffort(party),/health changed/);
+  assert.equal(companion.system.health.toughness.value,20);
+  hero.system.health.toughness.value=20; settings.alwaysSucceedOnOne=true;
+  assert.equal((await ExpeditionJourneyService.applyEffort(party)).status,"stale");
+  settings.alwaysSucceedOnOne=false;
+  party.system.expedition.dayState.journey.effort={revision:"forged",members:[{ref:hero.id,damage:100}],context:journeyContextKey(party)};
+  await assert.rejects(ExpeditionJourneyService.applyEffort(party),/Untrusted effort/);
+});
+
+test("duplicate effort requests resolve once and configuration changed during evaluation cannot persist", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(5);
+  const results=await Promise.all([ExpeditionJourneyService.resolve(party,"effort","gmroll"),ExpeditionJourneyService.resolve(party,"effort","gmroll")]);
+  assert.deepEqual(results.map(r=>r.status),["rolled","stale"]);
+  await configureJourney({mode:"forcedMarch"}); nativeJourneyTest(5,()=>{party.flags[MODULE_ID].expedition.travel.mode="dayMarch";});
+  hero.items.set("enduring",{type:"boon",name:"Marcha Duradoura",system:{}});
+  assert.equal((await ExpeditionJourneyService.resolve(party,"effort","gmroll")).status,"stale");
+});
+
+test("private effort remains hidden from other players while public authoritative effort remains readable", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(5);
+  await ExpeditionJourneyService.resolve(party,"effort","blindroll");
+  assert.deepEqual((await journeyData(player)).effort,{rolled:true,restricted:true});
+  assert.equal(JSON.stringify(party.system.expedition.dayState.journey.effort).includes("members"),false);
+});
+
+test("the second day at a site resolves the best Discreet and a failed test draws enemies without orientation discount", async () => {
+  journeySetup(); companion.system.attributes.discreet.total=16;
+  installEventTable(getDavokarEnemiesTableData());
+  await configureJourney({activity:"stay",site:"Ruína"}); nativeJourneyTest(20);
+  await assert.rejects(ExpeditionJourneyService.resolve(party,"stay","publicroll"),/second day/);
+  party.system.expedition.day=2;
+  const calls=nativeJourneyTest(20);
+  await ExpeditionJourneyService.resolve(party,"stay","publicroll");
+  assert.equal(calls[0].actor,companion.id); assert.equal(calls[0].attribute,"discreet");
+  const state=party.system.expedition.dayState.journey.stay;
+  assert.equal(state.enemy.formula,"1d20");
+  assert.equal(party.system.expedition.dayState.events?.enemies,undefined,"the stay consultation must not replace an independent daily enemy result");
+});
+
+test("staying policy may skip general daily enemies while preserving the daily encounter and terrain consultations", async () => {
+  journeySetup(); await configureJourney({activity:"stay",site:"Ruína",dailyEnemiesWhileStaying:false});
+  assert.equal((await PartyActorService.rollEvents(party,["ruins","encounters","enemies","terrain"],"publicroll")).status,"rolled");
+  assert.equal(party.system.expedition.dayState.events.enemies,undefined);
+  assert.deepEqual(Object.keys(party.system.expedition.dayState.events).sort(),["encounters","terrain"]);
+});
+
+test("GM event choice uses an existing result and players cannot inject text or choose results", async () => {
+  journeySetup(); const table=installEventTable(getDavokarEncountersTableData()); await configureJourney();
+  await assert.rejects(request("rollExpeditionEvents",player,party.uuid,expeditionDayKey(party),expeditionOrientationKey(party),["encounters"],"publicroll",expeditionEventKey(party,["encounters"]),{encounters:"2"}),/Invalid manual event/);
+  await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"2"});
+  const result=party.system.expedition.dayState.events.encounters;
+  assert.equal(result.manual,true); assert.equal(result.detectionModifier,1);
+  assert.match(result.resultText,/tesouros rivais/);
+  assert.equal(chat.at(-1).rolls,undefined,"manual selection must not fabricate random dice");
+});
+
+test("detection tests the best eligible Vigilant with the table modifier and preserves blind parents", async () => {
+  journeySetup(); companion.system.attributes.vigilant={total:19};
+  await configureJourney(); installEventTable(getDavokarEncountersTableData());
+  await orientation(player,"blindroll");
+  await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"2"});
+  assert.equal(chat.at(-1).user,gm.id,"a blind message without dice must not use the player as its author");
+  assert.equal(chat.at(-1).blind,true);
+  assert.equal(chat.at(-1).rolls,undefined);
+  const calls=nativeJourneyTest(10);
+  assert.equal((await ExpeditionJourneyService.resolve(party,"detection","publicroll")).status,"rolled");
+  assert.equal(calls[0].actor,companion.id); assert.equal(calls[0].attribute,"vigilant"); assert.equal(calls[0].modifier,1);
+  assert.equal(chat.at(-1).blind,true);
+  assert.deepEqual((await journeyData(player)).detection,{rolled:true,restricted:true});
+  assert.equal((await journeyData()).detection.success,true);
+});
+
+test("a new encounter permits a fresh detection but a stale orientation never grants detection", async () => {
+  journeySetup(); await configureJourney(); installEventTable(getDavokarEncountersTableData());
+  await orientation(player,"publicroll"); await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"0"});
+  nativeJourneyTest(5); await ExpeditionJourneyService.resolve(party,"detection","publicroll");
+  await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"1"});
+  assert.equal((await ExpeditionJourneyService.resolve(party,"detection","publicroll")).status,"rolled");
+  await configureJourney({alongRiver:true});
+  await assert.rejects(ExpeditionJourneyService.resolve(party,"detection","publicroll"),/No eligible encounter/);
+});
+
+test("daily travel configuration persists through day replacement without preserving daily checks", async () => {
+  journeySetup(); await configureJourney({alongRiver:true,activity:"stay",site:"Ruína"});
+  const stored=structuredClone(party.flags[MODULE_ID].expedition.travel);
+  await PartyActorService.setExpeditionDay(party,2,true);
+  assert.deepEqual(party.flags[MODULE_ID].expedition.travel,stored);
+  assert.equal(party.system.expedition.dayState.journey,undefined);
+  assert.equal(partyTravelPreview(party).stayDays,2);
+});
+
+
+test("failed mortal effort adds a genuine 1d6 and overload penalizes Strong without changing pace", async () => {
+  journeySetup();
+  const load=bread(hero,"load"); load.system.state="equipped";
+  load.getFlag=(_s,k)=>k==="encumbranceManual"?true:k==="encumbranceSlots"?12:undefined;
+  await configureJourney({mode:"forcedMarch",participantRefs:[hero.id]});
+  const calls=nativeJourneyTest(15);
+  const OriginalRoll=Roll;
+  globalThis.Roll=class extends OriginalRoll { async evaluate() { this.total=this.formula==="1d6"?6:15; return this; } };
+  await ExpeditionJourneyService.resolve(party,"effort","gmroll");
+  const result=(await journeyData()).effort.members[0];
+  assert.equal(partyTravelPreview(party).rate,30);
+  assert.equal(calls[0].modifier,-3,"12 manual slots plus one bread, capacity 10");
+  assert.equal(result.damage,7);
+});
+
+test("effort retry after a party persistence failure uses per-actor receipts without charging damage again", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(5);
+  await ExpeditionJourneyService.resolve(party,"effort","gmroll");
+  const update=party.update;
+  party.update=async()=>{throw new Error("party unavailable");};
+  await assert.rejects(ExpeditionJourneyService.applyEffort(party),/party unavailable/);
+  assert.equal(hero.system.health.toughness.value,19);
+  party.update=update;
+  assert.equal((await ExpeditionJourneyService.applyEffort(party)).status,"applied");
+  assert.equal(hero.system.health.toughness.value,19);
+  assert.equal(companion.system.health.toughness.value,19);
+});
+
+test("effort cannot be rerolled after a partially applied operation even if the final party write failed", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(5);
+  await ExpeditionJourneyService.resolve(party,"effort","gmroll");
+  const update=party.update; party.update=async()=>{throw new Error("write failed");};
+  await assert.rejects(ExpeditionJourneyService.applyEffort(party),/write failed/);
+  party.update=update;
+  await configureJourney({mode:"forcedMarch"});
+  await assert.rejects(ExpeditionJourneyService.resolve(party,"effort","gmroll"),/Applied effort cannot be rerolled/);
+});
+
+test("ruler and sheet read the same newly configured group pace without copying token flags", async () => {
+  journeySetup(); await configureJourney({alongRiver:true});
+  const {MovementService}=await import("../scripts/movement-ruler.mjs");
+  const token={actor:hero,flags:{[MODULE_ID]:{travel:{terrain:"darkDavokar",mode:"mortalMarch"}}}};
+  assert.equal(MovementService.getTravelEstimate(20,token).days,1);
+  assert.equal(MovementService.getTravelConfiguration(token).linkedParty,party.uuid);
+  await configureJourney({mode:"forcedMarch",alongRiver:true});
+  assert.equal(MovementService.getTravelEstimate(40,token).days,1);
+  assert.equal(token.flags[MODULE_ID].travel.mode,"mortalMarch");
+});
+
+test("manual choices and prepared events are invalidated by a change of journey context", async () => {
+  journeySetup(); await configureJourney(); installEventTable(getDavokarEncountersTableData());
+  await orientation(player,"publicroll"); await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"0"});
+  const before=party.system.expedition.dayState.events.encounters.contextKey;
+  await configureJourney({alongRiver:true});
+  assert.notEqual(journeyContextKey(party),before);
+  await assert.rejects(ExpeditionJourneyService.resolve(party,"detection","publicroll"),/No eligible encounter/);
+});
+
+test("travel is rejected before effort when a riding participant has no declared mount", async () => {
+  journeySetup(); await configureJourney({mode:"dayRide"}); nativeJourneyTest(5);
+  await assert.rejects(ExpeditionJourneyService.resolve(party,"effort","publicroll"),/blocked/);
+  assert.equal(chat.length,0);
+});
+
+test("an active trusted player can configure an owned party but cannot apply another actor's effort", async () => {
+  journeySetup(); player.role=3;
+  assert.equal((await configureJourney({},player)).status,"configured");
+  await assert.rejects(request("applyExpeditionEffort",player,party.uuid,expeditionDayKey(party),"missing","manual"),/Only a GM/);
+});
+
+
+test("health conflicts on a later participant are detected before any traveller is changed", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(5);
+  await ExpeditionJourneyService.resolve(party,"effort","gmroll");
+  companion.system.health.toughness.value=18;
+  await assert.rejects(ExpeditionJourneyService.applyEffort(party),/health changed/);
+  assert.equal(hero.system.health.toughness.value,20);
+});
+
+test("overlapping active party membership cannot resolve two daily efforts for the same actor", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(5);
+  const second=actor("party2",[player.id]); second.type=`${MODULE_ID}.party`;
+  second.system=structuredClone(party.system); second.flags=structuredClone(party.flags); game.actors.set(second.id,second);
+  await assert.rejects(ExpeditionJourneyService.resolve(party,"effort","gmroll"),/multiple active journeys/);
+});
+
+
+test("staying is a separate activity: orientation and discovery of new ruins are not rolled as travel", async () => {
+  journeySetup(); await configureJourney({activity:"stay",site:"Ruína"});
+  assert.equal((await orientation(player,"publicroll")).status,"notTravelling");
+  assert.equal((await PartyActorService.rollEvents(party,["ruins"],"publicroll")).status,"skipped");
+  assert.equal(chat.length,0);
+});
+
+
+test("players cannot probe a blind orientation through eligibility for encounter detection", async () => {
+  journeySetup(); await configureJourney(); installEventTable(getDavokarEncountersTableData());
+  await orientation(player,"blindroll"); await PartyActorService.rollEvents(party,["encounters"],"publicroll",{encounters:"0"});
+  const args=[party.uuid,expeditionDayKey(party),journeyContextKey(party),"detection","publicroll",""];
+  await assert.rejects(request("resolveExpeditionJourney",player,...args),/Private detection must be handled by a GM/);
+  assert.equal(party.system.expedition.dayState.journey,undefined);
+});
+
+test("preparing a stay before departure and restarting an expedition both start the site counter at day one", async () => {
+  journeySetup(); party.system.expedition.active=false; party.system.expedition.day=0;
+  await configureJourney({activity:"stay",site:"Ruína"});
+  await PartyActorService.setExpeditionDay(party,1,true);
+  assert.equal(partyTravelPreview(party).stayDays,1);
+  await PartyActorService.setExpeditionDay(party,10,true);
+  await PartyActorService.setExpeditionDay(party,0,false);
+  await PartyActorService.setExpeditionDay(party,1,true);
+  assert.equal(partyTravelPreview(party).stayDays,1);
+});
+
+test("a configuration change during protected storage cannot attach an obsolete journey result", async () => {
+  journeySetup(); await configureJourney({mode:"mortalMarch"}); nativeJourneyTest(5);
+  await globalThis.CompendiumCollection.createCompendium({name:`${MODULE_ID}-expeditions`,type:"JournalEntry",ownership:{GAMEMASTER:"OWNER",ASSISTANT:"OWNER",TRUSTED:"NONE",PLAYER:"NONE"}});
+  const pack=[...game.packs.values()][0], create=pack.documentClass.create;
+  pack.documentClass.create=async (...args) => {
+    const result=await create(...args);
+    party.flags[MODULE_ID].expedition.travel.alongRiver=true;
+    return result;
+  };
+  assert.equal((await ExpeditionJourneyService.resolve(party,"effort","gmroll")).status,"stale");
+  assert.equal(party.system.expedition.dayState.journey,undefined);
+});

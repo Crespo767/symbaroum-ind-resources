@@ -1361,3 +1361,5 @@ Foundry VTT.
 ### Expedições: orientação e privacidade
 
 A implementação atual e os testes manuais pendentes estão em [Etapa A — orientação e privacidade](docs/EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md). Resultados privados novos usam um compêndio privado do mundo, criado pelo GM no primeiro uso. O Grupo guarda apenas referências; resultados públicos mantêm o armazenamento existente. Dados antigos não são migrados automaticamente. O GM dispõe de um ajuste circunstancial opcional para informação e mapas.
+
+A [Etapa B — jornada, esforço e eventos](docs/EXPEDICOES-ETAPA-B-JORNADA-E-EVENTOS.md) acrescenta configuração comum ao Grupo e à régua de viagem, participantes e montarias, rio, busca ativa, esforço revisado pelo GM, detecção e permanência. Esforço completo permanece sob controle do GM mesmo quando o cartão de chat é público; no Grupo fica uma referência. Disponível a partir da versão 0.18.45; aceitação em sessões reais ainda pendente.

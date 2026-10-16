@@ -450,6 +450,25 @@
                         </div>
                     </div>
 
+                    <section class="party-events-box tenebre-journey-panel">
+                        <h3>{{localize "TENEBRE.Journey.Title"}}</h3>
+                        <p>{{expedition.journey.activityLabel}} · {{expedition.journey.modeLabel}} · {{expedition.journey.rate}} km/{{localize "TENEBRE.Journey.Day"}}</p>
+                        {{#if expedition.journey.config.alongRiver}}<p>{{localize "TENEBRE.Journey.RiverHint"}}</p>{{/if}}
+                        {{#if expedition.journey.blocked}}<p>{{localize "TENEBRE.Journey.Blocked"}}</p>{{/if}}
+                        {{#if expedition.journey.searchLimited}}<p>{{localize "TENEBRE.Journey.SearchLimited"}}</p>{{/if}}
+                        {{#unless expedition.journey.config.configured}}<p>{{localize "TENEBRE.Journey.ParticipantsHint"}}</p>{{/unless}}
+                        {{#if editable}}<button type="button" data-action="configure-journey"><i class="fas fa-route"></i> {{localize "TENEBRE.Journey.Configure"}}</button>{{/if}}
+                        <ul>{{#each expedition.journey.participants}}<li>{{name}} — {{detail}}</li>{{/each}}</ul>
+                        {{#if expedition.journey.isStaying}}<p>{{localize "TENEBRE.Journey.StayPolicy"}}</p>{{/if}}
+                        {{#if expedition.journey.config.site}}<p>{{expedition.journey.config.site}} · {{expedition.journey.stayDays}} {{localize "TENEBRE.Travel.Days"}}</p>{{/if}}
+                        {{#each expedition.journey.checks}}
+                        <div class="tenebre-journey-check"><span>{{label}}: {{status}}</span>
+                            {{#if canRoll}}<button type="button" data-action="journey-check" data-kind="{{kind}}">{{localize "TENEBRE.Journey.Resolve"}}</button>{{/if}}
+                            {{#if canApply}}<button type="button" data-action="journey-apply">{{localize "TENEBRE.Journey.ApplyEffort"}}</button>{{/if}}
+                        </div>
+                        {{/each}}
+                    </section>
+
                     <!-- Box do Guia da Expedição (Passo 1) -->
                     <div class="party-guide-box foreground {{#if expedition.guide.hasGuide}}is-linked{{else}}is-unlinked{{/if}}" data-drop-zone="expedition-guide">
                         <!-- Separação de contagem de passo: Passo 1: Teste de Orientação -->
@@ -519,7 +538,7 @@
                                         {{#unless expedition.dayState.orientation.restricted}}<span class="orientation-roll-score">({{expedition.dayState.orientation.rollTotal}}/{{expedition.dayState.orientation.target}})</span>{{/unless}}
                                     </div>
                                     <div class="orientation-btn-group">
-                                        <button type="button" class="btn-orientation-roll is-reroll" data-action="roll-orientation" data-tooltip="{{localize "TENEBRE.Party.RerollOrientationTooltip"}}">
+                                        <button type="button" class="btn-orientation-roll is-reroll" data-action="roll-orientation" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.RerollOrientationTooltip"}}">
                                             <i class="fas fa-sync-alt"></i> {{localize "TENEBRE.Party.RerollOrientationBtn"}}
                                         </button>
                                         {{#if editable}}
@@ -529,12 +548,12 @@
                                         {{/if}}
                                     </div>
                                 {{else}}
-                                    <button type="button" class="btn-orientation-roll" data-action="roll-orientation" data-tooltip="{{localize "TENEBRE.Party.RollOrientationTooltip"}}">
+                                    <button type="button" class="btn-orientation-roll" data-action="roll-orientation" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.RollOrientationTooltip"}}">
                                         <i class="fas fa-compass"></i> {{localize "TENEBRE.Party.RollOrientationBtn"}} ({{localize "TENEBRE.Party.TargetLabel"}}: {{expedition.guide.bushcraft.target}})
                                     </button>
                                 {{/if}}
                                 {{#if expedition.canAdjustOrientation}}
-                                <button type="button" class="btn-orientation-roll" data-action="roll-orientation-modified" data-tooltip="{{localize "TENEBRE.Party.OrientationModifierHint"}}"><i class="fas fa-sliders-h"></i> {{localize "TENEBRE.Party.OrientationModifier"}}</button>
+                                <button type="button" class="btn-orientation-roll" data-action="roll-orientation-modified" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.OrientationModifierHint"}}"><i class="fas fa-sliders-h"></i> {{localize "TENEBRE.Party.OrientationModifier"}}</button>
                                 {{/if}}
                             </div>
                         </div>
@@ -645,7 +664,7 @@
                             <div class="events-header-actions">
                                 <!-- Botão de Alternância de Busca Ativa de Ruínas -->
                                 {{#if editable}}
-                                <button type="button" class="btn-toggle-active-search {{#if expedition.activeSearch}}is-active{{else}}is-inactive{{/if}}" data-action="toggle-active-search" data-tooltip="{{localize "TENEBRE.Party.ActiveSearchTooltip"}}">
+                                <button type="button" class="btn-toggle-active-search {{#if expedition.activeSearch}}is-active{{else}}is-inactive{{/if}}" data-action="toggle-active-search" {{#if expedition.journey.searchUnavailable}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.ActiveSearchTooltip"}}">
                                     <i class="fas {{#if expedition.activeSearch}}fa-search-location{{else}}fa-eye-slash{{/if}}"></i>
                                     <span class="search-toggle-label">{{localize "TENEBRE.Party.ActiveSearchLabel"}}:</span>
                                     <strong class="search-toggle-val">{{#if expedition.activeSearch}}{{localize "TENEBRE.Party.ActiveSearchYes"}}{{else}}{{localize "TENEBRE.Party.ActiveSearchNo"}}{{/if}}</strong>
@@ -689,7 +708,7 @@
                                     {{#if slot.hasResult}}
                                         <div class="event-slot-result-box" data-tooltip="{{slot.result.resultText}}{{#unless slot.result.restricted}} ({{localize "TENEBRE.Party.EventRollDetails"}}: {{slot.result.rollTotal}} [{{slot.result.formula}}]){{/unless}}">
                                             {{#unless slot.result.restricted}}<span class="event-result-score">[{{slot.result.rollTotal}}]</span>{{/unless}}
-                                            <span class="event-result-text">{{slot.result.resultText}}</span>
+                                            <span class="event-result-text">{{#if slot.stale}}{{localize "TENEBRE.Journey.Stale"}} — {{/if}}{{slot.result.resultText}}</span>
                                         </div>
                                     {{else}}
                                         <span class="event-slot-no-result">{{localize "TENEBRE.Party.EventNotRolled"}}</span>
@@ -697,8 +716,9 @@
                                 </div>
 
                                 <div class="event-slot-actions">
+                                    {{#if @root.expedition.canAdjustOrientation}}<button type="button" data-action="choose-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Journey.Manual"}}"><i class="fas fa-hand-pointer"></i></button>{{/if}}
                                     {{#if ../editable}}
-                                    <button type="button" class="btn-roll-single-event" data-action="roll-single-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Party.RollSingleEventTooltip"}}">
+                                    <button type="button" class="btn-roll-single-event" {{#if slot.unavailable}}disabled{{/if}} data-action="roll-single-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Party.RollSingleEventTooltip"}}">
                                         <i class="fas fa-dice"></i>
                                     </button>
                                     {{#if slot.hasResult}}

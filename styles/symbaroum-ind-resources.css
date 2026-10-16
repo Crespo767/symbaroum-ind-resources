@@ -6406,3 +6406,9 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 .tenebre-event-result-item .event-item-text a.content-link i {
   color: #e5c158 !important;
 }
+
+
+.tenebre-party-sheet .tenebre-journey-panel { padding: 12px; margin: 10px 0; }
+.tenebre-party-sheet .tenebre-journey-panel h3 { margin: 0 0 8px; }
+.tenebre-party-sheet .tenebre-journey-check { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
+.tenebre-party-sheet .tenebre-journey-check button { width: auto; }

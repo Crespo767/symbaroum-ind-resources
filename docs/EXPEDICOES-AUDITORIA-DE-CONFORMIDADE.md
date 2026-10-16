@@ -2,7 +2,7 @@
 
 Data: 15/10/2026. Versão declarada do módulo: 0.18.42, com os três lotes locais de estabilização ainda não publicados. O código examinado é o instalado, incluindo esses ajustes. As conclusões abaixo não se referem apenas ao último release ou ao texto do README.
 
-**Atualização posterior ao diagnóstico:** orientação e armazenamento privado foram tratados na [etapa A](EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md), com testes locais. Este documento preserva o diagnóstico anterior; os casos de movimento, alimentos e demais etapas continuam abertos.
+**Atualização posterior ao diagnóstico:** orientação e armazenamento privado foram tratados na [etapa A](EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md). Jornada compartilhada, rio, busca ativa, esforço, detecção e permanência foram tratados localmente na [etapa B](EXPEDICOES-ETAPA-B-JORNADA-E-EVENTOS.md), em 16/10/2026. Ambas possuem testes locais e aceitação em runtime pendente. Este documento preserva o diagnóstico anterior; alimentos e etapas C–F continuam abertos.
 
 ## Resultado
 
