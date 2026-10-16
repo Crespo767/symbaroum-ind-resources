@@ -3,6 +3,22 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.18.43 — 15/10/2026
+
+- Atualização instalável com os ajustes de estabilização, provisões, orientação
+  e privacidade publicados no commit `3913045`.
+- Manifesto, metadados de desenvolvimento e README usam `0.18.43`; ID, URLs
+  de atualização e compatibilidade declarada permanecem os existentes.
+- ZIP gerado do commit de release, com `module.json` na raiz, scripts, estilos,
+  templates, idiomas, dados, assets, packs e avisos/licenças. Arquivos de
+  desenvolvimento, caches e logs não entram no pacote.
+- Os packs já rastreados são empacotados a partir do Git, sem leitura de bancos
+  em uso nem regeneração de tabelas ou alteração dos mundos.
+- Validação local: 515 testes e sintaxe de 135 módulos JavaScript. A conferência
+  interativa desta entrega entre GM/jogador, DSN e Foundry v13/v14 permanece
+  pendente; o release não amplia a compatibilidade verificada.
+- Detalhes e limites de dados legados: [etapa A de expedições](EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md).
+
 ## Situação técnica
 
 - O manifesto possui ID, sistema, dependência obrigatória, URLs estáveis,
