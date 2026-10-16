@@ -24,6 +24,7 @@ tudo pode ser ativado ou desativado nas configuracoes.
 Esta lista resume os recursos do modulo. Clique em uma funcionalidade para abrir
 sua explicacao detalhada:
 
+- [Calendario de Symbaroum](#calendario-de-symbaroum)
 - [Configuracoes separadas por categoria](#configuracoes)
 - [Pao de Viagem e outros alimentos](#pao-de-viagem)
 - [Fome e inanicao](#fome)
@@ -60,13 +61,32 @@ recursos adequados para sua mesa.
 
 ---
 
+## Calendario de Symbaroum
+
+A data fica no topo de todas as abas da barra lateral direita. O GM usa o icone
+de calendario para definir a data inicial e as setas para recuar ou avancar um
+dia. Jogadores veem a mesma data, sem controles de edicao.
+
+O calendario usa os 12 meses de 30 dias do preset de Symbaroum estudado no
+Simple Calendar. Nao possui notas nem eventos. Pode ser desativado nas
+configuracoes nativas do modulo sem recarregar o mundo.
+
+A primeira configuracao associa a data escolhida ao tempo mundial atual sem
+reinicia-lo. Depois disso, as setas e a edicao da data alteram o tempo mundial
+do Foundry, preservando o horario. Modulos que usam esse mesmo tempo recebem
+as alteracoes; o calendario tambem acompanha mudancas externas. Cada dia
+equivale a 86400 segundos. Relogios privados de terceiros exigem integracao
+especifica. Anos permitidos: 0 a 9999.
+
+Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
+
 ## Compatibilidade
 
 | Componente | Versao |
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.18.43 |
+| Modulo | 0.18.44 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 

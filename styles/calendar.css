@@ -1,0 +1,32 @@
+#tenebre-calendar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  width: var(--sidebar-width, 300px);
+  box-sizing: border-box;
+  margin: 0 0 5px;
+  padding: 5px;
+  color: var(--color-text-primary, #eee);
+  background: var(--background, rgba(15, 15, 20, 0.92));
+  border: 1px solid var(--color-border-dark, #555);
+  border-radius: 5px;
+  pointer-events: auto;
+}
+
+#tenebre-calendar .tenebre-calendar-date {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: var(--font-size-13, 13px);
+  overflow-wrap: anywhere;
+}
+
+#tenebre-calendar button {
+  flex: 0 0 26px;
+  width: 26px;
+  min-height: 26px;
+  padding: 0;
+  margin: 0;
+  line-height: 24px;
+}

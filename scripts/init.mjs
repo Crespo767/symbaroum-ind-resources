@@ -1,3 +1,4 @@
+import { CalendarService } from "./calendar.mjs";
 import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { patchWeaponRolls } from "./weapon-wrapper.mjs";
@@ -49,6 +50,11 @@ import { getActorTokens, getCanvasCreatureTokens, isActiveGM, normalizeText } fr
 
 Hooks.once("init", () => {
   registerDiceHooks();
+  try {
+    CalendarService.register();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao registrar CalendarService:", err);
+  }
   try {
     TenebreSettings.register();
   } catch (err) {

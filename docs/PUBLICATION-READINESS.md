@@ -3,6 +3,19 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.18.44 — 16/10/2026
+
+- Calendario de Symbaroum em todas as abas da lateral direita, com controles
+  exclusivos de GM e exibicao compartilhada para jogadores.
+- Integracao bidirecional com o tempo mundial via API publica do Foundry.
+- Publicacao restrita ao calendario; alteracoes locais em viagem e expedicao
+  nao fazem parte desta release.
+- Identidade, URLs e compatibilidade declarada preservadas.
+- Validacao da copia isolada: 524 testes passaram, sintaxe de 138 modulos
+  JavaScript validada, 13 arquivos JSON validos e paridade completa de idiomas.
+- Validacao visual, GM/jogador em clientes reais e integracoes com modulos
+  temporais especificos pendentes. Esta entrega permite esses testes no Foundry.
+
 ## Release v0.18.43 — 15/10/2026
 
 - Atualização instalável com os ajustes de estabilização, provisões, orientação
