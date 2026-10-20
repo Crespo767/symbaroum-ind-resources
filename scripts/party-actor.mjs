@@ -15,6 +15,7 @@ import { getActorExpeditionData, expeditionDayKey, expeditionOrientationKey, exp
 import { boundOrientationTarget, orientationRequirements, orientationBoon, orientationContext, rollOrientationTest } from "./expedition-orientation.mjs";
 import { expeditionReadKey, sealExpeditionRead, openExpeditionRead, ensureExpeditionPrivateStorage, canReadExpeditionResult, readPrivateExpeditionResult, storePrivateExpeditionResult } from "./expedition-private.mjs";
 import { actorReference, actorStateKey, actorMatchesReference, resolveActorReference, resolveActorReferenceSync } from "./actor-references.mjs";
+import { buildPartySearchEntries, partySearchSuggestions, searchPartyMembers } from "./party-search.mjs";
 export { getActorExpeditionData } from "./expedition-state.mjs";
 
 /** Tipo de ator declarado em module.json (documentTypes.Actor.party); o core o registra sozinho. */
@@ -996,6 +997,7 @@ export class PartyActorSheet extends BaseActorSheet {
     data.system = this.actor?.system;
     data.cssClass = this.isEditable ? "editable" : "locked";
     data.editable = this.isEditable;
+    data.canViewExpedition = Boolean(globalThis.game?.user?.isGM);
 
     const memberIds = Array.isArray(this.actor?.system?.members) ? this.actor.system.members : [];
     const members = [];
@@ -1006,6 +1008,8 @@ export class PartyActorSheet extends BaseActorSheet {
       }
     }
     data.members = members;
+    this._memberSearchEntries = buildPartySearchEntries(members, { user: globalThis.game?.user, localize });
+    data.memberSearchQuery = this._memberSearchQuery ?? "";
 
     const companionIds = Array.isArray(this.actor?.system?.companions) ? this.actor.system.companions : [];
     const companions = [];
@@ -1618,10 +1622,106 @@ export class PartyActorSheet extends BaseActorSheet {
     }
   }
 
+  _activateMemberSearch(root) {
+    const section = root.querySelector(".party-members-section");
+    const input = section?.querySelector(".party-member-search-input");
+    if (!input) return;
+    const list = section.querySelector(".party-members-list");
+    const cards = [...list.querySelectorAll(".party-member-card")];
+    const suggestions = section.querySelector(".party-search-suggestions");
+    const count = section.querySelector(".party-search-count");
+    const empty = section.querySelector(".party-search-empty");
+    const clear = section.querySelector(".party-search-clear");
+    const categories = { attribute: "SearchAttributes", ability: "SearchAbilities", item: "SearchItems" };
+    const apply = (showSuggestions = false) => {
+      const query = this._memberSearchQuery ?? "";
+      const active = Boolean(query.trim());
+      const results = searchPartyMembers(this._memberSearchEntries ?? [], query, this._memberSearchSelection);
+      const byId = new Map(results.map(result => [result.id, result]));
+      for (const card of cards) {
+        const result = byId.get(card.dataset.actorId);
+        card.hidden = active && !result;
+        const summary = card.querySelector(".party-member-search-match");
+        summary.textContent = active && result ? result.matches.map(match => match.kind === "attribute" ? `${match.name}: ${match.total}` : `${match.name}${match.tier ? ` — ${match.tier}` : ""}`).join(" · ") : "";
+        summary.hidden = !summary.textContent;
+      }
+      for (const result of results) {
+        const card = cards.find(card => card.dataset.actorId === result.id);
+        if (card) list.append(card);
+      }
+      if (!active) for (const card of cards) list.append(card);
+      count.textContent = active ? `${results.length} / ${cards.length}` : String(cards.length);
+      empty.hidden = !active || results.length > 0;
+      clear.hidden = !active;
+      suggestions.replaceChildren();
+      suggestions.hidden = true;
+      if (!showSuggestions) return;
+      const options = partySearchSuggestions(this._memberSearchEntries ?? [], query);
+      for (const kind of ["attribute", "ability", "item"]) {
+        const fields = options.filter(option => option.kind === kind);
+        if (!fields.length) continue;
+        const heading = document.createElement("div");
+        heading.className = "party-search-category";
+        heading.textContent = localize(`TENEBRE.Party.${categories[kind]}`);
+        suggestions.append(heading);
+        for (const field of fields) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = field.name;
+          button.addEventListener("click", () => {
+            this._memberSearchQuery = input.value = field.name;
+            this._memberSearchSelection = { kind: field.kind, key: field.key };
+            apply();
+            input.focus();
+          });
+          suggestions.append(button);
+        }
+      }
+      suggestions.hidden = options.length === 0;
+    };
+    input.addEventListener("input", () => {
+      this._memberSearchQuery = input.value;
+      this._memberSearchSelection = null;
+      apply(true);
+    });
+    // Search is UI state, never a submitted Actor field.
+    input.addEventListener("change", event => event.stopPropagation());
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") { event.preventDefault(); suggestions.hidden = true; }
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); clear.click(); }
+      if (event.key === "ArrowDown" && !suggestions.hidden) { event.preventDefault(); suggestions.querySelector("button")?.focus(); }
+    });
+    suggestions.addEventListener("keydown", event => {
+      const buttons = [...suggestions.querySelectorAll("button")];
+      const index = buttons.indexOf(document.activeElement);
+      if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        buttons[(index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
+      }
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); suggestions.hidden = true; input.focus(); }
+    });
+    section.querySelector(".party-member-search").addEventListener("focusout", event => {
+      if (!event.currentTarget.contains(event.relatedTarget)) suggestions.hidden = true;
+    });
+    clear.addEventListener("click", () => {
+      this._memberSearchQuery = input.value = "";
+      this._memberSearchSelection = null;
+      apply();
+      input.focus();
+    });
+    apply();
+  }
+
   activateListeners(html) {
     super.activateListeners?.(html);
     const root = html?.[0] ?? html;
     if (!root?.querySelectorAll) return;
+    if (!game.user?.isGM) {
+      for (const tab of this._tabs ?? []) {
+        if (tab.active === "expedition") tab.activate("characters");
+      }
+    }
+    this._activateMemberSearch(root);
 
     root.querySelectorAll('select[name="system.location.region"]').forEach(el => {
       el.addEventListener("change", async (ev) => {
@@ -1808,6 +1908,8 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
+    this._bindMemberContextMenu(root);
+    if (!game.user?.isGM) return;
     root.querySelectorAll('[data-action="open-guide-sheet"]').forEach(el => {
       el.addEventListener("click", async (ev) => {
         ev.preventDefault();
@@ -1992,7 +2094,6 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
-    this._bindMemberContextMenu(root);
     this._bindGuideContextMenu(root);
     this._bindRationContextMenu(root);
   }
@@ -2068,7 +2169,7 @@ export class PartyActorSheet extends BaseActorSheet {
       label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.SetGuideContextMenu") || "Definir como guia do grupo",
       icon: '<i class="fas fa-compass"></i>',
       visible: (target) => {
-        if (!this.isEditable) return false;
+        if (!game.user?.isGM || !this.isEditable) return false;
         const actorId = _getActorId(target);
         if (!actorId) return false;
         const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
@@ -2076,6 +2177,7 @@ export class PartyActorSheet extends BaseActorSheet {
         return currentGuideId !== actorId && currentGuideUuid !== actorId;
       },
       onClick: (target) => {
+        if (!game.user?.isGM) return;
         const actorId = _getActorId(target);
         if (actorId) void this._onSetGuide(actorId);
       }
@@ -2085,7 +2187,7 @@ export class PartyActorSheet extends BaseActorSheet {
       label: globalThis.game?.i18n?.localize?.("TENEBRE.Party.UnsetGuideContextMenu") || "Remover como guia do grupo",
       icon: '<i class="fas fa-times"></i>',
       visible: (target) => {
-        if (!this.isEditable) return false;
+        if (!game.user?.isGM || !this.isEditable) return false;
         const actorId = _getActorId(target);
         if (!actorId) return false;
         const currentGuideId = this.actor?.system?.expedition?.guideId || this.actor?.flags?.[MODULE_ID]?.expedition?.guideId || "";
@@ -2093,6 +2195,7 @@ export class PartyActorSheet extends BaseActorSheet {
         return currentGuideId === actorId || currentGuideUuid === actorId;
       },
       onClick: () => {
+        if (!game.user?.isGM) return;
         void this._onUnsetGuide();
       }
     });

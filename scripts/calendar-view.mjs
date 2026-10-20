@@ -7,13 +7,19 @@ import {
 const label = key => game.i18n.localize(`TENEBRE.Calendar.${key}`);
 const sameDate = (a, b) => a && b && a.year === b.year && a.month === b.month && a.day === b.day;
 
-export function buildCalendarClock(worldTime, isGM) {
+export function buildCalendarClockToggle(running, paused, sidebar = false) {
+  const action = running ? "PauseClock" : "StartClock";
+  const hint = running && paused ? "ClockGamePaused" : action;
+  return `<button type="button" ${sidebar ? 'data-calendar-action="toggleClock"' : 'data-action="toggleClock"'} class="tenebre-clock-toggle${running && !paused ? " is-running" : ""}" aria-pressed="${running}" aria-label="${escapeHtml(label(action))}" title="${escapeHtml(label(hint))}">${running ? "Ⅱ" : "▶"}</button>`;
+}
+
+export function buildCalendarClock(worldTime, isGM, running = false, paused = false) {
   const clock = calendarClock(worldTime);
   const control = (seconds, text, key) => `<button type="button" data-action="changeTime" data-seconds="${seconds}" title="${escapeHtml(label(key))}" aria-label="${escapeHtml(label(key))}">${text}</button>`;
   return `<div class="tenebre-calendar-clock" aria-label="${escapeHtml(label("WorldTime"))}">
     ${isGM ? `<div class="tenebre-clock-controls">${control(-3600, "−1h", "RewindHour")}${control(-600, "−10m", "RewindMinutes")}</div>` : ""}
-    <div class="tenebre-clock-display"><svg class="tenebre-clock-face" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 3v1m0 16v1M3 12h1m16 0h1"/><path data-calendar-hand="hour" d="M12 12V7" transform="rotate(${clock.hourAngle} 12 12)"/><path data-calendar-hand="minute" d="M12 12V5" transform="rotate(${clock.minuteAngle} 12 12)"/><circle cx="12" cy="12" r=".7" fill="currentColor"/></svg><time data-calendar-time datetime="${clock.text}">${clock.text}</time></div>
-    ${isGM ? `<div class="tenebre-clock-controls">${control(600, "+10m", "AdvanceMinutes")}${control(3600, "+1h", "AdvanceHour")}</div>` : ""}
+    <div class="tenebre-clock-display"><svg class="tenebre-clock-face" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 3v1m0 16v1M3 12h1m16 0h1"/><path data-calendar-hand="hour" d="M12 12V7" transform="rotate(${clock.hourAngle} 12 12)"/><path data-calendar-hand="minute" d="M12 12V5" transform="rotate(${clock.minuteAngle} 12 12)"/><circle cx="12" cy="12" r=".7" fill="currentColor"/></svg><time data-calendar-time datetime="${clock.fullText}">${clock.fullText}</time></div>
+    ${isGM ? `<div class="tenebre-clock-controls">${control(600, "+10m", "AdvanceMinutes")}${control(3600, "+1h", "AdvanceHour")}${buildCalendarClockToggle(running, paused)}</div>` : ""}
   </div>`;
 }
 
@@ -21,9 +27,9 @@ export function buildCalendarClock(worldTime, isGM) {
 export function updateCalendarClock(element, worldTime) {
   const clock = calendarClock(worldTime);
   for (const time of element?.querySelectorAll?.("[data-calendar-time]") ?? []) {
-    if (time.textContent !== clock.text) {
-      time.textContent = clock.text;
-      time.setAttribute("datetime", clock.text);
+    if (time.textContent !== clock.fullText) {
+      time.textContent = clock.fullText;
+      time.setAttribute("datetime", clock.fullText);
     }
   }
   for (const hand of element?.querySelectorAll?.("[data-calendar-hand]") ?? []) {
@@ -71,7 +77,7 @@ export function buildCalendarAlmanac(date) {
     <span class="tenebre-moon" title="${escapeHtml(label("Moon"))}">${calendarMoonIcon(moon.phase)}<span>${escapeHtml(label(`Phases.${moon.phase}`))}</span></span>`;
 }
 
-export function buildCalendarPage({ current, selected, view, isGM, worldTime = game.time.worldTime }) {
+export function buildCalendarPage({ current, selected, view, isGM, worldTime = game.time.worldTime, running = false, paused = false }) {
   const grid = calendarMonthDays(view.year, view.month);
   const options = SYMBAROUM_MONTHS.map((name, i) => `<option value="${i + 1}"${view.month === i + 1 ? " selected" : ""}>${escapeHtml(name)}</option>`).join("");
   const headings = CALENDAR_WEEKDAYS.map(key => `<span class="tenebre-weekday" role="columnheader" title="${escapeHtml(label(`Weekdays.${key}`))}">${escapeHtml(label(`WeekdaysShort.${key}`))}</span>`).join("");
@@ -86,7 +92,7 @@ export function buildCalendarPage({ current, selected, view, isGM, worldTime = g
   const rows = Array.from({ length: allCells.length / 7 }, (_, i) => `<div class="tenebre-week-row" role="row">${allCells.slice(i * 7, i * 7 + 7).join("")}</div>`).join("");
   const atStart = view.year === 0 && view.month === 1, atEnd = view.year === MAX_CALENDAR_YEAR && view.month === 12;
   return `<section class="tenebre-calendar-page">
-    <header class="tenebre-calendar-world"><span class="tenebre-calendar-eyebrow">${escapeHtml(label("WorldDate"))}</span><strong>${escapeHtml(formatCalendarDate(current))}</strong><div class="tenebre-calendar-almanac">${buildCalendarAlmanac(current)}</div>${buildCalendarClock(worldTime, isGM)}</header>
+    <header class="tenebre-calendar-world"><span class="tenebre-calendar-eyebrow">${escapeHtml(label("WorldDate"))}</span><strong>${escapeHtml(formatCalendarDate(current))}</strong><div class="tenebre-calendar-almanac">${buildCalendarAlmanac(current)}</div>${buildCalendarClock(worldTime, isGM, running, paused)}</header>
     <nav class="tenebre-calendar-navigation" aria-label="${escapeHtml(label("Browse"))}">
       <button type="button" data-action="previousMonth" aria-label="${escapeHtml(label("PreviousMonth"))}" title="${escapeHtml(label("PreviousMonth"))}"${atStart ? " disabled" : ""}>‹</button>
       <select name="calendarMonth" aria-label="${escapeHtml(label("Month"))}">${options}</select>

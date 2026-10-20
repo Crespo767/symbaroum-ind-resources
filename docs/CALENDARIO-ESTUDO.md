@@ -129,7 +129,22 @@ Solicitada após o usuário confirmar que a primeira release apareceu e funciono
 - Horário mundial em formato de 24 horas (`HH:mm`) na lateral e na janela, com mostrador analógico vetorial na janela.
 - GM dispõe de controles de recuar/avançar 10 minutos e uma hora. Jogadores veem o relógio, sem os controles de alteração.
 - Operações usam a mesma fila e o mesmo executor principal da data, com validação do remetente e dos quatro intervalos aceitos. O relógio também funciona antes da definição inicial da data.
-- O tempo continua sendo `game.time.worldTime`; não foi criado um relógio automático paralelo nem um timer. Alterações externas acompanham o fluxo já existente de `updateWorldTime`.
+- Nesta primeira etapa de horas, o tempo continuou sendo `game.time.worldTime`, sem avanço automático. Alterações externas acompanham o fluxo de `updateWorldTime`. O avanço automático foi solicitado depois, na etapa abaixo.
 - Cruzar a meia-noite atualiza a data, a lua e a estação conforme o calendário. A referência temporal salva permanece intacta.
 - Quando somente o horário muda, os textos e ponteiros são atualizados diretamente, preservando o mês consultado, a seleção e os campos em edição.
 - Validação: 20 testes de calendário e 575 testes completos passaram. A prévia confirmou atualização simultânea da lateral e da janela, posição dos ponteiros e ausência de controles para jogador. Integração real da nova interface em Foundry v13/v14 permanece pendente.
+
+## Avanço automático e proporção configurável — 17/10/2026
+
+- O painel ganhou botões compactos de ajustar horário e iniciar/pausar. O ajuste abre um campo `HH:mm` no próprio painel e aplica o horário mantendo o dia do mundo. A janela mensal também possui iniciar/pausar.
+- A exibição passa a incluir segundos (`HH:mm:ss`). Os ponteiros e textos são atualizados sem substituir a grade ou o campo de horário em edição.
+- `calendarClockRunning` guarda a intenção de iniciar/pausar no mundo; começa desligado. A pausa do Foundry suspende o avanço, mantendo a intenção de retomar quando o jogo voltar.
+- `calendarClockSpeed`, nas configurações nativas do módulo, define quantos segundos do mundo passam por segundo real. Padrão 1; valores aceitos de 0,01 a 86400. Exemplos: 60 equivale a um minuto por segundo; 0,5 equivale à metade da velocidade.
+- A proporção tem validação numérica e efeito sem recarregar. O motor mantém frações para velocidades abaixo de 1, sem perder os avanços acumulados.
+- Somente o GM principal ativo executa o motor. Jogadores e GMs secundários não criam avanço local. Os pedidos de controle passam pelo remetente autenticado e pela mesma fila das mudanças manuais.
+- A medição usa o tempo monotônico do cliente durante a sessão e atualiza `game.time.advance`. Não existe uma data paralela; módulos consumidores continuam recebendo `updateWorldTime`.
+- Pausa, troca de autoridade, desativação e saída cancelam o agendamento. Ao reabrir o mundo, o relógio iniciado retoma a partir do tempo salvo, sem contar o período fechado. Falhas de gravação param o motor, em vez de repetir erros a cada segundo.
+- Outros motores automáticos que também avancem o tempo mundial podem somar seus avanços; esta implementação não desativa módulos de terceiros.
+- Validação: 28 testes focados e 618 testes da suíte completa passaram, sintaxe de 147 módulos validada, JSONs e paridade de idiomas válidos, `git diff --check` sem erros.
+- Conferência na prévia isolada: iniciar/pausar pela lateral, sincronização com a janela, proporção 60, pausa do jogo sem avanço, e ajuste direto de horário. A simulação possui um botão para aplicar a proporção; no Foundry ela é salva nas configurações do módulo.
+- Pendentes em clientes reais do Foundry v13/v14: troca de GM com relógio ativo, permissões nativas da configuração e convivência com módulos temporais concretos. Não houve publicação de release nesta solicitação.

@@ -3,6 +3,13 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.18.48 — 20/10/2026
+
+- Calendário: avanço automático de tempo (`CalendarClockRunner`) com controle de iniciar/pausar, suporte a pausa do Foundry, velocidade configurável (`calendarClockSpeed`, 0,01 a 86400 segundos do mundo por segundo real), exibição com segundos e editor de horário no próprio painel da barra lateral.
+- Ficha de Grupo: ferramenta de busca rápida de integrantes por nome, atributos, habilidades e itens, com sugestões categorizadas, navegação por teclado e ordenação dinâmica por atributos.
+- Ficha de Grupo: aba e controles de expedição restritos estritamente ao GM, com redirecionamento automático de jogadores para a aba de personagens.
+- Metadados, manifesto e README atualizados para `0.18.48`; paridade de 1195 chaves de idioma mantida.
+
 ## Release v0.18.47 — 16/10/2026
 
 - Janela completa do Calendário (ApplicationV2) com relógio analógico e digital em SVG, almanaque com fases da lua e estações do ano, controles de navegação e avanço de tempo mundial (±10m, ±1h).

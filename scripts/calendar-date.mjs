@@ -6,16 +6,31 @@ export const SYMBAROUM_MONTHS = Object.freeze([
 export const MAX_CALENDAR_YEAR = 9999;
 export const CALENDAR_DAY_SECONDS = 86400;
 
+export function calendarClockSpeed(value) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0.01 || value > 86400) {
+    throw new RangeError("Clock speed must be between 0.01 and 86400.");
+  }
+  return value;
+}
+
 export function calendarClock(worldTime) {
   if (!Number.isFinite(worldTime)) throw new RangeError("Invalid world time.");
   const seconds = ((Math.floor(worldTime) % CALENDAR_DAY_SECONDS) + CALENDAR_DAY_SECONDS) % CALENDAR_DAY_SECONDS;
-  const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds / 60) % 60;
+  const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds / 60) % 60, second = seconds % 60;
+  const text = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
   return {
-    hours, minutes,
-    text: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
-    hourAngle: (hours % 12) * 30 + minutes / 2,
-    minuteAngle: minutes * 6
+    hours, minutes, seconds: second, text,
+    fullText: `${text}:${String(second).padStart(2, "0")}`,
+    hourAngle: (hours % 12) * 30 + minutes / 2 + second / 120,
+    minuteAngle: minutes * 6 + second / 10
   };
+}
+
+export function calendarTimeDelta(worldTime, hours, minutes) {
+  calendarClock(worldTime);
+  if (!Number.isInteger(hours) || hours < 0 || hours > 23
+    || !Number.isInteger(minutes) || minutes < 0 || minutes > 59) throw new RangeError("Invalid clock time.");
+  return Math.floor(worldTime / CALENDAR_DAY_SECONDS) * CALENDAR_DAY_SECONDS + hours * 3600 + minutes * 60 - worldTime;
 }
 
 /** Public dates use one-based months and days. Year zero is supported. */

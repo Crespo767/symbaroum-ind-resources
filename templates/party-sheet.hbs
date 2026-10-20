@@ -37,7 +37,9 @@
         <div class="sheet-tabs tabs" data-group="primary">
             <b class="item" data-tab="characters">{{localize "TENEBRE.Party.TabCharacters"}}</b>
             <b class="item" data-tab="inventory">{{localize "TENEBRE.Party.TabInventory"}}</b>
+            {{#if canViewExpedition}}
             <b class="item" data-tab="expedition">{{localize "TENEBRE.Party.TabExpedition"}}</b>
+            {{/if}}
         </div>
 
         <div class="sheet-body">
@@ -46,7 +48,13 @@
                     <!-- Seção de Jogadores -->
                     <div class="party-section party-members-section" data-drop-zone="members">
                         <div class="party-section-header">
-                            <h3 class="section-title"><i class="fas fa-users"></i> {{localize "TENEBRE.Party.MembersSectionTitle"}} ({{members.length}})</h3>
+                            <h3 class="section-title"><i class="fas fa-users"></i> <span>{{localize "TENEBRE.Party.MembersSectionTitle"}} (<span class="party-search-count" aria-live="polite">{{members.length}}</span>)</span></h3>
+                            <div class="party-member-search">
+                                <i class="fas fa-search" aria-hidden="true"></i>
+                                <input class="party-member-search-input" type="search" value="{{memberSearchQuery}}" placeholder="{{localize "TENEBRE.Party.SearchPlaceholder"}}" aria-label="{{localize "TENEBRE.Party.SearchPlaceholder"}}" autocomplete="off" />
+                                <button class="party-search-clear" type="button" aria-label="{{localize "TENEBRE.Party.SearchClear"}}" title="{{localize "TENEBRE.Party.SearchClear"}}" hidden><i class="fas fa-times" aria-hidden="true"></i></button>
+                                <div class="party-search-suggestions" aria-label="{{localize "TENEBRE.Party.SearchSuggestions"}}" hidden></div>
+                            </div>
                         </div>
                         <div class="party-members-list">
                             {{#each members}}
@@ -110,6 +118,7 @@
 
                                     <!-- Informações de Ocupação e XP -->
                                     <div class="member-meta" data-action="open-member-sheet" data-actor-id="{{id}}">
+                                        <span class="party-member-search-match" hidden></span>
                                         {{#if occupation}}
                                         <span class="member-occupation">• {{occupation}}</span>
                                         {{/if}}
@@ -121,6 +130,7 @@
                             </div>
                             {{/each}}
 
+                            <p class="party-search-empty" role="status" hidden>{{localize "TENEBRE.Party.SearchEmpty"}}</p>
                             {{#unless members.length}}
                             <div class="party-empty-dropzone" data-drop-zone="members">
                                 <i class="fas fa-user-plus" style="font-size: 2em; opacity: 0.55; margin-bottom: 8px; display: block;"></i>
@@ -384,6 +394,7 @@
             </div>
 
             <!-- Aba de Expedição -->
+            {{#if canViewExpedition}}
             <div class="tab" data-group="primary" data-tab="expedition">
                 <div class="party-expedition-tab-content">
                     <!-- Bloco de Controle e Status da Expedição -->
@@ -717,6 +728,7 @@
                     </div>
                 </div>
             </div>
+            {{/if}}
         </div>
     </div>
 </form>

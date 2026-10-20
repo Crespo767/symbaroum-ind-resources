@@ -86,7 +86,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.18.47 |
+| Modulo | 0.18.48 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -1362,4 +1362,4 @@ Foundry VTT.
 
 A implementação atual e os testes manuais pendentes estão em [Etapa A — orientação e privacidade](docs/EXPEDICOES-ETAPA-A-ORIENTACAO-E-PRIVACIDADE.md). Resultados privados novos usam um compêndio privado do mundo, criado pelo GM no primeiro uso. O Grupo guarda apenas referências; resultados públicos mantêm o armazenamento existente. Dados antigos não são migrados automaticamente. O GM dispõe de um ajuste circunstancial opcional para informação e mapas.
 
-A [Etapa B — jornada, esforço e eventos](docs/EXPEDICOES-ETAPA-B-JORNADA-E-EVENTOS.md) acrescenta configuração comum ao Grupo e à régua de viagem, rio, busca ativa, esforço revisado pelo GM, detecção e permanência. Esforço completo permanece sob controle do GM mesmo quando o cartão de chat é público; no Grupo fica uma referência. Disponível a partir da versão 0.18.45; aceitação em sessões reais ainda pendente. A versão 0.18.46 simplifica a jornada para o Grupo inteiro, com integrantes obtidos da ficha e sem seleção individual de montarias, e reorganiza o cartão de orientação. A versão 0.18.47 adiciona a janela completa do calendário com relógio e fases da lua, tabelas oficiais de eventos diários do GMG, modificador de orientação em campo inline e menu de contexto para rações.
+A [Etapa B — jornada, esforço e eventos](docs/EXPEDICOES-ETAPA-B-JORNADA-E-EVENTOS.md) acrescenta configuração comum ao Grupo e à régua de viagem, rio, busca ativa, esforço revisado pelo GM, detecção e permanência. Esforço completo permanece sob controle do GM mesmo quando o cartão de chat é público; no Grupo fica uma referência. Disponível a partir da versão 0.18.45; aceitação em sessões reais ainda pendente. A versão 0.18.46 simplifica a jornada para o Grupo inteiro, com integrantes obtidos da ficha e sem seleção individual de montarias, e reorganiza o cartão de orientação. A versão 0.18.47 adiciona a janela completa do calendário com relógio e fases da lua, tabelas oficiais de eventos diários do GMG, modificador de orientação em campo inline e menu de contexto para rações. A versão 0.18.48 adiciona avanço automático e escala configurável do relógio no calendário, busca rápida com sugestões e ordenação na ficha de grupo, e restringe a aba de expedição ao GM.

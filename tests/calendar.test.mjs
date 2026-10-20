@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import {
   advanceCalendarDate, validateCalendarDate, createCalendarAnchor, calendarDateAtTime,
-  calendarMoon, calendarSeason, calendarMonthDays, shiftCalendarMonth, calendarClock
+  calendarMoon, calendarSeason, calendarMonthDays, shiftCalendarMonth, calendarClock, calendarTimeDelta, calendarClockSpeed
 } from "../scripts/calendar-date.mjs";
 
 const hooks = new Map();
@@ -14,6 +14,7 @@ globalThis.Hooks = {
 const { CalendarService, CalendarApplication, changeCalendarDateAsGM, buildCalendarPanel } = await import("../scripts/calendar.mjs");
 const { buildCalendarPage, updateCalendarClock } = await import("../scripts/calendar-view.mjs");
 const { SocketService } = await import("../scripts/sockets.mjs");
+const settingDefinitions = new Map();
 const translations = Object.fromEntries(["en", "pt-BR"].map(lang => [lang,
   JSON.parse(fs.readFileSync(new URL(`../languages/${lang}.json`, import.meta.url), "utf8"))]));
 
@@ -25,14 +26,14 @@ const trusted = { id: "trusted", isGM: false, active: true, role: 2 };
 const request = (operation, user = primary) => changeCalendarDateAsGM.call({ socketdata: { userId: user.id } }, operation);
 
 function setup() {
-  values = new Map([["enableCalendar", true], ["calendarDate", {}]]);
+  values = new Map([["enableCalendar", true], ["calendarDate", {}], ["calendarClockRunning", false], ["calendarClockSpeed", 1]]);
   writes = []; advances = []; registrations = []; language = "pt-BR";
   nodes = new Map();
   host = { firstElementChild: null, prepend(el) { nodes.set(el.id, el); el.parentElement = this; this.firstElementChild = el; } };
   globalThis.document = {
     getElementById: (id) => id === "sidebar-content" ? host : nodes.get(id),
     createElement: () => ({
-      listeners: [], setAttribute() {},
+      listeners: [], dataset: {}, setAttribute() {},
       addEventListener(event, fn) { this.listeners.push([event, fn]); },
       remove() { nodes.delete(this.id); if (host?.firstElementChild === this) host.firstElementChild = null; }
     })
@@ -41,7 +42,7 @@ function setup() {
     user: primary, system: { id: "symbaroum" },
     users: { activeGM: primary, get: (id) => [primary, secondary, player, trusted].find(u => u.id === id) },
     settings: {
-      register: (_module, key, spec) => registrations.push([key, spec]),
+      register: (_module, key, spec) => { registrations.push([key, spec]); settingDefinitions.set(key, spec); },
       get: (_module, key) => values.get(key),
       async set(_module, key, value) {
         await new Promise(resolve => setImmediate(resolve));
@@ -95,7 +96,7 @@ test("registration is idempotent and rendering never writes persistent data", ()
   setup(); CalendarService.register();
   const hookCount = [...hooks.values()].reduce((sum, list) => sum + list.length, 0);
   CalendarService.register();
-  assert.equal(registrations.length, 2);
+  assert.equal(registrations.length, 4);
   assert.equal([...hooks.values()].reduce((sum, list) => sum + list.length, 0), hookCount);
   CalendarService.refresh(); CalendarService.refresh();
   assert.equal(nodes.size, 1);
@@ -178,7 +179,7 @@ test("PT-BR and English panels show the same date; only GM gets controls", () =>
   for (language of ["en", "pt-BR"]) {
     const html = buildCalendarPanel(date, true);
     assert.match(html, /Leandro/); assert.doesNotMatch(html, /TENEBRE\./);
-    assert.equal((html.match(/<button/g) ?? []).length, 3);
+    assert.equal((html.match(/<button/g) ?? []).length, 5);
     assert.doesNotMatch(buildCalendarPanel(date, false), /data-calendar-action="(?:previous|next)"/);
     assert.match(buildCalendarPanel(date, false), /data-calendar-action="open"/);
   }
@@ -319,11 +320,70 @@ test("minute changes update only clock nodes, preserving calendar input and navi
   app.syncDate(); app.browseMonth(1); const view = { ...app.view }, count = paints;
   game.time.worldTime += 600;
   app.syncDate();
-  assert.equal(time.textContent, "23:10");
-  assert.equal(attributes.get('datetime'), "23:10");
+  assert.equal(time.textContent, "23:10:00");
+  assert.equal(attributes.get('datetime'), "23:10:00");
   assert.equal(attributes.get('hand-transform'), "rotate(335 12 12)");
   assert.equal(paints, count);
   assert.deepEqual(app.view, view);
   updateCalendarClock(app.element, 0);
-  assert.equal(time.textContent, "00:00");
+  assert.equal(time.textContent, "00:00:00");
+});
+
+test("sidebar has GM-only time editor and play/pause controls without changing the date", async () => {
+  setup();
+  await request({ type: "set", date: { year: 21, month: 10, day: 21 } });
+  const date = CalendarService.getDate();
+  const page = buildCalendarPanel(date, true, game.time.worldTime, { running: true, editing: true });
+  assert.match(page, /data-calendar-action="editTime"/);
+  assert.match(page, /data-calendar-action="toggleClock"/);
+  assert.match(page, /name="calendarSidebarTime"/);
+  assert.match(page, /aria-pressed="true"/);
+  const playerPage = buildCalendarPanel(date, false, game.time.worldTime, { running: true, editing: true });
+  assert.doesNotMatch(playerPage, /toggleClock|editTime|applyTime|calendarSidebarTime/);
+  assert.match(playerPage, /23:00:00/);
+  assert.throws(() => request({ type: "setTime", hours: 24, minutes: 0 }), RangeError);
+  for (const user of [player, trusted]) {
+    assert.throws(() => request({ type: "toggleClock" }, user), /Unauthorized/);
+    assert.throws(() => request({ type: "setTime", hours: 12, minutes: 30 }, user), /Unauthorized/);
+  }
+  await request({ type: "setTime", hours: 12, minutes: 30 });
+  assert.deepEqual(CalendarService.getDate(), date);
+  assert.equal(calendarClock(game.time.worldTime).fullText, "12:30:00");
+  await request({ type: "toggleClock" });
+  assert.equal(values.get("calendarClockRunning"), true);
+  await request({ type: "toggleClock" }, secondary);
+  assert.equal(values.get("calendarClockRunning"), false);
+  assert.equal(calendarTimeDelta(-1, 12, 0), -43199);
+});
+
+test("clock speed is a world setting and only the primary GM can run its scheduler", async () => {
+  setup();
+  assert.equal(settingDefinitions.get("calendarClockSpeed").scope, "world");
+  assert.equal(settingDefinitions.get("calendarClockSpeed").default, 1);
+  for (const rate of [0.01, 0.5, 1, 60, 86400]) assert.equal(calendarClockSpeed(rate), rate);
+  for (const rate of [0, -1, Infinity, NaN, "60", 86401]) assert.throws(() => calendarClockSpeed(rate), RangeError);
+  for (const callback of hooks.get("ready") ?? []) callback();
+  values.set("calendarClockRunning", true);
+  assert.equal(CalendarService.canRunClock(), true);
+  game.user = secondary; assert.equal(CalendarService.canRunClock(), false);
+  game.user = player; assert.equal(CalendarService.canRunClock(), false);
+  game.user = primary; game.paused = true; assert.equal(CalendarService.canRunClock(), false);
+  game.paused = false; values.set("enableCalendar", false); assert.equal(CalendarService.canRunClock(), false);
+  values.set("calendarClockRunning", false); CalendarService.synchronizeClock();
+});
+
+test("second-by-second sidebar updates retain the time editor and its draft", async () => {
+  setup(); CalendarService.refresh();
+  const panel = nodes.get("tenebre-calendar");
+  const click = panel.listeners.find(([event]) => event === "click")[1];
+  click({ target: { closest: () => ({ dataset: { calendarAction: "editTime" } }) } });
+  assert.match(panel.innerHTML, /calendarSidebarTime/);
+  const original = panel.innerHTML;
+  const time = { textContent: "23:00:00", setAttribute() {} };
+  panel.querySelectorAll = selector => selector === "[data-calendar-time]" ? [time] : [];
+  game.time.worldTime++;
+  CalendarService.refresh();
+  assert.equal(panel.innerHTML, original, "a tick must not replace the editor DOM");
+  assert.equal(time.textContent, "23:00:01");
+  click({ target: { closest: () => ({ dataset: { calendarAction: "editTime" } }) } });
 });

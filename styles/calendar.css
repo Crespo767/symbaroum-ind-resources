@@ -40,17 +40,23 @@
   letter-spacing: 1px;
 }
 
+#tenebre-calendar .tenebre-sidebar-time-row { display: flex; align-items: center; justify-content: center; gap: 5px; }
+#tenebre-calendar .tenebre-sidebar-time-row button { flex: 0 0 20px; width: 20px; min-height: 20px; line-height: 18px; font-size: 10px; }
+#tenebre-calendar .tenebre-sidebar-time-editor { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding-top: 4px; border-top: 1px solid #ffffff12; }
+#tenebre-calendar .tenebre-sidebar-time-editor input { width: 105px; height: 28px; color-scheme: dark; }
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-clock-toggle.is-running { color: #a1d1a1; border-color: #a1d1a155; }
+
 #tenebre-calendar-window .tenebre-calendar-clock {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 9px;
   width: 100%;
   margin-top: 7px;
 }
 
-#tenebre-calendar-window .tenebre-clock-display { display: flex; align-items: center; gap: 9px; color: #e6ce9e; }
-#tenebre-calendar-window .tenebre-clock-display time { font-size: 25px; font-variant-numeric: tabular-nums; letter-spacing: 2px; }
+#tenebre-calendar-window .tenebre-clock-display { display: flex; align-items: center; gap: 6px; color: #e6ce9e; }
+#tenebre-calendar-window .tenebre-clock-display time { font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
 #tenebre-calendar-window .tenebre-clock-face { width: 34px; height: 34px; }
 #tenebre-calendar-window .tenebre-clock-controls { display: flex; gap: 4px; }
 #tenebre-calendar-window .tenebre-clock-controls button { min-height: 27px; padding: 3px 6px; font-size: 11px; }

@@ -3815,6 +3815,82 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 /* Tenebre Party Sheet - Base Layout & Containers                            */
 /* ========================================================================== */
 
+.tenebre-party-sheet .party-members-section > .party-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tenebre-party-sheet .party-members-section > .party-section-header .section-title {
+  width: auto;
+  flex: 0 1 auto;
+}
+
+.tenebre-party-sheet .party-member-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 230px;
+  max-width: 100%;
+  padding: 0 6px;
+  border: 1px solid rgba(50, 45, 35, 0.45);
+  border-radius: 3px;
+  background: rgba(245, 240, 225, 0.85);
+  color: #302a22;
+  font-size: 12px;
+}
+
+.tenebre-party-sheet .party-member-search .party-member-search-input {
+  width: 100%;
+  min-width: 0;
+  height: 27px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  font: inherit;
+}
+
+.tenebre-party-sheet .party-member-search-input::-webkit-search-cancel-button { display: none; }
+.tenebre-party-sheet .party-member-search :focus-visible { outline: 2px solid #695629; outline-offset: 1px; }
+.tenebre-party-sheet .party-member-search button {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 2px 5px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: 22px;
+}
+
+.tenebre-party-sheet .party-search-suggestions {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 5;
+  width: 280px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid #80745f;
+  border-radius: 3px;
+  background: #eee8d9;
+  text-align: left;
+}
+
+.tenebre-party-sheet .party-search-suggestions button { display: block; width: 100%; text-align: left; }
+.tenebre-party-sheet .party-search-suggestions button:hover { background: rgba(65, 55, 35, 0.1); }
+.tenebre-party-sheet .party-search-category { padding: 4px 5px 0; font-weight: bold; opacity: 0.75; }
+.tenebre-party-sheet .party-member-search-match { font-size: 12px; font-weight: bold; overflow-wrap: anywhere; }
+.tenebre-party-sheet .party-search-empty { text-align: center; padding: 12px; }
+.tenebre-party-sheet .party-members-section [hidden] { display: none !important; }
+
 .tenebre-party-sheet .player.party {
   display: flex;
   flex-direction: column;
