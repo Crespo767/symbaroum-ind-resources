@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import {
   advanceCalendarDate, validateCalendarDate, createCalendarAnchor, calendarDateAtTime,
-  calendarMoon, calendarSeason, calendarMonthDays, shiftCalendarMonth, calendarClock, calendarTimeDelta, calendarClockSpeed
+  calendarMoon, calendarSeason, calendarMonthDays, shiftCalendarMonth, calendarClock, calendarTimeDelta, calendarClockSpeed, calendarDayPeriod
 } from "../scripts/calendar-date.mjs";
 
 const hooks = new Map();
@@ -12,7 +12,7 @@ globalThis.Hooks = {
   once: (key, fn) => { hooks.set(key, [...(hooks.get(key) ?? []), fn]); }
 };
 const { CalendarService, CalendarApplication, changeCalendarDateAsGM, buildCalendarPanel } = await import("../scripts/calendar.mjs");
-const { buildCalendarPage, updateCalendarClock } = await import("../scripts/calendar-view.mjs");
+const { buildCalendarPage, updateCalendarClock, buildCalendarAlmanac } = await import("../scripts/calendar-view.mjs");
 const { SocketService } = await import("../scripts/sockets.mjs");
 const settingDefinitions = new Map();
 const translations = Object.fromEntries(["en", "pt-BR"].map(lang => [lang,
@@ -315,7 +315,7 @@ test("minute changes update only clock nodes, preserving calendar input and navi
   const app = new CalendarApplication(); let paints = 0;
   const attributes = new Map(), time = { textContent: "23:00", setAttribute: (key, value) => attributes.set(key, value) };
   const hand = { dataset: { calendarHand: "hour" }, getAttribute: () => null, setAttribute: (key, value) => attributes.set('hand-' + key, value) };
-  app.element = { querySelectorAll: selector => selector === '[data-calendar-time]' ? [time] : [hand] };
+  app.element = { querySelectorAll: selector => selector === '[data-calendar-time]' ? [time] : selector === '[data-calendar-hand]' ? [hand] : [] };
   app.refresh = () => { paints++; }; app.rendered = true;
   app.syncDate(); app.browseMonth(1); const view = { ...app.view }, count = paints;
   game.time.worldTime += 600;
@@ -386,4 +386,55 @@ test("second-by-second sidebar updates retain the time editor and its draft", as
   assert.equal(panel.innerHTML, original, "a tick must not replace the editor DOM");
   assert.equal(time.textContent, "23:00:01");
   click({ target: { closest: () => ({ dataset: { calendarAction: "editTime" } }) } });
+});
+
+test("visual day periods switch at dawn, daylight, dusk and night, including reverse time", () => {
+  for (const [seconds, period] of [[-1,"Night"],[0,"Night"],[5*3600-1,"Night"],
+    [5*3600,"Dawn"],[6*3600,"Dawn"],[7*3600-1,"Dawn"],[7*3600,"Day"],
+    [17*3600-1,"Day"],[17*3600,"Dusk"],[19*3600-1,"Dusk"],
+    [19*3600,"Night"],[86400,"Night"]]) {
+    assert.equal(calendarDayPeriod(seconds), period);
+  }
+});
+
+test("live almanac hides lunar phases during daylight while monthly references keep them", () => {
+  setup(); const date = { year: 21, month: 10, day: 22 };
+  for (language of ["en", "pt-BR"]) {
+    for (const [hour, key] of [[6,"Dawn"],[12,"Day"],[18,"Dusk"]]) {
+      const html = buildCalendarAlmanac(date, hour * 3600);
+      assert.match(html, new RegExp(translations[language][`TENEBRE.Calendar.DayPeriods.${key}`]));
+      assert.doesNotMatch(html, /tenebre-moon-icon/);
+      assert.doesNotMatch(html, /TENEBRE\./);
+    }
+    const phaseName = translations[language][`TENEBRE.Calendar.Phases.${calendarMoon(date).phase}`];
+    assert.ok(buildCalendarAlmanac(date, 19*3600).includes(phaseName));
+    assert.ok(buildCalendarAlmanac(date).includes(phaseName), "monthly dates have no associated time");
+    assert.match(buildCalendarPanel(date, false, 6*3600), /tenebre-sky-dawn/);
+    const page = buildCalendarPage({ current: date, selected: date, view: date, isGM: false, worldTime: 6*3600 });
+    assert.match(page, /tenebre-sky-dawn/);
+    assert.equal((page.match(/data-action="selectDay"/g) ?? []).length, 30);
+  }
+});
+
+test("live sky switches on external time updates without repainting the calendar or editor", async () => {
+  setup(); await request({ type: "set", date: { year: 21, month: 10, day: 22 } });
+  game.time.worldTime = 7*3600-1;
+  CalendarService.refresh();
+  const panel = nodes.get("tenebre-calendar"), original = panel.innerHTML;
+  const sky = { dataset: { calendarSky: "Dawn:" }, innerHTML: "", className: "", title: "" };
+  panel.querySelectorAll = selector => selector === '[data-calendar-sky]' ? [sky] : [];
+  const app = new CalendarApplication(); let paints = 0;
+  app.element = panel; app.refresh = () => { paints++; }; app.rendered = true;
+  app.syncDate(); app.browseMonth(1); const view = { ...app.view }, count = paints;
+  for (const [hour, key] of [[7,"Day:"],[17,"Dusk:"],[19,`Night:${calendarMoon(CalendarService.getDate()).phase}`],[6,"Dawn:"]]) {
+    game.time.worldTime = hour * 3600;
+    for (const callback of hooks.get("updateWorldTime")) callback(game.time.worldTime, 1);
+    app.syncDate();
+    assert.equal(sky.dataset.calendarSky, key);
+    assert.equal(panel.innerHTML, original);
+    assert.deepEqual(app.view, view);
+    assert.equal(paints, count);
+  }
+  assert.match(sky.innerHTML, /Amanhecendo/);
+  assert.equal(advances.length, 0, "display changes do not write world time");
 });

@@ -70,7 +70,7 @@ export class CalendarService {
       }
     });
     SocketService.registerHandler(HANDLER, changeCalendarDateAsGM);
-    // The panel is a sibling of the tabs, so switching tabs does not hide it.
+    // Keep one panel beside the tabs; scoped CSS limits it to Actors and Items.
     Hooks.on("renderSidebar", () => this.refresh());
     Hooks.on("renderChatLog", () => this.refresh());
     for (const event of ["updateUser", "userConnected", "pauseGame"]) {
@@ -136,7 +136,7 @@ export class CalendarService {
       panel.innerHTML = buildCalendarPanel(date, isGM, game.time.worldTime, { running, paused, editing: this.#editingTime });
       panel.dataset.calendarSnapshot = snapshot;
     }
-    updateCalendarClock(panel, game.time.worldTime);
+    updateCalendarClock(panel, game.time.worldTime, date);
     this.#application?.syncDate();
   }
 
@@ -219,7 +219,7 @@ export function buildCalendarPanel(date, isGM, worldTime = game.time.worldTime, 
     <span class="tenebre-calendar-date"><span role="status">${escapeHtml(formatCalendarDate(date))}</span><span class="tenebre-sidebar-time-row"><time data-calendar-time class="tenebre-sidebar-time" datetime="${clock.fullText}" aria-label="${escapeHtml(label("WorldTime"))}">${clock.fullText}</time>${isGM ? button("editTime", "fa-clock", "EditTime") + buildCalendarClockToggle(running, paused, true) : ""}</span></span>
     ${isGM ? button("next", "fa-chevron-right", "Next", !date) : ""}${button("open", "fa-calendar-days", "Title")}</div>
     ${isGM && editing ? `<div class="tenebre-sidebar-time-editor"><input name="calendarSidebarTime" type="time" step="60" value="${clock.text}" required aria-label="${escapeHtml(label("EditTime"))}">${button("applyTime", "fa-check", "ApplyTime")}</div>` : ""}
-    ${date ? `<div class="tenebre-calendar-almanac">${buildCalendarAlmanac(date)}</div>` : ""}`;
+    ${date ? `<div class="tenebre-calendar-almanac">${buildCalendarAlmanac(date, worldTime)}</div>` : ""}`;
 }
 
 export class CalendarApplication extends ApplicationBase {
@@ -286,7 +286,7 @@ export class CalendarApplication extends ApplicationBase {
 
   syncDate() {
     if (!this.rendered) return;
-    updateCalendarClock(this.element, game.time.worldTime);
+    updateCalendarClock(this.element, game.time.worldTime, CalendarService.getDate());
     const snapshot = JSON.stringify([CalendarService.getDate(), Boolean(game.user?.isGM), Boolean(game.settings.get(MODULE_ID, CLOCK_SETTING)), Boolean(game.paused)]);
     if (snapshot === this.#snapshot) return;
     this.#snapshot = snapshot;

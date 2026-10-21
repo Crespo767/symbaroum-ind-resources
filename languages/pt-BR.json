@@ -1,4 +1,8 @@
 {
+  "TENEBRE.Calendar.DayPeriod": "Período do dia",
+  "TENEBRE.Calendar.DayPeriods.Dawn": "Amanhecendo",
+  "TENEBRE.Calendar.DayPeriods.Day": "Dia",
+  "TENEBRE.Calendar.DayPeriods.Dusk": "Entardecendo",
   "TENEBRE.Calendar.EditTime": "Ajustar horário",
   "TENEBRE.Calendar.ApplyTime": "Aplicar horário",
   "TENEBRE.Calendar.StartClock": "Iniciar relógio",

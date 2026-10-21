@@ -1,7 +1,7 @@
 import { escapeHtml } from "./utils.mjs";
 import {
   SYMBAROUM_MONTHS, CALENDAR_WEEKDAYS, MAX_CALENDAR_YEAR,
-  calendarMonthDays, calendarMoon, calendarSeason, calendarClock
+  calendarMonthDays, calendarMoon, calendarSeason, calendarClock, calendarDayPeriod
 } from "./calendar-date.mjs";
 
 const label = key => game.i18n.localize(`TENEBRE.Calendar.${key}`);
@@ -23,8 +23,8 @@ export function buildCalendarClock(worldTime, isGM, running = false, paused = fa
   </div>`;
 }
 
-/** Update only the clock when the day is unchanged, preserving calendar input focus. */
-export function updateCalendarClock(element, worldTime) {
+/** Update live time indicators without replacing calendar controls or their focus. */
+export function updateCalendarClock(element, worldTime, currentDate = null) {
   const clock = calendarClock(worldTime);
   for (const time of element?.querySelectorAll?.("[data-calendar-time]") ?? []) {
     if (time.textContent !== clock.fullText) {
@@ -36,6 +36,16 @@ export function updateCalendarClock(element, worldTime) {
     const angle = hand.dataset.calendarHand === "hour" ? clock.hourAngle : clock.minuteAngle;
     const transform = `rotate(${angle} 12 12)`;
     if (hand.getAttribute("transform") !== transform) hand.setAttribute("transform", transform);
+  }
+  if (currentDate) {
+    const sky = calendarSkyContent(currentDate, worldTime);
+    for (const indicator of element?.querySelectorAll?.("[data-calendar-sky]") ?? []) {
+      if (indicator.dataset.calendarSky === sky.key) continue;
+      indicator.dataset.calendarSky = sky.key;
+      indicator.className = `tenebre-sky tenebre-sky-${sky.period.toLowerCase()}`;
+      indicator.title = sky.title;
+      indicator.innerHTML = sky.html;
+    }
   }
 }
 
@@ -70,11 +80,34 @@ export function calendarSeasonIcon(season) {
   return `<svg class="tenebre-season-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${shapes[season] ?? ""}</svg>`;
 }
 
-export function buildCalendarAlmanac(date) {
+function calendarDaylightIcon(period) {
+  const shape = period === "Day"
+    ? '<circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/>'
+    : `<path d="M2 17h20M5 17a7 7 0 0 1 14 0M3 10l2 1m14 0 2-1M5 5l2 2m10 0 2-2M12 2v7${period === "Dawn" ? "m-3-4 3-3 3 3" : "m-3-3 3 3 3-3"}"/>`;
+  return `<svg class="tenebre-sky-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${shape}</svg>`;
+}
+
+function calendarSkyContent(date, worldTime) {
+  const period = calendarDayPeriod(worldTime);
+  const phase = period === "Night" ? calendarMoon(date).phase : null;
+  const text = phase ? label(`Phases.${phase}`) : label(`DayPeriods.${period}`);
+  return {
+    period, key: `${period}:${phase ?? ""}`,
+    title: phase ? label("Moon") : label("DayPeriod"),
+    html: `${phase ? calendarMoonIcon(phase) : calendarDaylightIcon(period)}<span>${escapeHtml(text)}</span>`
+  };
+}
+
+export function buildCalendarSky(date, worldTime) {
+  const sky = calendarSkyContent(date, worldTime);
+  return `<span class="tenebre-sky tenebre-sky-${sky.period.toLowerCase()}" data-calendar-sky="${sky.key}" title="${escapeHtml(sky.title)}">${sky.html}</span>`;
+}
+
+export function buildCalendarAlmanac(date, worldTime = null) {
   if (!date) return "";
   const season = calendarSeason(date), moon = calendarMoon(date);
   return `<span class="tenebre-season tenebre-season-${season.toLowerCase()}" title="${escapeHtml(label("Season"))}">${calendarSeasonIcon(season)}<span>${escapeHtml(label(`Seasons.${season}`))}</span></span>
-    <span class="tenebre-moon" title="${escapeHtml(label("Moon"))}">${calendarMoonIcon(moon.phase)}<span>${escapeHtml(label(`Phases.${moon.phase}`))}</span></span>`;
+    ${worldTime === null ? `<span class="tenebre-moon" title="${escapeHtml(label("Moon"))}">${calendarMoonIcon(moon.phase)}<span>${escapeHtml(label(`Phases.${moon.phase}`))}</span></span>` : buildCalendarSky(date, worldTime)}`;
 }
 
 export function buildCalendarPage({ current, selected, view, isGM, worldTime = game.time.worldTime, running = false, paused = false }) {
@@ -92,7 +125,7 @@ export function buildCalendarPage({ current, selected, view, isGM, worldTime = g
   const rows = Array.from({ length: allCells.length / 7 }, (_, i) => `<div class="tenebre-week-row" role="row">${allCells.slice(i * 7, i * 7 + 7).join("")}</div>`).join("");
   const atStart = view.year === 0 && view.month === 1, atEnd = view.year === MAX_CALENDAR_YEAR && view.month === 12;
   return `<section class="tenebre-calendar-page">
-    <header class="tenebre-calendar-world"><span class="tenebre-calendar-eyebrow">${escapeHtml(label("WorldDate"))}</span><strong>${escapeHtml(formatCalendarDate(current))}</strong><div class="tenebre-calendar-almanac">${buildCalendarAlmanac(current)}</div>${buildCalendarClock(worldTime, isGM, running, paused)}</header>
+    <header class="tenebre-calendar-world"><span class="tenebre-calendar-eyebrow">${escapeHtml(label("WorldDate"))}</span><strong>${escapeHtml(formatCalendarDate(current))}</strong><div class="tenebre-calendar-almanac">${buildCalendarAlmanac(current, worldTime)}</div>${buildCalendarClock(worldTime, isGM, running, paused)}</header>
     <nav class="tenebre-calendar-navigation" aria-label="${escapeHtml(label("Browse"))}">
       <button type="button" data-action="previousMonth" aria-label="${escapeHtml(label("PreviousMonth"))}" title="${escapeHtml(label("PreviousMonth"))}"${atStart ? " disabled" : ""}>‹</button>
       <select name="calendarMonth" aria-label="${escapeHtml(label("Month"))}">${options}</select>

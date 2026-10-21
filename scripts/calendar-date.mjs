@@ -26,6 +26,15 @@ export function calendarClock(worldTime) {
   };
 }
 
+/** Visual day periods, independent of lunar cycles and season calculations. */
+export function calendarDayPeriod(worldTime) {
+  const { hours } = calendarClock(worldTime);
+  if (hours >= 5 && hours < 7) return "Dawn";
+  if (hours >= 7 && hours < 17) return "Day";
+  if (hours >= 17 && hours < 19) return "Dusk";
+  return "Night";
+}
+
 export function calendarTimeDelta(worldTime, hours, minutes) {
   calendarClock(worldTime);
   if (!Number.isInteger(hours) || hours < 0 || hours > 23

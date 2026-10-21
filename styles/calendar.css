@@ -15,6 +15,11 @@
   pointer-events: auto;
 }
 
+/* Foundry updates active-* on the sidebar content when changing tabs. */
+#sidebar-content:not(.active-actors):not(.active-items) > #tenebre-calendar {
+  display: none;
+}
+
 #tenebre-calendar .tenebre-calendar-heading {
   display: flex;
   align-items: center;
@@ -88,13 +93,13 @@
   gap: 5px 12px;
 }
 
-:is(#tenebre-calendar, #tenebre-calendar-window) :is(.tenebre-season, .tenebre-moon) {
+:is(#tenebre-calendar, #tenebre-calendar-window) :is(.tenebre-season, .tenebre-moon, .tenebre-sky) {
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
 
-:is(#tenebre-calendar, #tenebre-calendar-window) :is(.tenebre-moon-icon, .tenebre-season-icon) {
+:is(#tenebre-calendar, #tenebre-calendar-window) :is(.tenebre-moon-icon, .tenebre-season-icon, .tenebre-sky-icon) {
   display: inline-block;
   flex: none;
   width: 17px;
@@ -105,6 +110,9 @@
 :is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-season-summer { color: #ddc38a; }
 :is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-season-autumn { color: #d5a17e; }
 :is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-season-winter { color: #b1cce4; }
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-sky-dawn { color: #e6c48f; }
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-sky-day { color: #ddc38a; }
+:is(#tenebre-calendar, #tenebre-calendar-window) .tenebre-sky-dusk { color: #d5a17e; }
 
 #tenebre-calendar-window {
   max-width: calc(100vw - 24px);

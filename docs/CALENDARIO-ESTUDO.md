@@ -148,3 +148,25 @@ Solicitada após o usuário confirmar que a primeira release apareceu e funciono
 - Validação: 28 testes focados e 618 testes da suíte completa passaram, sintaxe de 147 módulos validada, JSONs e paridade de idiomas válidos, `git diff --check` sem erros.
 - Conferência na prévia isolada: iniciar/pausar pela lateral, sincronização com a janela, proporção 60, pausa do jogo sem avanço, e ajuste direto de horário. A simulação possui um botão para aplicar a proporção; no Foundry ela é salva nas configurações do módulo.
 - Pendentes em clientes reais do Foundry v13/v14: troca de GM com relógio ativo, permissões nativas da configuração e convivência com módulos temporais concretos. Não houve publicação de release nesta solicitação.
+
+## Indicador de período do dia — 21/10/2026
+
+- O indicador ao lado da estação, na lateral e no cabeçalho da data do mundo, acompanha o horário compartilhado: amanhecendo das 05h às 07h, dia das 07h às 17h, entardecendo das 17h às 19h e fase lunar das 19h às 05h. Os limites finais são exclusivos.
+- São faixas visuais fixas, sem cálculo astronômico de nascer da lua ou variação sazonal da duração do dia. Sol e horizonte usam SVGs originais; à noite reaparece o ícone da fase lunar existente.
+- A grade mensal e a data selecionada continuam mostrando suas fases lunares para consulta. Os cálculos de lua, estação e data permanecem iguais.
+- A atualização direta do indicador acompanha `updateWorldTime`, inclusive ajustes externos e recuos, preservando os campos em edição e o mês consultado. A apresentação não grava settings nem altera o tempo mundial.
+- Validação: 31 testes focados e 621 testes da suíte completa passaram; sintaxe de 147 módulos, JSONs e paridade dos idiomas validados. A prévia isolada confirmou amanhecer às 06h, dia às 07h, entardecer às 18h e lua às 19h na lateral e na janela.
+- A conferência em mundos reais do Foundry v13/v14 permanece pendente. Não houve publicação de release nesta solicitação.
+
+## Visibilidade nas abas Atores e Itens — 21/10/2026
+
+- A pedido do usuário, o painel compacto passa a aparecer somente nas abas Atores e Itens. A regra CSS usa as classes nativas `active-actors` e `active-items` de `#sidebar-content`, conferidas no código local do Foundry v13.351. A troca de aba oculta o painel sem reservar espaço e sem pausar o relógio ou fechar a janela mensal aberta.
+- A prévia isolada confirmou a visibilidade em Atores/Itens e a ocultação nas dez demais abas simuladas; também confirmou a ocultação para jogador e a permanência da janela mensal.
+- Os 31 testes focados passaram; sintaxe de 146 módulos e `git diff --check` validados. A suíte completa executada neste estado do diretório teve 582 resultados aprovados e 12 falhas em expedição/rações: funções de viagem indisponíveis e importação de `scripts/expedition-journey.mjs`, removido por alterações concorrentes. Esses arquivos não foram modificados nesta solicitação.
+- Validação de troca de abas no Foundry real v13/v14 permanece pendente. Sem publicação de release.
+
+## Preparação da release 0.18.49 — 21/10/2026
+
+- O usuário solicitou a publicação para testar no Foundry hospedado na Oracle. A versão inclui o indicador de período do dia e a restrição do painel às abas Atores e Itens.
+- O candidato foi preparado a partir da versão 0.18.48 publicada, acrescentando somente os arquivos desta implementação e a atualização de versão no manifesto e no pacote. Alterações concorrentes de expedição, rações e movimento ficaram fora do candidato.
+- A suíte completa do candidato isolado passou: 621 testes, nenhuma falha. A validação real em clientes Foundry v13/v14 será feita após a instalação no servidor.
