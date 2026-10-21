@@ -37,7 +37,7 @@ export function expeditionOrientationKey(actor) {
   const exp = getActorExpeditionData(actor);
   const state = exp.dayState.orientation;
   return JSON.stringify([state?.timestamp ?? null, state?.revision ?? null, Boolean(state?.rolled),
-    exp.travel, actor?.system?.location?.region ?? "ambria", exp.guideUuid || exp.guideId, exp.activeSearch, exp.tables]);
+    actor?.system?.location?.region ?? "ambria", exp.guideUuid || exp.guideId, exp.activeSearch, exp.tables]);
 }
 
 export function expeditionEventKey(actor, slots) {

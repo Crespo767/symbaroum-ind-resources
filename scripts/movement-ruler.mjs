@@ -1,4 +1,4 @@
-import { getTravelRate as sharedTravelRate, normalizeTravelConfiguration as sharedTravelConfiguration, expeditionTravel, findTravelParty, findTravelParties, partyTravelPreview, actorTravelProfile } from "./travel-context.mjs";
+import { getTravelRate as sharedTravelRate, normalizeTravelConfiguration as sharedTravelConfiguration, actorTravelProfile } from "./travel-context.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { HUNGER_STATUS_ID } from "./hunger.mjs";
@@ -333,8 +333,6 @@ export class MovementService {
   }
 
   static getTravelConfiguration(token = null) {
-    const party = token?.actor?.type === `${MODULE_ID}.party` ? token.actor : findTravelParty(token?.actor ?? token?.document?.actor);
-    if (party) return { ...sharedTravelConfiguration(expeditionTravel(party)), linkedParty: party.uuid };
     const tokenDocument = token?.document ?? token;
     const flags = tokenDocument?.getFlag?.(MODULE_ID, "travel")
       ?? tokenDocument?.flags?.[MODULE_ID]?.travel;
@@ -343,10 +341,8 @@ export class MovementService {
 
   static getTravelEstimate(distance, token = null) {
     const configuration = this.getTravelConfiguration(token);
-    const party = configuration.linkedParty ? [...(globalThis.game?.actors?.values?.() ?? [])].find(p => p.uuid === configuration.linkedParty) ?? (token?.actor?.uuid === configuration.linkedParty ? token.actor : null) : null;
     const actor = token?.actor ?? token?.document?.actor;
-    const ambiguous = findTravelParties(actor).length > 1;
-    const rate = ambiguous ? 0 : party ? partyTravelPreview(party).rate : actor ? actorTravelProfile(actor, configuration, configuration.mode.endsWith("Ride") ? actor : null).rate : getTravelRate(configuration);
+    const rate = actor ? actorTravelProfile(actor, configuration, configuration.mode.endsWith("Ride") ? actor : null).rate : getTravelRate(configuration);
     const numericDistance = Number(distance);
     return {
       ...configuration,
@@ -386,8 +382,6 @@ export class MovementService {
 
   static canConfigureTravel(tokenDocument) {
     if (globalThis.game?.user?.isGM) return true;
-    const party = findTravelParty(tokenDocument?.actor);
-    if (party && !party.testUserPermission?.(game.user, 3)) return false;
     if (typeof tokenDocument?.canUserModify === "function") {
       return tokenDocument.canUserModify(game.user, "update");
     }
@@ -399,12 +393,6 @@ export class MovementService {
     const previous = this.getTravelConfiguration(tokenDocument);
     const configuration = await promptTravelConfiguration(previous);
     if (!configuration) return false;
-    if (previous.linkedParty) {
-      const party = await globalThis.fromUuid?.(previous.linkedParty);
-      if (!party || !game.tenebreResources?.party?.setTravel) return false;
-      await game.tenebreResources.party.setTravel(party, { ...expeditionTravel(party), mode: configuration.mode, alongRiver: configuration.alongRiver });
-      return true;
-    }
     await tokenDocument.update({
       [`flags.${MODULE_ID}.travel`]: configuration
     }, { render: true });
@@ -447,10 +435,10 @@ function buildTravelDialogContent(configuration) {
   const option = (value, labelKey, selected) => `<option value="${value}"${selected === value ? " selected" : ""}>${localize(labelKey)}</option>`;
   return `
     <div class="tenebre-travel-dialog">
-    <p class="hint">${localize(configuration.linkedParty ? "TENEBRE.Journey.LinkedRulerHint" : "TENEBRE.Travel.TokenConfigurationHint")}</p>
+    <p class="hint">${localize("TENEBRE.Travel.TokenConfigurationHint")}</p>
     <div class="form-group">
       <label>${localize("TENEBRE.Travel.Terrain")}</label>
-      <div class="form-fields"><select name="terrain"${configuration.linkedParty ? " disabled" : ""}>
+      <div class="form-fields"><select name="terrain">
         ${option("plains", "TENEBRE.Travel.TerrainPlains", configuration.terrain)}
         ${option("brightDavokar", "TENEBRE.Travel.TerrainBrightDavokar", configuration.terrain)}
         ${option("darkDavokar", "TENEBRE.Travel.TerrainDarkDavokar", configuration.terrain)}

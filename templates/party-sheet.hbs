@@ -461,24 +461,6 @@
                         </div>
                     </div>
 
-                    <section class="party-events-box tenebre-journey-panel">
-                        <h3>{{localize "TENEBRE.Journey.Title"}}</h3>
-                        <p>{{expedition.journey.activityLabel}} · {{expedition.journey.modeLabel}} · {{expedition.journey.rate}} km/{{localize "TENEBRE.Journey.Day"}}</p>
-                        {{#if expedition.journey.config.alongRiver}}<p>{{localize "TENEBRE.Journey.RiverHint"}}</p>{{/if}}
-                        {{#if expedition.journey.blocked}}<p>{{localize "TENEBRE.Journey.Blocked"}}</p>{{/if}}
-                        {{#if expedition.journey.searchLimited}}<p>{{localize "TENEBRE.Journey.SearchLimited"}}</p>{{/if}}
-                        <p>{{localize "TENEBRE.Journey.GroupHint"}}</p>
-                        {{#if editable}}<button type="button" data-action="configure-journey"><i class="fas fa-route"></i> {{localize "TENEBRE.Journey.Configure"}}</button>{{/if}}
-                        {{#if expedition.journey.isStaying}}<p>{{localize "TENEBRE.Journey.StayPolicy"}}</p>{{/if}}
-                        {{#if expedition.journey.config.site}}<p>{{expedition.journey.config.site}} · {{expedition.journey.stayDays}} {{localize "TENEBRE.Travel.Days"}}</p>{{/if}}
-                        {{#each expedition.journey.checks}}
-                        <div class="tenebre-journey-check"><span>{{label}}: {{status}}</span>
-                            {{#if canRoll}}<button type="button" data-action="journey-check" data-kind="{{kind}}">{{localize "TENEBRE.Journey.Resolve"}}</button>{{/if}}
-                            {{#if canApply}}<button type="button" data-action="journey-apply">{{localize "TENEBRE.Journey.ApplyEffort"}}</button>{{/if}}
-                        </div>
-                        {{/each}}
-                    </section>
-
                     <!-- Box do Guia da Expedição (Passo 1) -->
                     <div class="party-guide-box foreground {{#if expedition.guide.hasGuide}}is-linked{{else}}is-unlinked{{/if}}" data-drop-zone="expedition-guide">
                         <!-- Separação de contagem de passo: Passo 1: Teste de Orientação -->
@@ -543,10 +525,10 @@
                                 {{#if expedition.canAdjustOrientation}}
                                 <label class="orientation-modifier-field">
                                     <span>{{localize "TENEBRE.Party.OrientationModifierLabel"}}</span>
-                                    <input type="text" data-orientation-modifier value="{{expedition.orientationModifier}}" placeholder="0" maxlength="4" pattern="[+-]?[0-9]+" autocomplete="off" spellcheck="false" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.OrientationModifierHint"}}" />
+                                    <input type="text" data-orientation-modifier value="{{expedition.orientationModifier}}" placeholder="0" maxlength="4" pattern="[+-]?[0-9]+" autocomplete="off" spellcheck="false" data-tooltip="{{localize "TENEBRE.Party.OrientationModifierHint"}}" />
                                 </label>
                                 {{/if}}
-                                <button type="button" class="btn-orientation-roll" data-action="roll-orientation" {{#if expedition.journey.isStaying}}disabled{{/if}} data-tooltip="{{#if expedition.dayState.orientation.rolled}}{{localize "TENEBRE.Party.RerollOrientationTooltip"}}{{else}}{{localize "TENEBRE.Party.RollOrientationTooltip"}}{{/if}}">
+                                <button type="button" class="btn-orientation-roll" data-action="roll-orientation" data-tooltip="{{#if expedition.dayState.orientation.rolled}}{{localize "TENEBRE.Party.RerollOrientationTooltip"}}{{else}}{{localize "TENEBRE.Party.RollOrientationTooltip"}}{{/if}}">
                                     <i class="fas fa-dice-d20"></i> {{localize "TENEBRE.Party.OrientationRollTest"}}
                                 </button>
                                 <div class="orientation-result-area">
@@ -660,7 +642,7 @@
                             <div class="events-header-actions">
                                 <!-- Botão de Alternância de Busca Ativa de Ruínas -->
                                 {{#if editable}}
-                                <button type="button" class="btn-toggle-active-search {{#if expedition.activeSearch}}is-active{{else}}is-inactive{{/if}}" data-action="toggle-active-search" {{#if expedition.journey.searchUnavailable}}disabled{{/if}} data-tooltip="{{localize "TENEBRE.Party.ActiveSearchTooltip"}}">
+                                <button type="button" class="btn-toggle-active-search {{#if expedition.activeSearch}}is-active{{else}}is-inactive{{/if}}" data-action="toggle-active-search" data-tooltip="{{localize "TENEBRE.Party.ActiveSearchTooltip"}}">
                                     <i class="fas {{#if expedition.activeSearch}}fa-search-location{{else}}fa-eye-slash{{/if}}"></i>
                                     <span class="search-toggle-label">{{localize "TENEBRE.Party.ActiveSearchLabel"}}:</span>
                                     <strong class="search-toggle-val">{{#if expedition.activeSearch}}{{localize "TENEBRE.Party.ActiveSearchYes"}}{{else}}{{localize "TENEBRE.Party.ActiveSearchNo"}}{{/if}}</strong>
@@ -712,7 +694,7 @@
 
                                 <div class="event-slot-actions">
                                     {{#if ../editable}}
-                                    <button type="button" class="btn-roll-single-event" {{#if slot.unavailable}}disabled{{/if}} data-action="roll-single-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Party.RollSingleEventTooltip"}}">
+                                    <button type="button" class="btn-roll-single-event" data-action="roll-single-event" data-event-slot="{{slot.key}}" data-tooltip="{{localize "TENEBRE.Party.RollSingleEventTooltip"}}">
                                         <i class="fas fa-dice"></i>
                                     </button>
                                     {{#if slot.hasResult}}

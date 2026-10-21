@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { nativeRollTableFixture } from "./native-roll-table-fixture.mjs";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -1266,15 +1267,18 @@ test("PartyActorSheet Step 3 actions: activeSearch toggle, table change, reset e
   assert.equal(updatedData["flags.symbaroum-ind-resources.expedition.dayState.events.-=ruins"], null);
 });
 
-test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event results", async () => {
+test("PartyActorSheet._onRollAllEvents publishes four native table messages without an aggregated card", async () => {
   const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
 
   let createdMessage = null;
+  const messages = [];
   const originalChatMessage = globalThis.ChatMessage;
+  const savedRoll = globalThis.Roll;
+  globalThis.Roll = class { constructor(formula) { this.formula=formula; this.total=10; } async evaluate() { return this; } };
   globalThis.ChatMessage = {
     getSpeaker: () => ({ alias: "Grupo" }),
     create: async (data) => {
-      createdMessage = data;
+      createdMessage = data; messages.push(data);
       return data;
     }
   };
@@ -1300,6 +1304,7 @@ test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event
       update: async (data) => data
     };
 
+    game.tables = ["WHGv7lMW9JjOic9b","3JXvQNXAGx48h0dA","dBCs4ljcMtcc8PCq","2QLKnXBZdvEcRNI1"].map((id,i)=>nativeRollTableFixture({id,name:`Official ${i}`}));
     game.user = { id: "event-gm", isGM: true, active: true };
     game.users = { get: id => id === game.user.id ? game.user : null };
     game.settings = { get: () => false };
@@ -1313,14 +1318,17 @@ test("PartyActorSheet._onRollAllEvents creates non-empty chat message with event
 
     assert.ok(createdMessage, "Chat message should be created");
     assert.ok(createdMessage.content, "Chat message content must not be empty");
-    assert.match(createdMessage.content, /tenebre-events-card/);
-    assert.match(createdMessage.content, /Dia 2/);
+    assert.equal(messages.length,4);
+    for (const table of game.tables) { assert.equal(table.calls.roll.length,1); assert.equal(table.calls.toMessage.length,1); }
+    assert.ok(messages.every(message=>message.flags["core.RollTable"]));
+    assert.ok(messages.every(message=>!message.content.includes("tenebre-events")));
   } finally {
     globalThis.ChatMessage = originalChatMessage;
+    globalThis.Roll = savedRoll;
   }
 });
 
-test("PartyActorSheet._onRollAllEvents respects inactive activeSearch from flags and applies -5 penalty in chat", async () => {
+test("PartyActorSheet._onRollAllEvents passes inactive-search modifiers into the native table roll", async () => {
   const { PartyActorSheet } = await import("../scripts/party-actor.mjs");
 
   let createdMessage = null;
@@ -1359,6 +1367,7 @@ test("PartyActorSheet._onRollAllEvents respects inactive activeSearch from flags
       update: async (data) => data
     };
 
+    game.tables = ["WHGv7lMW9JjOic9b","3JXvQNXAGx48h0dA","dBCs4ljcMtcc8PCq","2QLKnXBZdvEcRNI1"].map((id,i)=>nativeRollTableFixture({id,name:`Official ${i}`}));
     game.user = { id: "event-gm", isGM: true, active: true };
     game.users = { get: id => id === game.user.id ? game.user : null };
     game.settings = { get: () => false };
@@ -1371,8 +1380,8 @@ test("PartyActorSheet._onRollAllEvents respects inactive activeSearch from flags
     await sheet._onRollAllEvents();
 
     assert.ok(createdMessage, "Chat message should be created");
-    assert.match(createdMessage.content, /ActiveSearchInactive|Busca Ativa de Ruínas: Não/, "Chat message must reflect inactive search");
-    assert.equal(createdMessage.rolls[0].formula, "1d20 - 3", "Ruins roll retains the inactive search penalty without cluttering the chat");
+    assert.equal(game.tables[0].calls.roll[0].roll.formula, "min(max((1d20) - 3, 1), 35)");
+    assert.equal(game.tables[0].calls.toMessage.length,1);
   } finally {
     globalThis.ChatMessage = originalChatMessage;
     globalThis.Roll = originalRoll;
@@ -1401,7 +1410,7 @@ test("drawTableResult sanitizes multiline HTML and CSS enforces compact single l
   const updatedCss = fs.readFileSync(path.join(root, "styles/symbaroum-ind-resources.css"), "utf8");
   assert.match(updatedCss, /\.tenebre-party-sheet \.event-result-text[\s\S]*?-webkit-line-clamp:\s*2/);
   assert.equal(drawn.displayText, "Encontro:\nNúmero de PJ de inimigos Fracos\nExemplo: Ladrões");
-  assert.match(updatedCss, /\.tenebre-event-result-item \.event-item-text \*[\s\S]*?color:\s*#e2ddd3\s*!important/);
+  assert.doesNotMatch(updatedCss, /\.tenebre-events-chat/);
 });
 
 test("drawTableResult deterministically matches roll.total via getResultsForRoll and clamps bounds", async () => {
@@ -1549,8 +1558,8 @@ test("official daily tables replace legacy defaults without creating or deleting
   } finally { globalThis.RollTable = originalCreate; }
 });
 
-test("daily event chat preserves official result lines, escapes text and omits numeric clutter", async () => {
-  const { drawTableResult, buildEventsChatHtml, encounterDetectionModifier } = await import("../scripts/party-actor.mjs");
+test("event summaries preserve official result lines and encounter detection modifiers", async () => {
+  const { drawTableResult, encounterDetectionModifier } = await import("../scripts/party-actor.mjs");
   const { OFFICIAL_DAVOKAR_EVENT_TABLE_IDS: official } = await import("../scripts/constants.mjs");
   const entry = { range: [2,2], description: "<strong>Encontro:</strong> Missionários<br/><strong>Número:</strong> PJs+[[1d6]]<br/><strong>Detecção:</strong> +3" };
   const drawn = await drawTableResult({ getResultsForRoll: () => [entry] }, { total: 2 });
@@ -1560,8 +1569,5 @@ test("daily event chat preserves official result lines, escapes text and omits n
     assert.equal(encounterDetectionModifier({ id: official.encounters }, { results: [{ range: [index + 1, index + 1] }] }), modifier);
   }
   assert.equal(encounterDetectionModifier({ id: official.encounters }, { results: [{ range: [9, 20] }] }), null);
-  const html = buildEventsChatHtml({ guideName: "<Guia>", results: [{ slotKey: "encounters", title: "Encontros", icon: "fas fa-users", rollTotal: 2, formula: "1d20 + 2", resultText: "fallback", displayText: drawn.displayText + "\n<script>bad</script>" }] });
-  assert.match(html, /Número: PJs\+\[\[1d6\]\]/);
-  assert.match(html, /&lt;Guia&gt;/);
-  assert.doesNotMatch(html, /<script>|event-item-score|event-item-formula|class="foreground"|1d20/);
+
 });

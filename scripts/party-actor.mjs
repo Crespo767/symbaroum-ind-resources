@@ -1,5 +1,4 @@
-import { ExpeditionJourneyService } from "./expedition-journey.mjs";
-import { expeditionTravel, effectiveExpeditionSearch, partyTravelReferences, resolvePartyTravelActors, partyTravelPreview, journeyContextKey, TRAVEL_MODES } from "./travel-context.mjs";
+import { effectiveExpeditionSearch, partyTravelReferences, resolvePartyTravelActors, journeyContextKey } from "./travel-context.mjs";
 import { MODULE_ID, CANONICAL_EXPEDITION_TABLE_IDS, OFFICIAL_DAVOKAR_EVENT_TABLE_IDS } from "./constants.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
@@ -572,65 +571,6 @@ export async function drawTableResult(table, roll) {
 }
 
 /**
- * Monta o HTML do Card de Chat dos Eventos Diários na Davokar
- */
-export function buildEventsChatHtml({
-  day = 1,
-  regionKey = "bright",
-  activeSearch = true,
-  guideName = "Guia",
-  results = []
-}) {
-  const regionNames = {
-    ambria: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameAmbria") || "Ambria",
-    bright: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameBright") || "Davokar Iluminada",
-    wild: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameWild") || "Davokar Selvagem",
-    dark: globalThis.game?.i18n?.localize?.("TENEBRE.Party.RegionNameDark") || "Davokar Escura"
-  };
-  const rawRegion = regionNames[regionKey] || regionKey;
-  const regionName = String(rawRegion).replace(/\s*\([±+\-]\d+\)/, "").trim();
-
-  const title = globalThis.game?.i18n?.localize?.("TENEBRE.Party.EventsCardTitle") || "Eventos Diários na Davokar";
-  const searchStatus = activeSearch
-    ? (globalThis.game?.i18n?.localize?.("TENEBRE.Party.ActiveSearchActive") || "Busca Ativa de Ruínas: Sim")
-    : (globalThis.game?.i18n?.localize?.("TENEBRE.Party.ActiveSearchInactive") || "Busca Ativa de Ruínas: Não (-5)");
-
-  let itemsHtml = "";
-  for (const r of results) {
-    itemsHtml += `
-      <div class="tenebre-event-result-item slot-${escapeHtml(r.slotKey)}">
-        <div class="event-item-header">
-          <i class="${escapeHtml(r.icon)}"></i>
-          <span class="event-item-title">${escapeHtml(r.title)}</span>
-        </div>
-        <div class="event-item-body">
-          <p class="event-item-text">${escapeHtml(r.displayText || r.resultText)}</p>
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="tenebre-events-chat">
-      <div class="tenebre-events-content">
-        <div class="tenebre-events-card">
-          <h3 class="tenebre-events-title">${escapeHtml(title)}</h3>
-          <p class="tenebre-events-subtitle">${escapeHtml(format("TENEBRE.Party.EventsContext", "Dia {day} • {region} • Guia: {guide}", { day, region: regionName, guide: guideName }))}</p>
-          <div class="tenebre-events-meta-badge">
-            <span class="meta-tag"><i class="fas fa-search-location"></i> ${escapeHtml(searchStatus)}</span>
-          </div>
-
-          <div class="tenebre-events-results-container">
-            ${itemsHtml}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-
-/**
  * Monta o HTML do Card de Chat do Teste de Orientação
  */
 export function buildOrientationChatHtml({ guideActor, regionKey = "ambria", bushcraft = {}, rollVal, target, evalResult, activeSearch = true }) {
@@ -1177,7 +1117,6 @@ export class PartyActorSheet extends BaseActorSheet {
 
     const rawExpedition = await PartyActorService.visibleExpedition(this.actor);
     const journeyActors = await resolvePartyTravelActors(this.actor);
-    const journeyPreview = partyTravelPreview(this.actor, journeyActors);
     const currentJourneyContext = journeyContextKey(this.actor, journeyActors);
     const guideId = rawExpedition.guideId || "";
     const guideUuid = rawExpedition.guideUuid || "";
@@ -1261,7 +1200,7 @@ export class PartyActorSheet extends BaseActorSheet {
       let summaryTooltip = "";
       if (verdict === "greatSuccess" || verdict === "success") {
         const modifier = verdict === "greatSuccess" ? -2 : -1;
-        summaryTooltip = [journeyPreview.activeSearch ? `+2 ${localize("TENEBRE.Party.RuinsBonus", "Ruínas")}` : localize("TENEBRE.Party.OrientationRuinsInactive", "Ruínas: sem bônus de orientação, pois a busca está inativa."),
+        summaryTooltip = [effectiveExpeditionSearch(this.actor) ? `+2 ${localize("TENEBRE.Party.RuinsBonus", "Ruínas")}` : localize("TENEBRE.Party.OrientationRuinsInactive", "Ruínas: sem bônus de orientação, pois a busca está inativa."),
           `${modifier} ${localize("TENEBRE.Party.EnemiesBonus", "Inimigos")}`, `${modifier} ${localize("TENEBRE.Party.TerrainBonus", "Terreno")}`,
           localize("TENEBRE.Party.OrientationDetectionTest", "Permite um teste para detectar encontros.")].join(" | ");
       } else if (verdict === "avoidedMishap" || verdict === "restricted" || verdict === "stale") {
@@ -1370,8 +1309,7 @@ export class PartyActorSheet extends BaseActorSheet {
     const eventModifiers = calculateDavokarEventModifiers({
       regionKey,
       orientationVerdict: orientationDayView.rolled ? orientationDayView.verdict : "failure",
-      activeSearch: isActivelySearching,
-      alongRiver: journeyPreview.config.alongRiver && journeyPreview.config.activity === "travel"
+      activeSearch: isActivelySearching
     });
 
     const slotsConfig = [
@@ -1450,7 +1388,6 @@ export class PartyActorSheet extends BaseActorSheet {
 
       eventSlotsView.push({
         key: s.key,
-        unavailable: s.key === "ruins" && journeyPreview.config.activity === "stay",
         title: s.title,
         icon: s.icon,
         formula: orientationState?.restricted ? game.i18n.localize("TENEBRE.Party.OrientationRestricted") : s.mods.formula,
@@ -1478,7 +1415,6 @@ export class PartyActorSheet extends BaseActorSheet {
       guide: guideData,
       activeSearch: isActivelySearching,
       availableTables,
-      journey: this._journeyView(journeyPreview, journeyActors, rawExpedition, currentJourneyContext),
       eventSlots: eventSlotsView,
       hasAnyEventRolled,
       allEventsRolled,
@@ -1726,11 +1662,7 @@ export class PartyActorSheet extends BaseActorSheet {
     root.querySelectorAll('select[name="system.location.region"]').forEach(el => {
       el.addEventListener("change", async (ev) => {
         const val = ev.currentTarget.value;
-        const travel = expeditionTravel(this.actor);
         const patch = { "system.location.region": val };
-        if (travel.activity === "stay") {
-          patch[`flags.${MODULE_ID}.expedition.travel.stayStartDay`] = Number(this._getExpeditionData().day);
-        }
         await this.actor?.update?.(patch);
       });
     });
@@ -1936,9 +1868,6 @@ export class PartyActorSheet extends BaseActorSheet {
       });
     });
 
-    root.querySelectorAll('[data-action="configure-journey"]').forEach(el => el.addEventListener("click", ev => { ev.preventDefault(); void this._onConfigureJourney(); }));
-    root.querySelectorAll('[data-action="journey-check"]').forEach(el => el.addEventListener("click", ev => { ev.preventDefault(); void this._onResolveJourney(el.dataset.kind); }));
-    root.querySelectorAll('[data-action="journey-apply"]').forEach(el => el.addEventListener("click", ev => { ev.preventDefault(); void this._onResolveJourney("effort", true); }));
     root.querySelectorAll('[data-orientation-modifier]').forEach(el => {
       el.addEventListener("input", () => {
         if (!game.user?.isGM) return;
@@ -2411,7 +2340,6 @@ export class PartyActorSheet extends BaseActorSheet {
 
     try {
       const result = await PartyActorService.rollOrientation(this.actor, undefined, undefined, undefined, circumstanceModifier);
-      if (result?.status === "notTravelling") globalThis.ui?.notifications?.warn?.(game.i18n.localize("TENEBRE.Journey.NotTravelling"));
       if (result?.status === "ineligible") globalThis.ui?.notifications?.warn?.(game.i18n.localize("TENEBRE.Party.OrientationIneligible"));
       if (result?.status === "stale") globalThis.ui?.notifications?.warn?.(game.i18n.localize("TENEBRE.Party.ExpeditionChangedNotice"));
     } catch (error) {
@@ -2585,79 +2513,6 @@ export class PartyActorSheet extends BaseActorSheet {
       [`flags.${MODULE_ID}.expedition.tables`]: currentTables
     });
     this.render(false);
-  }
-
-  _journeyView(preview, actors, expedition, context) {
-    const t = key => globalThis.game?.i18n?.localize?.(`TENEBRE.Journey.${key}`) ?? `TENEBRE.Journey.${key}`;
-    const user = globalThis.game?.user;
-    const eligible = new Set([...(this.actor.system?.members ?? []), expedition.guideUuid || expedition.guideId]);
-    const detector = actors.filter(a => preview.profiles.some(p => p.ref === actorReference(a)) && (eligible.has(actorReference(a)) || eligible.has(a.uuid)))
-      .sort((a,b) => Number(b.system?.attributes?.vigilant?.total ?? b.system?.attributes?.vigilant?.value ?? 0) - Number(a.system?.attributes?.vigilant?.total ?? a.system?.attributes?.vigilant?.value ?? 0))[0];
-    const checks = ["effort", "detection", "stay"].map(kind => {
-      const result = expedition.dayState.journey?.[kind];
-      const stale = Boolean(result?.context && result.context !== context);
-      return { kind, label: t(kind), rolled: Boolean(result?.rolled), restricted: Boolean(result?.restricted),
-        status: result?.restricted ? globalThis.game?.i18n?.localize?.("TENEBRE.Party.OrientationRestricted") ?? "Private" : stale ? t("Stale") : result?.rolled ? (kind === "effort" && result.applied?.length === result.members?.length ? t("Applied") : t("Resolved")) : t("Pending"),
-        canRoll: preview.config.configured && (kind === "effort" ? Boolean(user?.isGM) && preview.config.activity === "travel" && !preview.blocked : (this.isEditable || user?.isGM || kind === "detection" && detector?.isOwner) && (kind !== "detection" || user?.isGM || !expedition.dayState.orientation?.restricted && !expedition.dayState.events?.encounters?.restricted) && (kind !== "stay" || preview.config.activity === "stay" && preview.stayDays >= 2)),
-        canApply: kind === "effort" && user?.isGM && result?.rolled && !result.restricted && !stale && (result.applied?.length ?? 0) < (result.members?.length ?? 0) };
-    });
-    return { ...preview, modeLabel: globalThis.game?.i18n?.localize?.(`TENEBRE.Travel.Mode${preview.config.mode[0].toUpperCase()}${preview.config.mode.slice(1)}`) ?? preview.config.mode,
-      activityLabel: t(preview.config.activity === "stay" ? "Staying" : "Travelling"),
-      isStaying: preview.config.activity === "stay",
-      searchUnavailable: preview.config.activity === "stay" || TRAVEL_MODES.indexOf(preview.config.mode) % 3 !== 0,
-      searchLimited: getActorExpeditionData(this.actor).activeSearch && !preview.activeSearch,
-      checks };
-  }
-
-  async _onConfigureJourney() {
-    if (!this.isEditable && !game.user?.isGM) return;
-    const t = key => game.i18n.localize(`TENEBRE.Journey.${key}`), config = expeditionTravel(this.actor);
-    const options = (list, value) => list.map(([key,label]) => `<option value="${escapeHtml(key)}"${key === value ? " selected" : ""}>${escapeHtml(label)}</option>`).join("");
-    const content = `<div class="tenebre-journey-dialog">
-      <section class="tenebre-journey-options">
-        <label class="tenebre-journey-field"><span>${t("Activity")}</span><select name="activity">${options([["travel",t("Travelling")],["stay",t("Staying")]], config.activity)}</select></label>
-        <label class="tenebre-journey-field"><span>${t("Site")}</span><input name="site" type="text" maxlength="200" value="${escapeHtml(config.site)}"></label>
-        <label class="tenebre-journey-field"><span>${game.i18n.localize("TENEBRE.Travel.Mode")}</span><select name="mode">${options(TRAVEL_MODES.map(mode => [mode,game.i18n.localize(`TENEBRE.Travel.Mode${mode[0].toUpperCase()}${mode.slice(1)}`)]),config.mode)}</select></label>
-      </section>
-      <section class="tenebre-journey-group">
-        <p>${t("GroupHint")}</p>
-        <div class="tenebre-journey-toggles">
-          <label class="tenebre-journey-checkbox"><input name="alongRiver" type="checkbox"${config.alongRiver ? " checked" : ""}><span>${game.i18n.localize("TENEBRE.Travel.AlongRiver")}</span></label>
-          <label class="tenebre-journey-checkbox"><input name="dailyEnemiesWhileStaying" type="checkbox"${config.dailyEnemiesWhileStaying !== false ? " checked" : ""}><span>${t("DailyStayEnemies")}</span></label>
-        </div>
-        <p>${t("StayPolicy")}</p>
-      </section>
-    </div>`;
-    try {
-      const value = await foundry.applications.api.DialogV2.prompt({ classes: ["tenebre-journey-config"], window: { title: t("Configure") }, position: { width: 860 }, content, rejectClose: false,
-        ok: { label: game.i18n.localize("TENEBRE.Common.Save"), callback: (_e,_b,dialog) => {
-          const root = dialog.element;
-          return { activity: root.querySelector('[name="activity"]').value, site: root.querySelector('[name="site"]').value,
-            mode: root.querySelector('[name="mode"]').value, alongRiver: root.querySelector('[name="alongRiver"]').checked,
-            dailyEnemiesWhileStaying: root.querySelector('[name="dailyEnemiesWhileStaying"]').checked };
-        } } });
-      if (value) await PartyActorService.setTravel(this.actor, value);
-    } catch (error) { console.warn("Tenebre Resources | Journey configuration failed.", error); ui.notifications.error(t("Failed")); }
-    this.render(false);
-  }
-
-  async _onResolveJourney(kind, apply = false) {
-    if (this._resolvingJourney) return;
-    this._resolvingJourney = true;
-    try {
-      if (apply) {
-        if (!game.user?.isGM) return;
-        const visible = await PartyActorService.visibleExpedition(this.actor);
-        const effort = visible.dayState.journey?.effort;
-        if (!effort || effort.restricted) throw new Error("Effort result unavailable.");
-        const review = `<ul>${effort.members.map(m => `<li>${escapeHtml(m.name)}: ${m.initialToughness} → ${Math.max(0,m.initialToughness-m.damage)}${m.mortalWound ? ` — ${escapeHtml(game.i18n.localize("TENEBRE.Journey.MortalWound"))}` : ""}</li>`).join("")}</ul>`;
-        const choice = await foundry.applications.api.DialogV2.prompt({ window: { title: game.i18n.localize("TENEBRE.Journey.ApplyEffort") },
-          content: `${review}<p>${escapeHtml(game.i18n.localize("TENEBRE.Journey.ApplyHint"))}</p><select name="wound"><option value="manual">${escapeHtml(game.i18n.localize("TENEBRE.Journey.WoundManual"))}</option><option value="zeroToughness">${escapeHtml(game.i18n.localize("TENEBRE.Journey.WoundZero"))}</option></select>`,
-          rejectClose: false, ok: { label: game.i18n.localize("TENEBRE.Common.Confirm"), callback: (_e,_b,d) => d.element.querySelector('[name="wound"]').value } });
-        if (choice) await ExpeditionJourneyService.applyEffort(this.actor, choice);
-      } else await ExpeditionJourneyService.resolve(this.actor, kind);
-    } catch (error) { console.warn("Tenebre Resources | Journey check failed.", error); ui.notifications.error(game.i18n.localize("TENEBRE.Journey.Failed")); }
-    finally { this._resolvingJourney = false; this.render(false); }
   }
 
   async _onRollSingleEvent(slotKey) {
@@ -3554,7 +3409,6 @@ export class PartyActorService {
   static #pendingMemberRefresh = new Set();
 
   static register() {
-    ExpeditionJourneyService.register({ resolveTable: resolveDavokarEventTable, drawTableResult, eventModifiers: calculateDavokarEventModifiers });
     SocketService.registerHandler("setExpeditionDay", setExpeditionDayAsAuthority);
     SocketService.registerHandler("rollExpeditionOrientation", rollOrientationAsAuthority);
     SocketService.registerHandler("resetExpeditionOrientation", resetOrientationAsAuthority);
@@ -3612,7 +3466,6 @@ export class PartyActorService {
     });
   }
 
-  static async setTravel(party, configuration) { return ExpeditionJourneyService.setTravel(party, configuration); }
 
   static async rollOrientation(party, expectedDay = expeditionDayKey(party), rollMode = getRollMode(), expectedOrientation = expeditionOrientationKey(party), circumstanceModifier = 0) {
     if (SocketService.hasActiveGM()) {
@@ -3623,7 +3476,7 @@ export class PartyActorService {
 
   static async visibleExpedition(party) {
     const exp = getActorExpeditionData(party);
-    if (![exp.dayState.orientation, ...Object.values(exp.dayState.events), ...Object.values(exp.dayState.journey ?? {})].some(r => r?.privateId)) return exp;
+    if (![exp.dayState.orientation, ...Object.values(exp.dayState.events)].some(r => r?.privateId)) return exp;
     try {
       const keys = await expeditionReadKey();
       const day = expeditionDayKey(party);
@@ -3668,8 +3521,6 @@ export class PartyActorService {
     return runExpeditionOperation(party, async () => {
       if (expeditionDayKey(party) !== expectedDay) return false;
       const update = expeditionDayUpdate(day, active);
-      const expedition = getActorExpeditionData(party), travel = expeditionTravel(party);
-      if (active && !expedition.active && travel.configured && travel.activity === "stay") update[`flags.${MODULE_ID}.expedition.travel.stayStartDay`] = day;
       await party.update(update);
       return true;
     });
@@ -3731,7 +3582,6 @@ async function resetOrientationAsAuthority(partyUuid, expectedDay) {
 }
 
 async function performOrientationRoll(party, guideActor, expData, expectedDay, rollMode, rollUser, circumstanceModifier) {
-  if (expeditionTravel(party).activity === "stay") return { status: "notTravelling" };
   const regionKey = party?.system?.location?.region || "ambria";
   const bushcraftData = detectBushcraftTier(guideActor);
   const attrs = guideActor.system?.attributes ?? {};
@@ -3880,16 +3730,12 @@ async function readExpeditionResultsAsAuthority(partyUuid, expectedDay, publicKe
     return canReadExpeditionResult(record, user) ? record : { rolled: true, restricted: true };
   };
   const orientation = await visible(exp.dayState.orientation, "orientation");
-  const journey = {};
-  for (const kind of ["effort", "detection", "stay"]) {
-    if (exp.dayState.journey?.[kind]) journey[kind] = await visible(exp.dayState.journey[kind], kind);
-  }
   const events = {};
   for (const slot of EVENT_SLOTS) {
     if (Object.hasOwn(exp.dayState.events, slot)) events[slot] = await visible(exp.dayState.events[slot], slot);
   }
   if (expeditionDayKey(party) !== expectedDay) return null;
-  return sealExpeditionRead({ orientation, events, journey }, publicKey, JSON.stringify([party.uuid, expectedDay, user.id]));
+  return sealExpeditionRead({ orientation, events }, publicKey, JSON.stringify([party.uuid, expectedDay, user.id]));
 }
 
 const EVENT_SLOTS = ["ruins", "encounters", "enemies", "terrain"];
@@ -3908,9 +3754,6 @@ async function rollEventsAsAuthority(partyUuid, expectedDay, expectedOrientation
     const visibility = orientation?.visibility?.mode && orientation.visibility.mode !== "publicroll"
       ? expeditionVisibility(orientation.visibility.mode, { id: orientation.visibility.author }) : expeditionVisibility(rollMode, user);
     if (visibility.mode !== "publicroll") await ensureExpeditionPrivateStorage();
-        const travel = expeditionTravel(party);
-    if (travel.activity === "stay") slots = slots.filter(s => (s !== "enemies" || travel.dailyEnemiesWhileStaying !== false) && (s !== "ruins" || manual.ruins));
-    if (!slots.length) return { status: "skipped" };
     return performEventRoll(party, exp, slots, { orientation, visibility, expectedDay, expectedOrientation, expectedEvents: expeditionEventKey(party, slots), manual });
   });
 }
@@ -3918,48 +3761,69 @@ async function rollEventsAsAuthority(partyUuid, expectedDay, expectedOrientation
 async function performEventRoll(party, exp, slots, { orientation, visibility, expectedDay, expectedOrientation, expectedEvents, manual }) {
   const actors = await resolvePartyTravelActors(party);
   const contextKey = journeyContextKey(party, actors);
-  const travel = expeditionTravel(party);
   const validOrientation = !orientation?.contextKey || orientation.contextKey === contextKey;
   const isCurrent = async () => expeditionDayKey(party) === expectedDay && expeditionOrientationKey(party) === expectedOrientation && expeditionEventKey(party, slots) === expectedEvents && journeyContextKey(party, await resolvePartyTravelActors(party)) === contextKey;
   const regionKey = party.system?.location?.region || "ambria";
-  const mods = calculateDavokarEventModifiers({ regionKey, activeSearch: effectiveExpeditionSearch(party), orientationVerdict: validOrientation ? orientation?.verdict || "failure" : "failure", alongRiver: travel.alongRiver && travel.activity === "travel" });
-  const titles = { ruins: "EventRuinsTitle", encounters: "EventEncountersTitle", enemies: "EventEnemiesTitle", terrain: "EventTerrainTitle" };
-  const icons = { ruins: "fas fa-landmark", encounters: "fas fa-users", enemies: "fas fa-skull-crossbones", terrain: "fas fa-mountain" };
-  const results = [], rolls = [], updates = {};
+  const mods = calculateDavokarEventModifiers({ regionKey, activeSearch: effectiveExpeditionSearch(party), orientationVerdict: validOrientation ? orientation?.verdict || "failure" : "failure" });
+  const tables = [];
+  // Validate every selection before rolling or publishing any of the daily tables.
   for (const slot of slots) {
     const table = await resolveDavokarEventTable(slot, exp.tables?.[slot] || "");
-    const selected = manual[slot] ? Array.from(table?.results?.values?.() ?? table?.results?.contents ?? table?.results ?? []).find(r => r.id === manual[slot] || r._id === manual[slot]) : null;
+    if (!table) {
+      const message = game.i18n.localize("TENEBRE.Party.EventMissingTable");
+      globalThis.ui?.notifications?.warn?.(message);
+      throw new Error(message);
+    }
+    if (typeof table.roll !== "function" || typeof table.draw !== "function" || typeof table.toMessage !== "function") throw new Error("Selected event table does not support native RollTable draws.");
+    const entries = Array.from(table.results?.values?.() ?? table.results?.contents ?? table.results ?? []);
+    const selected = manual[slot] ? entries.find(r => r.id === manual[slot] || r._id === manual[slot]) : null;
     if (manual[slot] && !selected) throw new Error("Manual event result not found in selected table.");
-    const roll = selected ? { total: Number(selected.range?.[0]) || 1 } : await evaluateRoll(mods[slot].formula);
-    if (!selected) rolls.push(roll);
-    const drawn = selected ? await drawTableResult({ img: table.img, getResultsForRoll: () => [selected] }, roll) : table ? await drawTableResult(table, roll) : { text: game.i18n.localize("TENEBRE.Party.EventMissingTable"), img: "icons/svg/hazard.svg" };
-    const result = { revision: globalThis.foundry?.utils?.randomID?.() ?? crypto.randomUUID(), rolled: Boolean(table), missingTable: !table, manual: Boolean(selected), contextKey, orientationRevision: orientation?.revision, rollTotal: rollTotal(roll), formula: selected ? game.i18n.localize("TENEBRE.Journey.Manual") : mods[slot].formula, resultText: drawn.text, displayText: drawn.displayText || drawn.text, resultImg: drawn.img, tableName: table?.name || "" };
+    tables.push({ slot, table, entries, selected });
+  }
+  const prepared = [];
+  for (const { slot, table, entries, selected } of tables) {
+    const baseFormula = table.formula || "1d20";
+    const modifier = mods[slot].totalMod;
+    const formula = modifier ? `(${baseFormula}) ${modifier > 0 ? "+" : "-"} ${Math.abs(modifier)}` : baseFormula;
+    // Preserve the expedition's boundary results instead of the core rerolling
+    // negative/oversized totals back into the interior of the table.
+    const ranges = entries.map(r => r.range).filter(r => Array.isArray(r) && r.length === 2 && r.every(Number.isFinite));
+    const min = Math.min(...ranges.map(r => r[0])), max = Math.max(...ranges.map(r => r[1]));
+    const boundedFormula = modifier && ranges.length ? `min(max(${formula}, ${min}), ${max})` : formula;
+    const native = selected ? { roll: null, results: [selected] } : await table.roll({ roll: new Roll(boundedFormula) });
+    if (!native?.results?.length) throw new Error("No available result in selected event table.");
+    const drawn = await drawTableResult({ img: table.img, getResultsForRoll: () => native.results }, native.roll);
+    const result = { revision: globalThis.foundry?.utils?.randomID?.() ?? crypto.randomUUID(), rolled: true, manual: Boolean(selected), contextKey, orientationRevision: orientation?.revision,
+      rollTotal: selected ? Number(selected.range?.[0]) || 1 : rollTotal(native.roll), formula: selected ? game.i18n.localize("TENEBRE.Journey.Manual") : formula,
+      resultText: drawn.text, displayText: drawn.displayText || drawn.text, resultImg: drawn.img, tableName: table.name };
     if (slot === "encounters") result.detectionModifier = encounterDetectionModifier(table, drawn);
-    updates[slot] = result;
-    results.push({ ...result, slotKey: slot, title: game.i18n.localize(`TENEBRE.Party.${titles[slot]}`), icon: icons[slot] });
+    prepared.push({ slot, table, native, result });
   }
   if (!await isCurrent()) return { status: "stale" };
-  const guide = await resolveActorReference(exp.guideUuid || exp.guideId);
-  // Uma escolha manual não tem dados: o core permite ao autor ler mensagens
-  // cegas sem rolagem. Use o GM como autor para preservar o segredo herdado.
-  if (!rolls.length && visibility.blind) visibility = { ...visibility, author: game.user.id };
-  const author = game.users?.get?.(visibility.author);
-  if (!author) throw new Error("Expedition roll author is unavailable.");
-  await createChatMessageAfterDice({
-    speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: party }) ?? {},
-    rollMode: visibility.mode, rollUser: author,
-    content: buildEventsChatHtml({ day: Math.max(1, Number(exp.day) || 1), regionKey, activeSearch: effectiveExpeditionSearch(party), guideName: guide?.name || "Guia", results }),
-    rolls, flags: { [MODULE_ID]: { eventsCheck: true } }
-  });
-  if (!await isCurrent()) return { status: "stale" };
-  const patch = {};
-  for (const [slot, result] of Object.entries(updates)) {
-    const stored = await storePrivateExpeditionResult(party, slot, result, visibility);
-    patch[`system.expedition.dayState.events.==${slot}`] = stored;
-    patch[`flags.${MODULE_ID}.expedition.dayState.events.==${slot}`] = stored;
+  for (const entry of prepared) {
+    entry.stored = await storePrivateExpeditionResult(party, entry.slot, entry.result, visibility);
   }
-  if (!await isCurrent()) return { status: "stale" };
-  await party.update(patch);
+  for (const { slot, table, native, stored } of prepared) {
+    if (!await isCurrent()) return { status: "stale" };
+    // Formalize the exact native roll, including replacement and nested tables,
+    // then let Foundry render the standard result card with the inherited audience.
+    const draw = await table.draw({ roll: native.roll, results: native.results, displayChat: false });
+    if (!draw?.results?.length) throw new Error("Native event table draw returned no results.");
+    if (!await isCurrent()) return { status: "stale" };
+    const authorId = !draw.roll && visibility.blind ? game.user.id : visibility.author;
+    if (!game.users?.get?.(authorId)) throw new Error("Expedition roll author is unavailable.");
+    const { whisper = [], blind = false } = getRollVisibility(false, visibility.mode, { id: visibility.author });
+    await table.toMessage(draw.results, {
+      roll: draw.roll ?? undefined,
+      messageData: { author: authorId, speaker: globalThis.ChatMessage?.getSpeaker?.({ actor: party }) ?? {}, whisper, blind,
+        flags: { [MODULE_ID]: { eventsCheck: true, eventSlot: slot, privateRollCandidate: true } } },
+      // The executor is the GM; SELF would replace the requesting user's recipients.
+      messageOptions: { rollMode: visibility.mode === "selfroll" ? "gmroll" : visibility.mode }
+    });
+    if (!await isCurrent()) return { status: "stale" };
+    await party.update({ [`system.expedition.dayState.events.==${slot}`]: stored, [`flags.${MODULE_ID}.expedition.dayState.events.==${slot}`]: stored });
+    expectedEvents = expeditionEventKey(party, slots);
+  }
   return { status: "rolled" };
 }
 
