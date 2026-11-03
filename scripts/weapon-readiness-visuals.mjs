@@ -230,11 +230,10 @@ function getActorToken(actor) {
   return tokens.find((token) => token.document?.parent?.id === canvas.scene?.id) ?? tokens[0] ?? null;
 }
 
-async function syncActorCombatState(actor, currentWeapons = []) {
+export async function syncActorCombatState(actor, currentWeapons = []) {
   if (!actor || !isPlayerActor(actor) || !TenebreSettings.get("enableWeaponReadinessCombatSync")) return;
 
-  const isExecutor = isActorExecutor(actor) || actor?.isOwner || game.user?.isGM;
-  if (!isExecutor) return;
+  if (!isActorExecutor(actor)) return;
 
   const tokens = actor?.getActiveTokens?.(true, true) ?? [];
   if (tokens.length === 0) return;
@@ -276,6 +275,9 @@ async function syncActorCombatState(actor, currentWeapons = []) {
           const combatant = combat?.combatants?.find((c) => c.tokenId === tokenDoc.id);
           if (combatant && combat.combatants.has(combatant.id)) {
             await combatant.delete();
+            if (game.user?.isGM && combat.combatants.size === 0) {
+              await combat.delete();
+            }
           }
         } catch (error) {
           // Ignora silenciosamente se o combatente já foi removido por outro evento

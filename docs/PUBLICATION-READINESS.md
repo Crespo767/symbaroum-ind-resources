@@ -3,6 +3,26 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.18.51 — 02/11/2026
+
+- Guardar todas as armas agora encerra automaticamente o encontro quando a
+  remocao do personagem deixa a lista de combatentes vazia, tanto antes
+  quanto depois do inicio do combate. Outros participantes preservam o encontro.
+- A sincronizacao usa o executor unico do ator (GM ativo quando disponivel),
+  evitando remocoes duplicadas entre jogadores e GMs. Somente um GM encerra
+  o encontro pela API publica `Combat.delete`, a mesma usada pelo core ao
+  confirmar o fim de combate, sem dialogo adicional.
+- Regressao automatizada cobre encerramento, encontros com outros participantes,
+  multiplos tokens, remocao cancelada, chegada de combatente durante a remocao,
+  opcao desativada, jogador/confiavel/GM secundario, ausencia de GM e criacao
+  de encontro ao sacar arma. Suite local: 627 testes e sintaxe de 150 modulos.
+- Copia exata de publicacao: 613 testes aprovados, sintaxe de 148 modulos,
+  14 arquivos JSON validos e paridade de 1199 chaves de idioma.
+- Alteracoes locais de calendario e expedicao em andamento ficam fora da release.
+- Pendente: validacao em sessoes reais Foundry v13/v14 entre GM e jogadores,
+  com Token Variants ativo/ausente. Os ensaios automatizados usam documentos
+  simulados; a compatibilidade verificada do manifesto permanece a existente.
+
 ## Release v0.18.48 — 20/10/2026
 
 - Calendário: avanço automático de tempo (`CalendarClockRunner`) com controle de iniciar/pausar, suporte a pausa do Foundry, velocidade configurável (`calendarClockSpeed`, 0,01 a 86400 segundos do mundo por segundo real), exibição com segundos e editor de horário no próprio painel da barra lateral.
