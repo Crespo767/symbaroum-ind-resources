@@ -18,6 +18,7 @@ const en = JSON.parse(read("languages/en.json"));
 const {
   buildPainThresholdPromptHtml,
   extractPainThresholdActions,
+  PainThresholdChoiceService,
   selectPainChoiceRecipients,
   waitForPainThresholdReveal
 } = await import("../scripts/pain-threshold-choice.mjs");
@@ -57,18 +58,95 @@ test("unrelated status effects and prone without damage are ignored", () => {
   ]), null);
 });
 
-test("the affected character owner chooses before attacker owners or GMs", () => {
+test("only the affected character owners choose, with GMs as the offline fallback", () => {
   const users = [
     { id: "target-owner", active: true, isGM: false },
     { id: "attacker-owner", active: true, isGM: false },
     { id: "gm", active: true, isGM: true }
   ];
   const target = { testUserPermission: (user) => user.id === "target-owner" };
-  const attacker = { testUserPermission: (user) => user.id === "attacker-owner" };
+  assert.deepEqual(selectPainChoiceRecipients(users, target), ["target-owner"]);
+  assert.deepEqual(selectPainChoiceRecipients(users.filter((user) => user.id !== "target-owner"), target), ["gm"]);
+  assert.deepEqual(selectPainChoiceRecipients(users, null), ["gm"]);
+});
 
-  assert.deepEqual(selectPainChoiceRecipients(users, target, attacker), ["target-owner"]);
-  assert.deepEqual(selectPainChoiceRecipients(users, null, attacker), ["attacker-owner"]);
-  assert.deepEqual(selectPainChoiceRecipients(users, null, null), ["gm"]);
+test("native application keeps automatic NPC falls and offers choices only for NPC attacks on players", async (t) => {
+  const saved = Object.fromEntries(["game", "foundry", "canvas", "Hooks"].map((key) => [key, globalThis[key]]));
+  t.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  });
+  const hooks = new Map();
+  globalThis.Hooks = { once() {}, on: (name, callback) => hooks.set(name, callback) };
+  PainThresholdChoiceService.register();
+  const prepare = hooks.get("preCreateChatMessage");
+  assert.equal(typeof prepare, "function");
+
+  for (const { attackerType, targetType, choice, defenderSpeaker = false, synthetic = false, introText = "Attacker attacks with Claws" } of [
+    { attackerType: "player", targetType: "monster", choice: false },
+    { attackerType: "character", targetType: "npc", choice: false },
+    { attackerType: "monster", targetType: "monster", choice: false },
+    { attackerType: "player", targetType: "player", choice: false },
+    { attackerType: "monster", targetType: "player", choice: true },
+    { attackerType: "npc", targetType: "character", choice: true },
+    { attackerType: "monster", targetType: "player", choice: true, defenderSpeaker: true },
+    { attackerType: "monster", targetType: "player", choice: true, defenderSpeaker: true, introText: "Attacker ataca com Garras" },
+    { attackerType: "monster", targetType: "player", choice: true, defenderSpeaker: true, synthetic: true },
+    { attackerType: "monster", targetType: "player", choice: false, defenderSpeaker: true, introText: "Unknown attacks with Claws" }
+  ]) {
+    await t.test(`${attackerType} attacks ${targetType}${defenderSpeaker ? ` (defender speaker: ${introText})` : ""}`, () => {
+      const gm = { id: "gm", active: true, isGM: true };
+      const player = { id: "owner", active: true, isGM: false };
+      const target = {
+        id: "target", uuid: "Actor.target", name: "Target", type: targetType,
+        testUserPermission: (user) => user.id === player.id
+      };
+      const attacker = { id: "attacker", name: "Attacker", type: attackerType, uuid: "Actor.attacker" };
+      globalThis.game = {
+        user: gm, users: Object.assign([gm, player], { activeGM: gm }),
+        actors: new Map([[target.id, target], [attacker.id, attacker]]),
+        messages: { contents: [{ id: "roll", content: `<div class="introTxt">${introText}</div>Target is stunned by pain`, speaker: { actor: defenderSpeaker ? target.id : attacker.id } }] },
+        i18n: { localize: (key) => key === "COMBAT.CHAT_DAMAGE_PAIN" ? "is stunned by pain" : key }
+      };
+      const tokenAttacker = synthetic ? { ...attacker, uuid: "Scene.scene.Token.npc.Actor.attacker" } : attacker;
+      globalThis.canvas = { tokens: {
+        get: (id) => id === "target-token" ? { actor: target } : null,
+        placeables: synthetic ? [{ name: attacker.name, actor: tokenAttacker }] : []
+      } };
+      globalThis.foundry = { utils: {
+        getProperty: (object, path) => path.split(".").reduce((value, key) => value?.[key], object),
+        randomID: () => "choice-id"
+      } };
+      const actions = [
+        { tokenId: "target-token", addEffect: { id: "prone" }, effectDuration: 1 },
+        { tokenId: "target-token", toughnessChange: -7 },
+        { tokenId: "target-token", corruptionChange: 1 }
+      ];
+      const updates = [];
+      const originalActions = structuredClone(actions);
+      const message = { updateSource: (update) => updates.push(update) };
+      const data = { "flags.symbaroum.applyEffects": actions };
+      prepare(message, data);
+      assert.equal(updates.length, choice ? 1 : 0);
+      assert.deepEqual(data["flags.symbaroum.applyEffects"], originalActions, "source actions remain unchanged");
+      if (choice) {
+        assert.deepEqual(updates[0]["flags.symbaroum.applyEffects"], actions.slice(1));
+        const pending = updates[0]["flags.symbaroum-ind-resources.painThresholdChoice"];
+        assert.deepEqual(pending.recipientIds, [player.id]);
+        assert.deepEqual(pending.proneAction, actions[0]);
+        assert.equal(pending.targetActorUuid, target.uuid);
+        assert.equal(pending.attackerActorUuid, tokenAttacker.uuid);
+      } else {
+        assert.equal(actions[0].addEffect.id, "prone", "NPC prone stays in the native GM damage application");
+      }
+
+      game.user = player;
+      prepare(message, data);
+      assert.equal(updates.length, choice ? 1 : 0, "player clients never change privileged application actions");
+    });
+  }
 });
 
 test("the prompt offers exactly fall or a Free Attack and escapes actor names", () => {

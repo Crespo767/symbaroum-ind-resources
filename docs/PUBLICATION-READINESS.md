@@ -3,6 +3,28 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.18.53 — 02/11/2026
+
+- Limiar de Dor: PNJs e monstros mantem a queda nativa ao aplicar os efeitos
+  do ataque, sem pergunta adicional. Dano, corrupcao e demais efeitos nativos
+  permanecem no controle de aplicacao do GM.
+- A escolha entre cair e conceder ataque livre fica restrita a ataques de PNJs
+  contra personagens jogadores. Destinatarios: donos ativos da vitima ou GMs
+  quando nao houver dono online; donos do atacante nao recebem essa escolha.
+- Corrige a identificacao do atacante quando o Symbaroum registra o defensor
+  como speaker do ataque de PNJ. Usa a introducao nativa PT/EN e prioriza o
+  ator do token da cena, preservando PNJs nao vinculados. Identificacao ausente
+  ou ambigua mantem os efeitos nativos, sem conceder ataque livre a outro ator.
+- Testes de regressao cobrem as duas direcoes do ataque, PNJ controlado por
+  jogador, jogador contra jogador, permissoes de GM, destinatarios, speaker do
+  defensor em PT/EN e ator sintetico do token.
+- Validacao: 48 testes focados, 653 na suite local e 639 na copia isolada
+  de publicacao, todos aprovados; sintaxe de 149 modulos, 14 JSON validos e
+  paridade de 1201 chaves de idioma na publicacao.
+- Pendente: sessoes reais Foundry v13/v14, GM/jogador/confiavel, chat
+  Ilustrado/Legacy, mensagens publicas/privadas/cegas e Dice So Nice. Ensaios
+  automatizados usam documentos simulados; compatibilidade declarada preservada.
+
 ## Release v0.18.52 — 02/11/2026
 
 - Ao sacar uma arma que excederia o limite de maos, oferece confirmacao de

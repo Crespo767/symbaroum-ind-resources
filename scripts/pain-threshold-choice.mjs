@@ -1,7 +1,7 @@
 import { ChatController } from "./chat-controller.mjs";
 import { MODULE_ID, PAIN_THRESHOLD_OUTCOME_FLAG } from "./constants.mjs";
 import { SocketService } from "./sockets.mjs";
-import { escapeHtml, format, localize } from "./utils.mjs";
+import { escapeHtml, format, getCanvasCreatureTokens, localize } from "./utils.mjs";
 
 const SYSTEM_ID = "symbaroum";
 const SYSTEM_ACTIONS_FLAG = "applyEffects";
@@ -81,13 +81,10 @@ export function extractPainThresholdActions(actions) {
   return { proneAction, remainingActions, targetTokenId, targetActorId };
 }
 
-export function selectPainChoiceRecipients(users, targetActor, attackerActor, ownerLevel = 3) {
+export function selectPainChoiceRecipients(users, targetActor, ownerLevel = 3) {
   const activeUsers = Array.from(users ?? []).filter((user) => user?.active);
   const targetOwners = activeUsers.filter((user) => !user.isGM && ownsActor(targetActor, user, ownerLevel));
   if (targetOwners.length) return targetOwners.map((user) => user.id);
-
-  const attackerOwners = activeUsers.filter((user) => !user.isGM && ownsActor(attackerActor, user, ownerLevel));
-  if (attackerOwners.length) return attackerOwners.map((user) => user.id);
 
   return activeUsers.filter((user) => user.isGM).map((user) => user.id);
 }
@@ -149,14 +146,13 @@ function preparePainThresholdChoice(message, data) {
   if (!extracted) return false;
 
   const targetActor = actorFromAction(extracted.proneAction);
-  if (!targetActor) return false;
+  if (!isPlayerActor(targetActor)) return false;
   const attackContext = findLatestPainAttackContext(targetActor, extracted.targetTokenId);
   const attackerActor = attackContext?.actor ?? null;
-  if (!attackerActor) return false;
+  if (!attackerActor || isPlayerActor(attackerActor)) return false;
   const recipientIds = selectPainChoiceRecipients(
     game.users,
     targetActor,
-    attackerActor,
     globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3
   );
   if (!recipientIds.length) return false;
@@ -340,7 +336,7 @@ function findLatestPainAttackContext(targetActor, targetTokenId) {
     const text = normalize(stripHtml(message.content ?? ""));
     if (!text || !painText || !text.includes(painText)) continue;
     if (targetNames.length && !targetNames.some((name) => text.includes(name))) continue;
-    const actor = actorFromSpeaker(message.speaker);
+    const actor = attackerFromMessage(message, targetActor);
     return {
       actor,
       name: actor?.name ?? message.speaker?.alias ?? null,
@@ -354,9 +350,35 @@ function actorFromAction(action) {
   return tokenById(action?.tokenId)?.actor ?? game.actors?.get?.(action?.actorId) ?? null;
 }
 
+function isPlayerActor(actor) {
+  return actor?.type === "player" || actor?.type === "character";
+}
+
 function actorFromSpeaker(speaker) {
   const token = tokenById(speaker?.token);
   return token?.actor ?? game.actors?.get?.(speaker?.actor) ?? null;
+}
+
+function attackerFromMessage(message, targetActor) {
+  const speakerActor = actorFromSpeaker(message.speaker);
+  if (speakerActor && speakerActor.uuid !== targetActor.uuid) return speakerActor;
+
+  // Native NPC weapon attacks use the defending player as the chat speaker.
+  const intro = String(message.content ?? "").match(/<div\b[^>]*class=["'][^"']*\bintroTxt\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+  const attack = stripHtml(intro?.[1]).trim().match(/^(.+?)\s+(?:ataca com|attacks? with)\s+/i);
+  if (!attack) return null;
+  const name = normalize(attack[1]);
+  const matches = new Map();
+  const consider = (actor, displayedName) => {
+    if (!actor || actor.uuid === targetActor.uuid) return;
+    if (name === normalize(displayedName) || name === normalize(escapeHtml(displayedName))) {
+      matches.set(actor.uuid ?? actor.id, actor);
+    }
+  };
+  for (const token of getCanvasCreatureTokens()) consider(token.actor, token.name);
+  if (matches.size) return matches.size === 1 ? matches.values().next().value : null;
+  for (const actor of game.actors?.contents ?? game.actors?.values?.() ?? []) consider(actor, actor.name);
+  return matches.size === 1 ? matches.values().next().value : null;
 }
 
 function tokenById(tokenId) {

@@ -86,7 +86,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.18.52 |
+| Modulo | 0.18.53 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -835,6 +835,12 @@ Cada uma dessas superficies possui opcao propria nas configuracoes de Combate.
 ---
 
 ## Manobras
+
+Ao ultrapassar o Limiar de Dor de um PNJ ou monstro, a queda e aplicada junto
+com o dano pelo controle nativo **Aplicar efeitos** do GM, sem escolha adicional.
+A escolha entre **Cair** e **Conceder Ataque Livre** aparece somente quando um
+PNJ atinge um personagem jogador. O dono ativo do personagem atingido decide;
+na ausencia dele, a escolha fica com o GM.
 
 O modulo adiciona uma area de **Manobras** na ficha e pode integrar essas acoes
 ao Token Action HUD.
