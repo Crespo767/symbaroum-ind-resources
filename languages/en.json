@@ -718,6 +718,8 @@
   "TENEBRE.WeaponReadiness.AttackBlocked": "{weapon} is sheathed. Draw it before attacking.",
   "TENEBRE.WeaponReadiness.DeleteBlocked": "{weapon} is drawn. Sheathe it before deleting it.",
   "TENEBRE.WeaponReadiness.HandLimitExceeded": "This selection uses {used} hands; the limit is {limit}.",
+  "TENEBRE.WeaponReadiness.SwapTitle": "Swap weapon",
+  "TENEBRE.WeaponReadiness.SwapConfirm": "You already have {weapons} in hand. Would you like to sheathe that equipment and draw {weapon}?",
   "TENEBRE.RitualBrowser.ContextMenu": "View Rituals",
   "TENEBRE.RitualBrowser.Title": "Available Rituals",
   "TENEBRE.RitualBrowser.ProgressionTitle": "Ritualist progression",

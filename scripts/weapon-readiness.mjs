@@ -10,6 +10,7 @@ export const WEAPON_READINESS_LONG_MODE_FLAG = "weaponReadinessLongOneHanded";
 export const WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG = "weaponReadinessOriginalLongQuality";
 
 const actorUpdates = new Map();
+const actorSwapPrompts = new Map();
 
 export const WeaponReadinessService = {
   registerHooks() {
@@ -58,10 +59,34 @@ export const WeaponReadinessService = {
 
   async setDrawn(weapon, drawn) {
     const actor = weapon?.parent;
-    if (!isEligibleWeapon(weapon) || !canManageActor(actor)) return false;
-    const desiredIds = new Set(this.getDrawnWeapons(actor).map((item) => item.id));
+    if (!this.isEnabled() || !isEligibleWeapon(weapon) || !canManageActor(actor)) return false;
+    const actorKey = actor.uuid ?? actor.id;
+    if (actorSwapPrompts.has(actorKey)) return actorSwapPrompts.get(actorKey);
+    const currentWeapons = this.getDrawnWeapons(actor);
+    const desiredIds = new Set(currentWeapons.map((item) => item.id));
     if (drawn) desiredIds.add(weapon.id);
     else desiredIds.delete(weapon.id);
+    if (drawn && !isDrawn(weapon) && getWeaponHandUsage(this.getEligibleWeapons(actor), desiredIds) > WEAPON_HAND_LIMIT) {
+      const operation = (async () => {
+        const confirmed = await foundry.applications.api.DialogV2.confirm({
+          window: { title: game.i18n.localize("TENEBRE.WeaponReadiness.SwapTitle") },
+          content: `<div class="symbaroum dialog tenebre-symbaroum-dialog"><p>${escapeHtml(game.i18n.format(
+            "TENEBRE.WeaponReadiness.SwapConfirm", { weapons: formatWeaponNames(currentWeapons), weapon: weapon.name }
+          ))}</p></div>`,
+          yes: { label: game.i18n.localize("TENEBRE.WeaponReadiness.SwapTitle") },
+          no: { label: game.i18n.localize("TENEBRE.Common.Cancel"), default: true },
+          rejectClose: false
+        });
+        if (confirmed !== true) return false;
+        const target = resolveWeaponItem(actor, { id: weapon.id });
+        const current = this.getDrawnWeapons(actor);
+        if (!isEligibleWeapon(target) || current.length !== currentWeapons.length
+          || current.some((item) => !currentWeapons.some((previous) => previous.id === item.id))) return false;
+        return this.setDrawnWeapons(actor, [target.id]);
+      })().finally(() => actorSwapPrompts.delete(actorKey));
+      actorSwapPrompts.set(actorKey, operation);
+      return operation;
+    }
     return this.setDrawnWeapons(actor, desiredIds);
   },
 

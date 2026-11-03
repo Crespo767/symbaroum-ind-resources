@@ -718,6 +718,8 @@
   "TENEBRE.WeaponReadiness.AttackBlocked": "{weapon} está guardada. Saque a arma antes de atacar.",
   "TENEBRE.WeaponReadiness.DeleteBlocked": "{weapon} está sacada. Guarde a arma antes de excluí-la.",
   "TENEBRE.WeaponReadiness.HandLimitExceeded": "Essa seleção ocupa {used} mãos; o limite é {limit}.",
+  "TENEBRE.WeaponReadiness.SwapTitle": "Trocar arma",
+  "TENEBRE.WeaponReadiness.SwapConfirm": "Você já está com {weapons} em mãos. Deseja guardar esses equipamentos e sacar {weapon}?",
   "TENEBRE.RitualBrowser.ContextMenu": "Ver Rituais",
   "TENEBRE.RitualBrowser.Title": "Rituais Disponíveis",
   "TENEBRE.RitualBrowser.ProgressionTitle": "Progressão de Ritualista",

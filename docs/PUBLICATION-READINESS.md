@@ -3,6 +3,25 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.18.52 — 02/11/2026
+
+- Ao sacar uma arma que excederia o limite de maos, oferece confirmacao de
+  troca, com os nomes dos equipamentos envolvidos. Cancelar/fechar nao altera
+  armas nem combate; confirmar atualiza os itens numa unica operacao.
+- Preserva combinacoes validas, valida novamente a arma/estado/permissao apos
+  o dialogo e evita janelas duplicadas por cliques repetidos.
+- O Symbaroum HUD 0.1.90 acompanha a correcao: encaminha a acao para a API
+  de prontidao antes de alterar o Item, permitindo cancelar sem ativar a arma.
+- Testes locais: 642 aprovados no Ind Resources e 291 no HUD. A regressao
+  cobre troca atomica, cancelamento, fechamento, nomes escapados, combinacoes
+  validas, alvo removido/guardado, permissao e preservacao de iniciativa/turno.
+- Copias isoladas de publicacao: 628 testes no Ind Resources e 269 no HUD,
+  todos aprovados, sem incluir desenvolvimentos locais de calendario/expedicao
+  ou de posicionamento/visibilidade do HUD.
+- Validacao em sessoes reais Foundry v13/v14 entre GM/jogadores, chat
+  Ilustrado/Legacy e Token Variants permanece pendente. Ensaios automatizados
+  usam documentos simulados; compatibilidade verificada preservada.
+
 ## Release v0.18.51 — 02/11/2026
 
 - Guardar todas as armas agora encerra automaticamente o encontro quando a

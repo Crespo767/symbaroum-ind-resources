@@ -86,7 +86,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.18.51 |
+| Modulo | 0.18.52 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -806,6 +806,13 @@ fisicamente sacada.
 - A troca atualiza as armas envolvidas em uma unica operacao de Embedded
   Documents, reduzindo estados intermediarios.
 - PNJs e monstros nao recebem o botao nem o bloqueio de prontidao.
+
+Ao tentar sacar outra arma que ultrapassaria o limite de maos, uma janela
+oferece **Trocar arma** ou **Cancelar**. Confirmar guarda os equipamentos
+atualmente em maos e saca a arma escolhida numa unica atualizacao, preservando
+o combatente, sua iniciativa e o turno do encontro. Cancelar ou fechar a
+janela mantem a selecao atual. Combinacoes validas de duas armas ou arma e
+escudo continuam disponiveis sem exigir troca.
 
 Com a opcao **Colocar em combate ao sacar arma** ativada, guardar todas as
 armas remove os tokens do personagem do encontro. Se essa remocao deixar o
