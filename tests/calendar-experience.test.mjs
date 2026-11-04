@@ -80,6 +80,22 @@ test("12-hour display supports seconds, midnight, noon and negative timestamps",
   assert.equal(formatCalendarTime(-1, { hour12: false, seconds: true }), "23:59:59");
 });
 
+test("date details are optional and applying a date appears only for a different selection", () => {
+  locale();
+  const args = { current: date, selected: date, view: date, time: 51300, canControl: true, worldOptions: CALENDAR_WORLD_DEFAULTS };
+  const current = buildCalendarExperience(args);
+  assert.doesNotMatch(current, /class="tenebre-ex-details"|data-action="applyDate"/);
+  assert.match(current, /data-action="calendarDetails"[^>]*aria-expanded="false"/);
+  assert.match(current, /<aside class="tenebre-ex-toolbar"/);
+  const details = buildCalendarExperience({ ...args, detailsOpen: true });
+  assert.match(details, /class="tenebre-ex-details"/);
+  assert.match(details, /Nascer do sol 06:00/);
+  assert.match(details, /Lua cheia:/);
+  const picked = { ...args, selected: { ...date, day: 6 } };
+  assert.equal((buildCalendarExperience(picked).match(/data-action="applyDate"/g) ?? []).length, 1);
+  assert.doesNotMatch(buildCalendarExperience({ ...picked, canControl: false }), /data-action="applyDate"/);
+});
+
 for (const lang of ["pt-BR", "en"]) {
   for (const mode of ["full", "compact", "year"]) {
     test(`${lang}: ${mode} view exposes consultation separately from mutation and contains no notes`, () => {

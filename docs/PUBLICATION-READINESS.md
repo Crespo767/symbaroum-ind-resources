@@ -3,6 +3,24 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.2 — 04/11/2026
+
+- Reorganiza a janela para se aproximar do Simple Calendar: mes/ano e estacao
+  acima da grade, dias circulares, atalhos laterais e relogio abaixo do mes.
+  Remove o cabecalho de marca repetido e o bloco fixo de informacoes extras.
+- Lua, horarios solares e proximas fases passam a um painel opcional de
+  detalhes, preservado ao consultar outra data. A acao de aplicar uma data
+  aparece quando a selecao difere da data atual. Atalhos solares usam icone
+  e texto; temas e modos mensal/anual/compacto continuam disponiveis.
+- Alteracoes limitadas a apresentacao e estado local do painel de detalhes;
+  regras de tempo, fila, permissoes e dados salvos permanecem no fluxo existente.
+- Testes focados cobrem o painel de detalhes, selecao sem mudar o tempo,
+  permissoes e as operacoes temporais existentes. A validacao visual real
+  fica com o usuario, conforme pedido.
+- Validacao: 63 testes focados, 685 na instalacao local e 671 na copia
+  isolada de publicacao, todos aprovados; sintaxe de 155 modulos, 14 JSON
+  validos e paridade de 1279 chaves de idioma.
+
 ## Release v0.19.1 — 04/11/2026
 
 - Corrige o aviso incorreto de data invalida ao usar controles de hora/dia

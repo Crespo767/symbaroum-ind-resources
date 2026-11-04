@@ -597,3 +597,21 @@ test("authority mode receives native combat time without advancing the world twi
   await queueCalendarChange(async () => {});
   assert.equal(CalendarService.getTime(), 82806, "secondary GMs do not duplicate combat time");
 });
+
+test("opening date details preserves the browsed date and never changes world time", () => {
+  setup();
+  const app = new CalendarApplication();
+  let paints = 0;
+  app.refresh = () => { paints++; };
+  app.browseMonth(1);
+  const view = { ...app.view }, selected = { ...app.selected }, time = game.time.worldTime;
+  CalendarApplication.DEFAULT_OPTIONS.actions.calendarDetails.call(app);
+  assert.equal(app.detailsOpen, true);
+  CalendarApplication.DEFAULT_OPTIONS.actions.calendarDetails.call(app);
+  assert.equal(app.detailsOpen, false);
+  assert.deepEqual(app.view, view);
+  assert.deepEqual(app.selected, selected);
+  assert.equal(game.time.worldTime, time);
+  assert.equal(paints, 3);
+  assert.deepEqual(writes, []);
+});

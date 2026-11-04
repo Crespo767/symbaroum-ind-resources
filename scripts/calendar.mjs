@@ -386,6 +386,7 @@ export class CalendarApplication extends ApplicationBase {
       nextPeriod() { this.browseMonth(readCalendarClientOptions().mode === "year" ? 12 : 1); },
       viewMode(_event, target) { return this.changeMode(target.dataset.mode); },
       calendarSettings() { return CalendarService.openConfiguration(); },
+      calendarDetails() { this.detailsOpen = !this.detailsOpen; this.refresh(); },
       timeInterval(_event, target) { return CalendarService.change({ type: "interval", unit: target.dataset.unit ?? this.unit, amount: Number(target.dataset.amount) }).catch(error => CalendarService.reportError(error)); },
       timePreset(_event, target) { return CalendarService.change({ type: "preset", preset: target.dataset.preset }).catch(error => CalendarService.reportError(error)); },
       reverseTime() { this.reverse = !this.reverse; this.refresh(); },
@@ -404,6 +405,7 @@ export class CalendarApplication extends ApplicationBase {
   unit = "minute";
   reverse = false;
   larger = false;
+  detailsOpen = false;
 
   constructor(options = {}) {
     super(options);
@@ -505,7 +507,7 @@ export class CalendarApplication extends ApplicationBase {
     return buildCalendarExperience({ current: CalendarService.getDate(), selected: this.selected, view: this.view,
       time: CalendarService.getTime(), canControl: CalendarService.canControl(), status: CalendarService.getClockStatus(),
       suspended: CalendarService.getClockStatus() === "paused" && !game.settings.get(MODULE_ID, "calendarClockManualPause"),
-      preferences: readCalendarClientOptions(), worldOptions: readCalendarWorldOptions(), unit: this.unit, reverse: this.reverse, larger: this.larger });
+      preferences: readCalendarClientOptions(), worldOptions: readCalendarWorldOptions(), unit: this.unit, reverse: this.reverse, larger: this.larger, detailsOpen: this.detailsOpen });
   }
 
   _replaceHTML(result, content) { content.innerHTML = result; }
@@ -519,7 +521,7 @@ export class CalendarApplication extends ApplicationBase {
       this.#renderMode = dimensionsKey;
       const saved = preferences.mode === "compact" ? preferences.compactPosition : preferences.position;
       const viewportWidth = globalThis.innerWidth ?? 1400, viewportHeight = globalThis.innerHeight ?? 900;
-      const width = Math.min(viewportWidth - 24, (preferences.mode === "compact" ? 350 : preferences.mode === "year" ? 780 : 530) * preferences.scale / 100);
+      const width = Math.min(viewportWidth - 24, (preferences.mode === "compact" ? 350 : preferences.mode === "year" ? 780 : 440) * preferences.scale / 100);
       this.setPosition?.({ width, height: "auto", ...(preferences.rememberPosition && Number.isFinite(saved.left) ? {
         left: Math.max(0, Math.min(saved.left, viewportWidth - width)), top: Math.max(0, Math.min(saved.top, viewportHeight - 100))
       } : {}) });

@@ -1276,5 +1276,6 @@
   "TENEBRE.Calendar.Units.month": "Mês",
   "TENEBRE.Calendar.Units.year": "Ano",
   "TENEBRE.Calendar.Preferences.chatTimestamp": "Mostrar a data do jogo no chat",
-  "TENEBRE.Calendar.ClockSuspended": "Relógio suspenso pela pausa do jogo, combate ou configuração temporal"
+  "TENEBRE.Calendar.ClockSuspended": "Relógio suspenso pela pausa do jogo, combate ou configuração temporal",
+  "TENEBRE.Calendar.DateDetails": "Detalhes da data"
 }

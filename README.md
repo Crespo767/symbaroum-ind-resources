@@ -68,6 +68,11 @@ Calendar Reborn para o preset de Symbaroum, sem notas e sem outros calendarios.
 A [analise tecnica e o inventario da referencia](docs/CALENDARIO-SIMPLE-CALENDAR-ANALISE.md)
 registram a arquitetura, a correspondencia dos recursos e os limites da adaptacao.
 
+Na versao 0.19.2, a janela aproxima o visual do Simple Calendar: mes/ano e
+estacao no topo, dias circulares, barra lateral de atalhos e relogio abaixo
+da grade. O botao de informacao abre os detalhes de lua e luz solar. Ao
+selecionar outro dia, aparece a acao explicita de definir a data atual.
+
 - Visao mensal, anual e compacta; alterne pelos botoes do cabecalho ou use
   duplo clique no titulo para alternar entre mensal e compacto.
 - Controle o tempo por segundo, rodada, minuto, hora, dia, mes ou ano, em
@@ -112,7 +117,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.19.1 |
+| Modulo | 0.19.2 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
