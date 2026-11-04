@@ -222,3 +222,68 @@
 #tenebre-calendar-window .tenebre-calendar-apply { flex: 1; background: #732b39; border-color: #b46c77; }
 #tenebre-calendar-window .tenebre-calendar-readonly { flex: 1; text-align: right; color: #a7a3a0; font-size: 11px; }
 #tenebre-calendar-window .tenebre-calendar-time-hint { margin: 9px 0 0; color: #a7a3a0; font-size: 11px; line-height: 1.4; text-align: center; }
+
+/* Calendar workbench: full, year and compact views share the same scoped theme. */
+#tenebre-calendar-window { --cal-surface: #1c1f27; --cal-ink: #e6e5e1; --cal-muted: #aaaeb8; --cal-line: #ffffff22; --cal-input: #ffffff06; }
+#tenebre-calendar-window[data-calendar-theme="light"] { --cal-surface: #f4f5f7; --cal-ink: #202631; --cal-muted: #596272; --cal-line: #20263133; --cal-input: #20263108; }
+#tenebre-calendar-window[data-calendar-theme="classic"] { --cal-surface: #e8dfc9; --cal-ink: #352f24; --cal-muted: #6e614b; --cal-line: #64502a44; --cal-input: #fff7e344; }
+#tenebre-calendar-window .window-content { background: var(--cal-surface); color: var(--cal-ink); }
+#tenebre-calendar-window .tenebre-experience { padding: 12px; zoom: var(--tenebre-calendar-scale, 1); font-size: 13px; }
+#tenebre-calendar-window .tenebre-experience :is(button, select, input) { color: var(--cal-ink); background: var(--cal-input); border-color: var(--cal-line); height: 30px; min-height: 30px; font-size: 12px; }
+#tenebre-calendar-window .tenebre-experience option { color: var(--cal-ink); background: var(--cal-surface); }
+#tenebre-calendar-window .tenebre-ex-toolbar, #tenebre-calendar-window .tenebre-ex-toolbar > div { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+#tenebre-calendar-window .tenebre-ex-toolbar { border-bottom: 1px solid var(--cal-line); padding-bottom: 9px; }
+#tenebre-calendar-window .tenebre-ex-toolbar strong { font: 18px var(--font-h1, Georgia, serif); }
+#tenebre-calendar-window .tenebre-ex-toolbar button { width: 29px; padding: 0; }
+#tenebre-calendar-window .tenebre-experience button[aria-pressed="true"] { background: #4b91c52b; border-color: #5aabd2; }
+#tenebre-calendar-window .tenebre-ex-current-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 0; flex-wrap: wrap; }
+#tenebre-calendar-window .tenebre-ex-current-row > span { font-weight: bold; }
+#tenebre-calendar-window .tenebre-ex-clock { display: flex; gap: 5px; align-items: center; justify-content: center; }
+#tenebre-calendar-window .tenebre-ex-clock time { font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#tenebre-calendar-window .tenebre-ex-clock button { width: 27px; padding: 0; }
+#tenebre-calendar-window .tenebre-ex-status { width: 8px; height: 8px; border-radius: 50%; background: #d87a7a; display: inline-block; }
+#tenebre-calendar-window .tenebre-ex-status.is-running { background: #6fc592; box-shadow: 0 0 5px #6fc59255; }
+#tenebre-calendar-window .tenebre-ex-status.is-paused { background: #e5bb61; }
+#tenebre-calendar-window .tenebre-ex-navigation { display: grid; grid-template-columns: 30px 1fr 80px 30px; gap: 7px; align-items: center; margin-bottom: 12px; }
+#tenebre-calendar-window .tenebre-ex-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 3px; }
+#tenebre-calendar-window .tenebre-ex-week > span { text-align: center; font-size: 10px; color: var(--cal-muted); overflow: hidden; }
+#tenebre-calendar-window .tenebre-ex-day { position: relative; height: 46px !important; display: flex; align-items: start; justify-content: start; padding: 7px 8px; border-color: transparent !important; font-size: 14px !important; }
+#tenebre-calendar-window .tenebre-ex-day svg { width: 14px; height: 14px; position: absolute; right: 4px; bottom: 4px; }
+#tenebre-calendar-window .tenebre-ex-day.is-today { background: #387aad36; border-color: #4f9bcc !important; }
+#tenebre-calendar-window .tenebre-ex-day.is-selected { background: #3b936a36; border-color: #61b88b !important; }
+#tenebre-calendar-window .tenebre-ex-day.is-selected.is-today { box-shadow: inset 0 0 0 1px #4f9bcc; }
+#tenebre-calendar-window .tenebre-ex-details { margin: 12px 0; padding: 11px 0; border-block: 1px solid var(--cal-line); text-align: center; display: flex; flex-direction: column; gap: 7px; }
+#tenebre-calendar-window .tenebre-ex-almanac, #tenebre-calendar-window .tenebre-ex-daylight, #tenebre-calendar-window .tenebre-ex-next-moons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; color: var(--cal-muted); font-size: 12px; }
+#tenebre-calendar-window .tenebre-ex-almanac span, #tenebre-calendar-window .tenebre-ex-next-moons span { display: inline-flex; align-items: center; gap: 5px; }
+#tenebre-calendar-window .tenebre-experience svg { width: 16px; height: 16px; }
+#tenebre-calendar-window .tenebre-ex-controls { display: flex; flex-direction: column; gap: 5px; }
+#tenebre-calendar-window .tenebre-ex-stepper { display: flex; gap: 3px; }
+#tenebre-calendar-window .tenebre-ex-stepper select { flex: 2; min-width: 80px; }
+#tenebre-calendar-window .tenebre-ex-stepper button { flex: 1; padding: 0 4px; min-width: 0; }
+#tenebre-calendar-window .tenebre-ex-presets { display: flex; gap: 4px; justify-content: center; }
+#tenebre-calendar-window .tenebre-ex-presets button { width: 45px; }
+#tenebre-calendar-window .tenebre-ex-footer { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+#tenebre-calendar-window .tenebre-ex-footer button { flex: 1; }
+#tenebre-calendar-window .tenebre-ex-footer span { color: var(--cal-muted); font-size: 11px; margin-left: auto; }
+#tenebre-calendar-window .is-compact .tenebre-ex-current { display: block; text-align: center; margin: 13px 0 8px; font: 19px var(--font-h1, Georgia, serif); }
+#tenebre-calendar-window .is-compact .tenebre-ex-clock { margin: 8px 0 12px; }
+#tenebre-calendar-window .is-compact .tenebre-ex-stepper { flex-wrap: wrap; }
+#tenebre-calendar-window .tenebre-ex-year { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
+#tenebre-calendar-window .is-mini h4 { margin: 4px 0 8px; text-align: center; font-size: 13px; }
+#tenebre-calendar-window .is-mini .tenebre-ex-day { height: 24px !important; min-height: 24px; font-size: 10px !important; padding: 2px 0; justify-content: center; align-items: center; }
+#tenebre-calendar-window .is-mini .tenebre-ex-week > span { font-size: 8px; }
+#tenebre-calendar-configuration .window-content { overflow: auto; }
+#tenebre-calendar-configuration .tenebre-calendar-configuration { padding: 10px; }
+#tenebre-calendar-configuration fieldset { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin: 10px 0; }
+#tenebre-calendar-configuration label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+#tenebre-calendar-configuration :is(select, input[type="number"]) { max-width: 220px; width: 50%; }
+#tenebre-calendar-configuration .tenebre-cal-check { justify-content: start; gap: 8px; }
+#tenebre-calendar-configuration .tenebre-cal-users { max-height: 150px; overflow: auto; }
+#tenebre-calendar-configuration .tenebre-cal-season { display: grid; grid-template-columns: 75px 1fr 1fr; gap: 7px; align-items: center; }
+#tenebre-calendar-configuration .tenebre-cal-season label { flex-direction: column; gap: 3px; }
+#tenebre-calendar-configuration textarea { width: 100%; min-height: 90px; resize: vertical; font-family: monospace; }
+#tenebre-calendar-configuration footer { display: flex; gap: 8px; }
+@media (max-width: 650px) {
+  #tenebre-calendar-window .tenebre-ex-year { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.chat-message .message-metadata .tenebre-calendar-chat-time { display: block; flex-basis: 100%; font-size: 10px; opacity: .8; }

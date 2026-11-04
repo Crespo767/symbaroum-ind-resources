@@ -7,6 +7,11 @@ import {
 } from "./calendar-date.mjs";
 import { formatCalendarDate, buildCalendarAlmanac, buildCalendarPage, updateCalendarClock, buildCalendarClockToggle } from "./calendar-view.mjs";
 import { CalendarClockRunner } from "./calendar-runner.mjs";
+import { readCalendarWorldOptions, readCalendarClientOptions, validateCalendarWorldOptions, validateCalendarClientOptions,
+  calendarUserCanControl, calendarPausesForCombat, calendarIntervalSeconds, calendarPresetDelta, validateCalendarBackup, formatCalendarTime } from "./calendar-options.mjs";
+import { buildCalendarExperience } from "./calendar-experience-view.mjs";
+import { CalendarConfigurationApplication } from "./calendar-configuration.mjs";
+import { registerCalendarChat } from "./calendar-chat.mjs";
 
 const ApplicationBase = globalThis.foundry?.applications?.api?.ApplicationV2 ?? class {};
 
@@ -15,7 +20,7 @@ const HANDLER = "changeCalendarDate";
 let pendingChange = Promise.resolve();
 const CLOCK_SETTING = "calendarClockRunning";
 
-function queueCalendarChange(operation) {
+export function queueCalendarChange(operation) {
   const next = pendingChange.catch(() => {}).then(operation);
   pendingChange = next;
   return next;
@@ -29,6 +34,7 @@ export class CalendarService {
   static #runner = null;
   static #ready = false;
   static #editingTime = false;
+  static #configuration = null;
 
   static register() {
     if (this.#registered) return;
@@ -53,14 +59,21 @@ export class CalendarService {
       type: NumberField ? new NumberField({ required: true, nullable: false, initial: 1, min: 0.01, max: 86400, step: 0.01 }) : Number,
       onChange: () => this.synchronizeClock()
     });
+    for (const [key, scope] of [["calendarWorldOptions", "world"], ["calendarIndependentTime", "world"], ["calendarClientOptions", "client"]]) {
+      game.settings.register(MODULE_ID, key, { scope, config: false, type: Object, default: {},
+        onChange: () => {
+          this.synchronizeClock(); this.refresh();
+          if (key === "calendarClientOptions") globalThis.ui?.chat?.render?.({ force: true });
+        } });
+    }
+    game.settings.register(MODULE_ID, "calendarClockManualPause", { scope: "world", config: false, type: Boolean, default: false,
+      onChange: () => { this.synchronizeClock(); this.refresh(); } });
     this.#runner = new CalendarClockRunner({
       canRun: () => this.canRunClock(),
       getRate: () => calendarClockSpeed(game.settings.get(MODULE_ID, "calendarClockSpeed") ?? 1),
       advance: (seconds, stillValid) => queueCalendarChange(async () => {
         if (!stillValid()) return;
-        const anchor = game.settings.get(MODULE_ID, "calendarDate");
-        if (this.getDate()) calendarDateAtTime(anchor, game.time.worldTime + seconds);
-        await game.time.advance(seconds);
+        await advanceCalendarTime(seconds);
       }),
       onError: async error => {
         this.reportError(error);
@@ -70,6 +83,14 @@ export class CalendarService {
       }
     });
     SocketService.registerHandler(HANDLER, changeCalendarDateAsGM);
+    registerCalendarChat(this);
+    Hooks.on("getSceneControlButtons", controls => {
+      if (!this.canView() || !game.settings.get(MODULE_ID, "enableCalendar")) return;
+      const notes = Object.values(controls).find(control => control.name === "notes");
+      if (!notes?.tools || Array.isArray(notes.tools)) return;
+      notes.tools.tenebreCalendar = { name: "tenebreCalendar", title: "TENEBRE.Calendar.Title", icon: "fa-solid fa-calendar-days",
+        button: true, onChange: () => { void this.toggle(); } };
+    });
     // Keep one panel beside the tabs; scoped CSS limits it to Actors and Items.
     Hooks.on("renderSidebar", () => this.refresh());
     Hooks.on("renderChatLog", () => this.refresh());
@@ -77,13 +98,37 @@ export class CalendarService {
       Hooks.on(event, () => { this.synchronizeClock(); this.refresh(); });
     }
     Hooks.on("updateWorldTime", () => this.refresh());
-    Hooks.once("ready", () => { this.#ready = true; this.synchronizeClock(); this.refresh(); });
+    for (const event of ["createCombat", "deleteCombat", "canvasReady"]) {
+      Hooks.on(event, () => { this.synchronizeClock(); this.refresh(); });
+    }
+    Hooks.on("updateCombat", (_combat, _changes, options = {}) => {
+      this.synchronizeClock(); this.refresh();
+      const delta = options.worldTime?.delta;
+      if (SocketService.isPrimaryGM() && readCalendarWorldOptions().integration === "self" && Number.isFinite(delta) && delta) {
+        void queueCalendarChange(async () => {
+          if (!SocketService.isPrimaryGM() || readCalendarWorldOptions().integration !== "self") return;
+          const seconds = this.getTime() + delta;
+          if (this.getDate()) calendarDateAtTime(game.settings.get(MODULE_ID, "calendarDate"), seconds);
+          await game.settings.set(MODULE_ID, "calendarIndependentTime", { seconds });
+        }).catch(error => this.reportError(error));
+      }
+    });
+    game.keybindings?.register(MODULE_ID, "toggleCalendar", {
+      name: "TENEBRE.Calendar.Toggle", editable: [], onDown: () => { void this.toggle(); return true; }
+    });
+    Hooks.once("ready", () => {
+      this.#ready = true; this.synchronizeClock(); this.refresh();
+      if (readCalendarClientOptions().openOnLoad) void this.openDateDialog();
+    });
     globalThis.addEventListener?.("beforeunload", () => this.#runner?.stop(), { once: true });
   }
 
   static canRunClock() {
+    const options = readCalendarWorldOptions();
     return this.#ready && game.system.id === "symbaroum" && Boolean(game.user?.active && game.user.isGM)
       && game.users.activeGM?.id === game.user.id && !game.paused
+      && !game.settings.get(MODULE_ID, "calendarClockManualPause")
+      && options.integration !== "third-party" && !calendarPausesForCombat(game.combats, globalThis.canvas?.scene?.id, options.combatPause)
       && Boolean(game.settings.get(MODULE_ID, "enableCalendar") && game.settings.get(MODULE_ID, CLOCK_SETTING));
   }
 
@@ -93,14 +138,45 @@ export class CalendarService {
   }
 
   static getDate() {
-    try { return calendarDateAtTime(game.settings.get(MODULE_ID, "calendarDate"), game.time.worldTime); }
+    try { return calendarDateAtTime(game.settings.get(MODULE_ID, "calendarDate"), this.getTime()); }
     catch { return null; }
+  }
+
+  static getTime() {
+    const { integration } = readCalendarWorldOptions();
+    const seconds = game.settings.get(MODULE_ID, "calendarIndependentTime")?.seconds;
+    return (integration === "none" || integration === "self") && Number.isFinite(seconds) ? seconds : game.time.worldTime;
+  }
+  static canView() {
+    const options = readCalendarWorldOptions();
+    return Boolean(game.user?.isGM || options.playerView || calendarUserCanControl(game.user, options));
+  }
+  static canControl() {
+    return readCalendarWorldOptions().integration !== "third-party" && calendarUserCanControl(game.user);
+  }
+  static getClockStatus() {
+    if (!game.settings.get(MODULE_ID, CLOCK_SETTING)) return "stopped";
+    const options = readCalendarWorldOptions();
+    return game.paused || !game.users?.activeGM || game.settings.get(MODULE_ID, "calendarClockManualPause") || options.integration === "third-party"
+      || calendarPausesForCombat(game.combats, globalThis.canvas?.scene?.id, options.combatPause) ? "paused" : "running";
+  }
+  static async toggle() {
+    if (this.#application?.rendered) return this.#application.close();
+    return this.openDateDialog();
+  }
+  static openConfiguration() {
+    this.#configuration ??= new CalendarConfigurationApplication(this);
+    return this.#configuration.render({ force: true });
+  }
+  static exportConfiguration() {
+    return { format: "symbaroum-ind-resources-calendar", version: 1, date: this.getDate(), time: this.getTime(),
+      options: readCalendarWorldOptions(), speed: game.settings.get(MODULE_ID, "calendarClockSpeed") ?? 1 };
   }
 
   static refresh() {
     const existing = document.getElementById(PANEL_ID);
     const host = document.getElementById("sidebar-content");
-    if (game.system.id !== "symbaroum" || !game.settings.get(MODULE_ID, "enableCalendar") || !host) {
+    if (game.system.id !== "symbaroum" || !game.settings.get(MODULE_ID, "enableCalendar") || !this.canView() || !host) {
       existing?.remove();
       if (this.#application?.rendered) this.#application.close().catch(error => this.reportError(error));
       return;
@@ -112,7 +188,7 @@ export class CalendarService {
       panel.addEventListener("click", (event) => {
         const target = event.target.closest?.("button[data-calendar-action]");
         const action = target?.dataset.calendarAction;
-        if (!action || (action !== "open" && !game.user?.isGM)) return;
+        if (!action || (action !== "open" && !this.canControl())) return;
         if (action === "editTime") { this.#editingTime = !this.#editingTime; this.refresh(); return; }
         let operation;
         if (action === "open") operation = this.openDateDialog();
@@ -129,24 +205,27 @@ export class CalendarService {
       });
     }
     if (panel.parentElement !== host || host.firstElementChild !== panel) host.prepend(panel);
-    const date = this.getDate(), isGM = Boolean(game.user?.isGM);
+    const date = this.getDate(), isGM = this.canControl();
     const running = Boolean(game.settings.get(MODULE_ID, CLOCK_SETTING)), paused = Boolean(game.paused);
-    const snapshot = JSON.stringify([date, isGM, running, paused, this.#editingTime]);
+    const preferences = readCalendarClientOptions();
+    const snapshot = JSON.stringify([date, isGM, running, paused, this.#editingTime, this.getClockStatus(), preferences.showClock, preferences.hour12, preferences.seconds]);
     if (!existing || panel.dataset.calendarSnapshot !== snapshot) {
-      panel.innerHTML = buildCalendarPanel(date, isGM, game.time.worldTime, { running, paused, editing: this.#editingTime });
+      panel.innerHTML = buildCalendarPanel(date, isGM, this.getTime(), { running, paused: this.getClockStatus() === "paused", editing: this.#editingTime });
       panel.dataset.calendarSnapshot = snapshot;
     }
-    updateCalendarClock(panel, game.time.worldTime, date);
+    updateCalendarClock(panel, this.getTime(), date);
     this.#application?.syncDate();
   }
 
   static async change(operation) {
-    if (!game.user?.isGM) throw new Error("Calendar changes require a GM.");
+    if (operation?.type === "configure" || operation?.type === "import") {
+      if (!game.user?.isGM) throw new Error("Calendar configuration requires a GM.");
+    } else if (!this.canControl()) throw new Error("Calendar changes require a GM or delegated permission.");
     return SocketService.executeAsPrimaryGM(HANDLER, operation);
   }
 
   static async openDateDialog() {
-    if (!game.settings.get(MODULE_ID, "enableCalendar")) return;
+    if (!game.settings.get(MODULE_ID, "enableCalendar") || !this.canView()) return;
     this.#application ??= new CalendarApplication();
     if (!this.#application.rendered) this.#application.showCurrent(false);
     return this.#application.render({ force: true });
@@ -158,14 +237,16 @@ export class CalendarService {
   }
 }
 
-/** All GMs route through one executor; re-read shared world time inside its queue. */
+/** Only this queue writes time; permissions are checked again when each request runs. */
 export function changeCalendarDateAsGM(operation) {
   const sender = game.users.get(this?.socketdata?.userId);
+  const administrative = operation?.type === "configure" || operation?.type === "import";
   const authorize = () => {
-    if (!sender?.active || !sender.isGM || !game.user?.isGM
+    if (!sender?.active || !(administrative ? sender.isGM : calendarUserCanControl(sender)) || !game.user?.isGM
       || game.users.activeGM?.id !== game.user.id || !game.settings.get(MODULE_ID, "enableCalendar")) {
       throw new Error("Unauthorized calendar operation.");
     }
+    if (!administrative && readCalendarWorldOptions().integration === "third-party") throw new Error("Calendar is read-only.");
   };
   authorize();
   // Copy and validate before queuing, never trust a caller-supplied user or setting key.
@@ -177,48 +258,113 @@ export function changeCalendarDateAsGM(operation) {
     request = { type: "time", seconds: operation.seconds };
   } else if (operation?.type === "setTime") {
     calendarTimeDelta(0, operation.hours, operation.minutes);
-    request = { type: "setTime", hours: operation.hours, minutes: operation.minutes };
+    const seconds = operation.seconds ?? 0;
+    if (!Number.isInteger(seconds) || seconds < 0 || seconds > 59) throw new RangeError("Invalid seconds.");
+    request = { type: "setTime", hours: operation.hours, minutes: operation.minutes, seconds };
+  } else if (operation?.type === "interval") {
+    calendarIntervalSeconds(operation.unit, operation.amount);
+    request = { type: "interval", unit: operation.unit, amount: operation.amount };
+  } else if (operation?.type === "preset" && ["sunrise", "midday", "sunset", "midnight"].includes(operation.preset)) {
+    request = { type: "preset", preset: operation.preset };
+  } else if (operation?.type === "configure") {
+    request = { type: "configure", options: validateCalendarWorldOptions(operation.options), speed: calendarClockSpeed(operation.speed) };
+  } else if (operation?.type === "import") {
+    const backup = validateCalendarBackup(operation.backup);
+    calendarClockSpeed(backup.speed);
+    request = { type: "import", backup };
   } else if (operation?.type === "toggleClock") {
     request = { type: "toggleClock" };
+  } else if (operation?.type === "pauseResume") {
+    request = { type: "pauseResume" };
   } else if (operation?.type === "clock" && typeof operation.running === "boolean") {
     request = { type: "clock", running: operation.running };
   } else throw new RangeError("Invalid calendar operation.");
   return queueCalendarChange(async () => {
     authorize();
+    if (request.type === "configure" || request.type === "import") return configureCalendar(request);
+    if (request.type === "pauseResume") {
+      const running = Boolean(game.settings.get(MODULE_ID, CLOCK_SETTING));
+      await game.settings.set(MODULE_ID, "calendarClockManualPause", running && !game.settings.get(MODULE_ID, "calendarClockManualPause"));
+      if (!running) await game.settings.set(MODULE_ID, CLOCK_SETTING, true);
+      return CalendarService.getClockStatus();
+    }
     if (request.type === "clock" || request.type === "toggleClock") {
       const running = request.type === "clock" ? request.running : !game.settings.get(MODULE_ID, CLOCK_SETTING);
       await game.settings.set(MODULE_ID, CLOCK_SETTING, running);
+      if (game.settings.get(MODULE_ID, "calendarClockManualPause")) await game.settings.set(MODULE_ID, "calendarClockManualPause", false);
       return running;
     }
     const current = CalendarService.getDate();
     const anchor = game.settings.get(MODULE_ID, "calendarDate");
-    if (request.type === "time" || request.type === "setTime") {
-      calendarClock(game.time.worldTime);
-      const seconds = request.type === "time" ? request.seconds : calendarTimeDelta(game.time.worldTime, request.hours, request.minutes);
-      if (current) calendarDateAtTime(anchor, game.time.worldTime + seconds);
-      if (seconds) await game.time.advance(seconds);
+    if (["time", "setTime", "interval", "preset"].includes(request.type)) {
+      const time = CalendarService.getTime();
+      const seconds = request.type === "time" ? request.seconds
+        : request.type === "setTime" ? calendarTimeDelta(time, request.hours, request.minutes) + request.seconds
+        : request.type === "interval" ? calendarIntervalSeconds(request.unit, request.amount, globalThis.CONFIG?.time?.roundTime ?? 6)
+        : calendarPresetDelta(current, time, request.preset);
+      if (seconds) await advanceCalendarTime(seconds);
       return CalendarService.getDate();
     }
     const date = request.type === "set" ? request.date : advanceCalendarDate(current, request.days);
     if (!current) {
       // First configuration gives the shared time a Symbaroum date without resetting it.
-      await game.settings.set(MODULE_ID, "calendarDate", createCalendarAnchor(date, game.time.worldTime));
+      await game.settings.set(MODULE_ID, "calendarDate", createCalendarAnchor(date, CalendarService.getTime()));
     } else {
       // Preserve hours/minutes. Other modules receive the standard updateWorldTime hook.
-      const delta = calendarDayNumber(date) - calendarDayNumber(calendarDateAtTime(anchor, game.time.worldTime));
-      if (delta) await game.time.advance(delta * CALENDAR_DAY_SECONDS);
+      const delta = calendarDayNumber(date) - calendarDayNumber(calendarDateAtTime(anchor, CalendarService.getTime()));
+      if (delta) await advanceCalendarTime(delta * CALENDAR_DAY_SECONDS);
     }
     return date;
   });
 }
 
+async function advanceCalendarTime(seconds) {
+  if (!Number.isFinite(seconds)) throw new RangeError("Invalid time interval.");
+  const next = CalendarService.getTime() + seconds;
+  calendarClock(next);
+  if (CalendarService.getDate()) calendarDateAtTime(game.settings.get(MODULE_ID, "calendarDate"), next);
+  const { integration } = readCalendarWorldOptions();
+  if (integration === "third-party") throw new Error("Calendar is read-only.");
+  if (integration === "mixed") await game.time.advance(seconds);
+  else {
+    if (integration === "self") await game.time.advance(next - game.time.worldTime);
+    await game.settings.set(MODULE_ID, "calendarIndependentTime", { seconds: next });
+  }
+  return next;
+}
+
+async function configureCalendar(request) {
+  const imported = request.type === "import" ? request.backup : null;
+  const options = imported?.options ?? request.options;
+  const oldOptions = readCalendarWorldOptions();
+  const oldTime = CalendarService.getTime(), oldDate = CalendarService.getDate();
+  if (imported) {
+    await game.settings.set(MODULE_ID, CLOCK_SETTING, false);
+    if (options.integration !== "none" && options.integration !== "third-party") await game.time.advance(imported.time - game.time.worldTime);
+    const time = options.integration === "third-party" ? game.time.worldTime : imported.time;
+    await game.settings.set(MODULE_ID, "calendarIndependentTime", { seconds: time });
+    await game.settings.set(MODULE_ID, "calendarDate", imported.date ? createCalendarAnchor(imported.date, time) : {});
+  } else if (options.integration !== oldOptions.integration) {
+    await game.settings.set(MODULE_ID, "calendarIndependentTime", { seconds: oldTime });
+    if (["mixed", "third-party"].includes(options.integration) && oldDate) {
+      await game.settings.set(MODULE_ID, "calendarDate", createCalendarAnchor(oldDate, game.time.worldTime));
+    }
+  }
+  await game.settings.set(MODULE_ID, "calendarClockSpeed", imported?.speed ?? request.speed);
+  await game.settings.set(MODULE_ID, "calendarWorldOptions", options);
+  CalendarService.synchronizeClock();
+  CalendarService.refresh();
+  return options;
+}
+
 export function buildCalendarPanel(date, isGM, worldTime = game.time.worldTime, { running = false, paused = false, editing = false } = {}) {
   const clock = calendarClock(worldTime);
+  const preferences = readCalendarClientOptions();
   const button = (action, icon, title, disabled = false) => `<button type="button" data-calendar-action="${action}" title="${escapeHtml(label(title))}" aria-label="${escapeHtml(label(title))}"${disabled ? " disabled" : ""}><i class="fa-solid ${icon}" aria-hidden="true"></i></button>`;
   return `<div class="tenebre-calendar-heading">${isGM ? button("previous", "fa-chevron-left", "Previous", !date) : ""}
-    <span class="tenebre-calendar-date"><span role="status">${escapeHtml(formatCalendarDate(date))}</span><span class="tenebre-sidebar-time-row"><time data-calendar-time class="tenebre-sidebar-time" datetime="${clock.fullText}" aria-label="${escapeHtml(label("WorldTime"))}">${clock.fullText}</time>${isGM ? button("editTime", "fa-clock", "EditTime") + buildCalendarClockToggle(running, paused, true) : ""}</span></span>
+    <span class="tenebre-calendar-date"><span role="status">${escapeHtml(formatCalendarDate(date))}</span>${preferences.showClock ? `<span class="tenebre-sidebar-time-row"><time data-calendar-time data-calendar-hour12="${preferences.hour12}" data-calendar-seconds="${preferences.seconds}" class="tenebre-sidebar-time" datetime="${clock.fullText}" aria-label="${escapeHtml(label("WorldTime"))}">${escapeHtml(formatCalendarTime(worldTime, preferences))}</time>${isGM ? button("editTime", "fa-clock", "EditTime") + buildCalendarClockToggle(running, paused, true) : ""}</span>` : ""}</span>
     ${isGM ? button("next", "fa-chevron-right", "Next", !date) : ""}${button("open", "fa-calendar-days", "Title")}</div>
-    ${isGM && editing ? `<div class="tenebre-sidebar-time-editor"><input name="calendarSidebarTime" type="time" step="60" value="${clock.text}" required aria-label="${escapeHtml(label("EditTime"))}">${button("applyTime", "fa-check", "ApplyTime")}</div>` : ""}
+    ${isGM && editing && preferences.showClock ? `<div class="tenebre-sidebar-time-editor"><input name="calendarSidebarTime" type="time" step="60" value="${clock.text}" required aria-label="${escapeHtml(label("EditTime"))}">${button("applyTime", "fa-check", "ApplyTime")}</div>` : ""}
     ${date ? `<div class="tenebre-calendar-almanac">${buildCalendarAlmanac(date, worldTime)}</div>` : ""}`;
 }
 
@@ -232,15 +378,32 @@ export class CalendarApplication extends ApplicationBase {
       previousMonth() { this.browseMonth(-1); },
       nextMonth() { this.browseMonth(1); },
       today() { this.showCurrent(); },
-      selectDay(_event, target) { this.selectDay(Number(target.dataset.day)); },
+      selectDay(_event, target) {
+        if (target.dataset.month) this.setView(Number(target.dataset.year), Number(target.dataset.month), false);
+        this.selectDay(Number(target.dataset.day));
+      },
+      previousPeriod() { this.browseMonth(readCalendarClientOptions().mode === "year" ? -12 : -1); },
+      nextPeriod() { this.browseMonth(readCalendarClientOptions().mode === "year" ? 12 : 1); },
+      viewMode(_event, target) { return this.changeMode(target.dataset.mode); },
+      calendarSettings() { return CalendarService.openConfiguration(); },
+      timeInterval(_event, target) { return CalendarService.change({ type: "interval", unit: target.dataset.unit ?? this.unit, amount: Number(target.dataset.amount) }).catch(error => CalendarService.reportError(error)); },
+      timePreset(_event, target) { return CalendarService.change({ type: "preset", preset: target.dataset.preset }).catch(error => CalendarService.reportError(error)); },
+      reverseTime() { this.reverse = !this.reverse; this.refresh(); },
+      largerSteps() { this.larger = !this.larger; this.refresh(); },
+      stopClock() { return CalendarService.change({ type: "clock", running: false }).catch(error => CalendarService.reportError(error)); },
+      editDateTime() { return this.editDateTime().catch(error => CalendarService.reportError(error)); },
       changeTime(_event, target) { CalendarService.change({ type: "time", seconds: Number(target.dataset.seconds) }).catch(error => CalendarService.reportError(error)); },
-      toggleClock() { CalendarService.change({ type: "toggleClock" }).catch(error => CalendarService.reportError(error)); },
+      toggleClock() { CalendarService.change({ type: "pauseResume" }).catch(error => CalendarService.reportError(error)); },
       applyDate() { this.applyDate().catch(error => CalendarService.reportError(error)); }
     }
   };
 
   #snapshot = "";
+  #renderMode = null;
   followCurrent = true;
+  unit = "minute";
+  reverse = false;
+  larger = false;
 
   constructor(options = {}) {
     super(options);
@@ -271,11 +434,52 @@ export class CalendarApplication extends ApplicationBase {
     this.refresh();
   }
 
-  setView(year, month) {
+  setView(year, month, render = true) {
     this.view = validateCalendarDate({ year, month, day: this.selected.day });
     this.selected = { ...this.view };
     this.followCurrent = false;
-    this.refresh();
+    if (render) this.refresh();
+  }
+
+  async changeMode(mode) {
+    try {
+      const preferences = validateCalendarClientOptions({ ...readCalendarClientOptions(), mode });
+      await this.savePosition();
+      await game.settings.set(MODULE_ID, "calendarClientOptions", { ...readCalendarClientOptions(), mode: preferences.mode });
+      this.refresh();
+    } catch (error) { CalendarService.reportError(error); }
+  }
+
+  async savePosition() {
+    const preferences = readCalendarClientOptions();
+    if (!preferences.rememberPosition || !Number.isFinite(this.position?.left) || !Number.isFinite(this.position?.top)) return;
+    const key = preferences.mode === "compact" ? "compactPosition" : "position";
+    const position = { left: this.position.left, top: this.position.top };
+    if (JSON.stringify(position) === JSON.stringify(preferences[key])) return;
+    await game.settings.set(MODULE_ID, "calendarClientOptions", { ...preferences, [key]: position });
+  }
+
+  async close(options) {
+    await this.savePosition();
+    return super.close?.(options);
+  }
+
+  async editDateTime() {
+    if (!CalendarService.canControl()) return;
+    const date = CalendarService.getDate() ?? this.selected;
+    const clock = calendarClock(CalendarService.getTime());
+    return foundry.applications.api.DialogV2.wait({ window: { title: label("EditDateTime") },
+      content: `<div class="tenebre-calendar-datetime"><label>${escapeHtml(label("Year"))}<input name="year" type="number" min="0" max="9999" value="${date.year}" required></label><label>${escapeHtml(label("Month"))}<input name="month" type="number" min="1" max="12" value="${date.month}" required></label><label>${escapeHtml(label("Day"))}<input name="day" type="number" min="1" max="30" value="${date.day}" required></label><label>${escapeHtml(label("WorldTime"))}<input name="time" type="time" step="1" value="${clock.fullText}" required></label></div>`,
+      buttons: [{ action: "apply", label: label("ApplyDate"), callback: async (_event, _button, dialog) => {
+        const value = name => dialog.element.querySelector(`[name="${name}"]`).value;
+        const chosen = validateCalendarDate({ year: Number(value("year")), month: Number(value("month")), day: Number(value("day")) });
+        const time = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value("time"));
+        if (!time) throw new RangeError("Invalid clock time.");
+        calendarTimeDelta(0, Number(time[1]), Number(time[2]));
+        await CalendarService.change({ type: "set", date: chosen });
+        await CalendarService.change({ type: "setTime", hours: Number(time[1]), minutes: Number(time[2]), seconds: Number(time[3] ?? 0) });
+        this.showCurrent();
+      } }, { action: "cancel", label: game.i18n.localize("TENEBRE.Common.Cancel") }], rejectClose: false });
   }
 
   async applyDate() {
@@ -286,8 +490,9 @@ export class CalendarApplication extends ApplicationBase {
 
   syncDate() {
     if (!this.rendered) return;
-    updateCalendarClock(this.element, game.time.worldTime, CalendarService.getDate());
-    const snapshot = JSON.stringify([CalendarService.getDate(), Boolean(game.user?.isGM), Boolean(game.settings.get(MODULE_ID, CLOCK_SETTING)), Boolean(game.paused)]);
+    updateCalendarClock(this.element, CalendarService.getTime(), CalendarService.getDate());
+    const { position: _position, compactPosition: _compactPosition, ...display } = readCalendarClientOptions();
+    const snapshot = JSON.stringify([CalendarService.getDate(), CalendarService.canControl(), CalendarService.getClockStatus(), display, readCalendarWorldOptions()]);
     if (snapshot === this.#snapshot) return;
     this.#snapshot = snapshot;
     if (this.followCurrent) this.showCurrent(false);
@@ -297,12 +502,50 @@ export class CalendarApplication extends ApplicationBase {
   refresh() { this.render({ force: true }).catch(error => CalendarService.reportError(error)); }
 
   async _renderHTML() {
-    return buildCalendarPage({ current: CalendarService.getDate(), selected: this.selected, view: this.view, isGM: Boolean(game.user?.isGM), running: Boolean(game.settings.get(MODULE_ID, CLOCK_SETTING)), paused: Boolean(game.paused) });
+    return buildCalendarExperience({ current: CalendarService.getDate(), selected: this.selected, view: this.view,
+      time: CalendarService.getTime(), canControl: CalendarService.canControl(), status: CalendarService.getClockStatus(),
+      suspended: CalendarService.getClockStatus() === "paused" && !game.settings.get(MODULE_ID, "calendarClockManualPause"),
+      preferences: readCalendarClientOptions(), worldOptions: readCalendarWorldOptions(), unit: this.unit, reverse: this.reverse, larger: this.larger });
   }
 
   _replaceHTML(result, content) { content.innerHTML = result; }
 
   _onRender() {
+    const preferences = readCalendarClientOptions();
+    this.element.dataset.calendarTheme = preferences.theme;
+    this.element.style?.setProperty("--tenebre-calendar-scale", String(preferences.scale / 100));
+    const dimensionsKey = `${preferences.mode}:${preferences.scale}`;
+    if (this.#renderMode !== dimensionsKey) {
+      this.#renderMode = dimensionsKey;
+      const saved = preferences.mode === "compact" ? preferences.compactPosition : preferences.position;
+      const viewportWidth = globalThis.innerWidth ?? 1400, viewportHeight = globalThis.innerHeight ?? 900;
+      const width = Math.min(viewportWidth - 24, (preferences.mode === "compact" ? 350 : preferences.mode === "year" ? 780 : 530) * preferences.scale / 100);
+      this.setPosition?.({ width, height: "auto", ...(preferences.rememberPosition && Number.isFinite(saved.left) ? {
+        left: Math.max(0, Math.min(saved.left, viewportWidth - width)), top: Math.max(0, Math.min(saved.top, viewportHeight - 100))
+      } : {}) });
+    }
+    const title = this.element.querySelector(".window-header");
+    if (title && title.dataset.calendarBound !== "true") {
+      title.dataset.calendarBound = "true";
+      title.addEventListener("dblclick", event => {
+        if (event.target.closest("button")) return;
+        event.preventDefault(); event.stopPropagation();
+        void this.changeMode(readCalendarClientOptions().mode === "compact" ? "full" : "compact");
+      }, { capture: true });
+    }
+    this.element.querySelector('[name="calendarUnit"]')?.addEventListener("change", event => { this.unit = event.target.value; });
+    for (const day of this.element.querySelectorAll('[data-action="selectDay"]')) {
+      day.addEventListener("contextmenu", event => {
+        event.preventDefault();
+        this.setView(Number(day.dataset.year), Number(day.dataset.month), false);
+        this.selectDay(Number(day.dataset.day));
+        const selected = { ...this.selected };
+        void foundry.applications.api.DialogV2.wait({ window: { title: formatCalendarDate(selected) },
+          content: `<p>${escapeHtml(label("SelectedDate"))}: ${escapeHtml(formatCalendarDate(selected))}</p>`,
+          buttons: [{ action: "close", label: game.i18n.localize("TENEBRE.Common.Close") },
+            ...(CalendarService.canControl() ? [{ action: "apply", label: label("ApplyDate"), callback: () => CalendarService.change({ type: "set", date: selected }) }] : [])], rejectClose: false });
+      });
+    }
     // Inputs belong to the newly replaced content, never to the persistent frame.
     for (const name of ["calendarMonth", "calendarYear"]) {
       this.element.querySelector(`[name="${name}"]`)?.addEventListener("change", () => {
@@ -310,7 +553,7 @@ export class CalendarApplication extends ApplicationBase {
         const year = this.element.querySelector('[name="calendarYear"]');
         try {
           if (!year.value.trim()) throw new RangeError("Missing calendar year.");
-          this.setView(Number(year.value), Number(month.value));
+          this.setView(Number(year.value), Number(month?.value ?? this.view.month));
         } catch (error) { CalendarService.reportError(error); this.refresh(); }
       });
     }

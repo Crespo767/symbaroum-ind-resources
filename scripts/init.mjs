@@ -312,6 +312,7 @@ function exposePublicApi() {
   const api = game.tenebreResources ?? {};
   Object.assign(api, {
     rations: RationService,
+    calendar: CalendarService,
     ammo: AmmoService,
     rest: RestService,
     hotbar: HotbarService,

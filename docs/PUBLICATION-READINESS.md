@@ -3,6 +3,32 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.0 — 04/11/2026
+
+- Adapta a experiência do Simple Calendar Reborn ao calendário exclusivo de
+  Symbaroum: visões mensal/anual/compacta, controles de unidades e incrementos
+  rápidos, horários solares, estados parado/pausado/rodando e preferências
+  pessoais. Análise e inventário em `CALENDARIO-SIMPLE-CALENDAR-ANALISE.md`.
+- Quatro integrações temporais (misto, autoridade, independente, externo),
+  pausa por combate opcional, configuração por GM e permissões delegadas
+  autenticadas e revalidadas ao executar a fila.
+- Preserva a data legada e o modo misto padrão; não adiciona calendários,
+  notas ou automações de viagem/permanência. Alterações locais de expedição
+  em andamento ficam fora desta publicação.
+- Inclui backup JSON próprio, API pública de calendário, acesso por controle
+  de cena/atalho configurável e carimbo opcional da data do jogo no chat.
+- Licença e atribuição MIT da referência incluídas; não distribui assets
+  externos nem substitui internals do Foundry.
+- Prévia isolada conferida no navegador: mensal/compacto/anual, consulta como
+  jogador, configurações, tema claro, formato 12 horas, incrementos rápidos
+  e pausa por combate. Documentos da prévia são simulados.
+- Validacao automatizada: 59 testes focados, 681 na instalacao local e 667
+  na copia isolada da publicacao, todos aprovados; sintaxe de 155 modulos,
+  14 arquivos JSON validos e paridade completa de idiomas.
+- A pedido expresso do usuario, a validacao visual no servidor v13.351 fica
+  a cargo dele. Nao foi aberto nem alterado um mundo online para testes.
+  v14 e testes entre clientes distintos seguem pendentes de execucao real.
+
 ## Release v0.18.53 — 02/11/2026
 
 - Limiar de Dor: PNJs e monstros mantem a queda nativa ao aplicar os efeitos

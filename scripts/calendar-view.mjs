@@ -1,4 +1,5 @@
 import { escapeHtml } from "./utils.mjs";
+import { formatCalendarTime, calendarDaylight, readCalendarWorldOptions } from "./calendar-options.mjs";
 import {
   SYMBAROUM_MONTHS, CALENDAR_WEEKDAYS, MAX_CALENDAR_YEAR,
   calendarMonthDays, calendarMoon, calendarSeason, calendarClock, calendarDayPeriod
@@ -9,7 +10,7 @@ const sameDate = (a, b) => a && b && a.year === b.year && a.month === b.month &&
 
 export function buildCalendarClockToggle(running, paused, sidebar = false) {
   const action = running ? "PauseClock" : "StartClock";
-  const hint = running && paused ? "ClockGamePaused" : action;
+  const hint = running && paused ? "ClockSuspended" : action;
   return `<button type="button" ${sidebar ? 'data-calendar-action="toggleClock"' : 'data-action="toggleClock"'} class="tenebre-clock-toggle${running && !paused ? " is-running" : ""}" aria-pressed="${running}" aria-label="${escapeHtml(label(action))}" title="${escapeHtml(label(hint))}">${running ? "Ⅱ" : "▶"}</button>`;
 }
 
@@ -27,8 +28,11 @@ export function buildCalendarClock(worldTime, isGM, running = false, paused = fa
 export function updateCalendarClock(element, worldTime, currentDate = null) {
   const clock = calendarClock(worldTime);
   for (const time of element?.querySelectorAll?.("[data-calendar-time]") ?? []) {
-    if (time.textContent !== clock.fullText) {
-      time.textContent = clock.fullText;
+    const text = time.dataset?.calendarHour12 !== undefined ? formatCalendarTime(worldTime, {
+      hour12: time.dataset.calendarHour12 === "true", seconds: time.dataset.calendarSeconds !== "false"
+    }) : clock.fullText;
+    if (time.textContent !== text) {
+      time.textContent = text;
       time.setAttribute("datetime", clock.fullText);
     }
   }
@@ -88,7 +92,11 @@ function calendarDaylightIcon(period) {
 }
 
 function calendarSkyContent(date, worldTime) {
-  const period = calendarDayPeriod(worldTime);
+  const { sunrise, sunset } = calendarDaylight(date, readCalendarWorldOptions().daylight);
+  const seconds = ((worldTime % 86400) + 86400) % 86400;
+  const period = seconds >= sunrise - 3600 && seconds < sunrise + 3600 ? "Dawn"
+    : seconds >= sunset - 3600 && seconds < sunset + 3600 ? "Dusk"
+    : seconds >= sunrise + 3600 && seconds < sunset - 3600 ? "Day" : "Night";
   const phase = period === "Night" ? calendarMoon(date).phase : null;
   const text = phase ? label(`Phases.${phase}`) : label(`DayPeriods.${period}`);
   return {

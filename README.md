@@ -63,9 +63,35 @@ recursos adequados para sua mesa.
 
 ## Calendario de Symbaroum
 
-A data fica no topo de todas as abas da barra lateral direita. O GM usa o icone
+Desde a versao **0.19.0**, o calendario incorpora a experiencia do Simple
+Calendar Reborn para o preset de Symbaroum, sem notas e sem outros calendarios.
+A [analise tecnica e o inventario da referencia](docs/CALENDARIO-SIMPLE-CALENDAR-ANALISE.md)
+registram a arquitetura, a correspondencia dos recursos e os limites da adaptacao.
+
+- Visao mensal, anual e compacta; alterne pelos botoes do cabecalho ou use
+  duplo clique no titulo para alternar entre mensal e compacto.
+- Controle o tempo por segundo, rodada, minuto, hora, dia, mes ou ano, em
+  passos de uma/cinco unidades ou por incrementos rapidos. Os atalhos solares
+  avancam para a proxima ocorrencia de nascer do sol, meio-dia, por do sol ou
+  meia-noite. A rodada usa a duracao nativa configurada no Foundry.
+- A engrenagem abre temas escuro/claro/classico, formato de horas, segundos,
+  escala, primeiro dia da semana, posicoes e abertura automatica por usuario.
+- O GM configura as integracoes Misto, Autoridade, Independente ou Externo,
+  a pausa por combate, a velocidade e quem pode controlar a data/horario.
+  Misto e controles exclusivos de GM continuam como padrao.
+- Nascer e por do sol variam gradualmente entre os horarios das quatro
+  estacoes. O preset comeca com 06:00 e 18:00 em todas elas.
+- E possivel exportar/restaurar backup JSON proprio e ativar o carimbo da data
+  do jogo no chat. A restauracao e exclusiva de GM e pede confirmacao.
+
+O botao de cena e um atalho configuravel nas preferencias de teclado tambem
+abrem o calendario. Macros podem usar `game.tenebreResources.calendar` para
+consultar `getDate()`, `getTime()`, `getClockStatus()`, abrir `openDateDialog()`
+ou chamar `change(...)` com as mesmas permissoes da interface.
+
+A data fica no topo das abas Atores e Itens da barra lateral direita. O GM usa o icone
 de calendario para definir a data inicial e as setas para recuar ou avancar um
-dia. Jogadores veem a mesma data, sem controles de edicao.
+dia. Por padrao, jogadores consultam a mesma data; o GM pode delegar controles.
 
 O calendario usa os 12 meses de 30 dias do preset de Symbaroum estudado no
 Simple Calendar. Nao possui notas nem eventos. Pode ser desativado nas
@@ -73,7 +99,7 @@ configuracoes nativas do modulo sem recarregar o mundo.
 
 A primeira configuracao associa a data escolhida ao tempo mundial atual sem
 reinicia-lo. Depois disso, as setas e a edicao da data alteram o tempo mundial
-do Foundry, preservando o horario. Modulos que usam esse mesmo tempo recebem
+do Foundry no modo Misto, preservando o horario. Modulos que usam esse mesmo tempo recebem
 as alteracoes; o calendario tambem acompanha mudancas externas. Cada dia
 equivale a 86400 segundos. Relogios privados de terceiros exigem integracao
 especifica. Anos permitidos: 0 a 9999.
@@ -86,7 +112,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.18.53 |
+| Modulo | 0.19.0 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 

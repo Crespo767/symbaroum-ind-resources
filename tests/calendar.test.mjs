@@ -14,6 +14,8 @@ globalThis.Hooks = {
 const { CalendarService, CalendarApplication, changeCalendarDateAsGM, buildCalendarPanel } = await import("../scripts/calendar.mjs");
 const { buildCalendarPage, updateCalendarClock, buildCalendarAlmanac } = await import("../scripts/calendar-view.mjs");
 const { SocketService } = await import("../scripts/sockets.mjs");
+const { readCalendarWorldOptions } = await import("../scripts/calendar-options.mjs");
+const { queueCalendarChange } = await import("../scripts/calendar.mjs");
 const settingDefinitions = new Map();
 const translations = Object.fromEntries(["en", "pt-BR"].map(lang => [lang,
   JSON.parse(fs.readFileSync(new URL(`../languages/${lang}.json`, import.meta.url), "utf8"))]));
@@ -96,7 +98,9 @@ test("registration is idempotent and rendering never writes persistent data", ()
   setup(); CalendarService.register();
   const hookCount = [...hooks.values()].reduce((sum, list) => sum + list.length, 0);
   CalendarService.register();
-  assert.equal(registrations.length, 4);
+  assert.equal(registrations.length, 8);
+  assert.equal(settingDefinitions.get("calendarClientOptions").scope, "client");
+  assert.equal(settingDefinitions.get("calendarWorldOptions").scope, "world");
   assert.equal([...hooks.values()].reduce((sum, list) => sum + list.length, 0), hookCount);
   CalendarService.refresh(); CalendarService.refresh();
   assert.equal(nodes.size, 1);
@@ -437,4 +441,137 @@ test("live sky switches on external time updates without repainting the calendar
   }
   assert.match(sky.innerHTML, /Amanhecendo/);
   assert.equal(advances.length, 0, "display changes do not write world time");
+});
+
+test("unit controls and next time-of-day presets preserve native world time and date bounds", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 12, day: 30 } });
+  await request({ type: "interval", unit: "hour", amount: 1 });
+  assert.deepEqual(CalendarService.getDate(), { year: 23, month: 1, day: 1 });
+  await request({ type: "preset", preset: "sunrise" });
+  assert.equal(calendarClock(CalendarService.getTime()).fullText, "06:00:00");
+  await request({ type: "preset", preset: "sunrise" });
+  assert.equal(CalendarService.getDate().day, 2, "a passed time preset advances to the following day");
+  await request({ type: "interval", unit: "month", amount: -1 });
+  assert.deepEqual(CalendarService.getDate(), { year: 22, month: 12, day: 2 });
+  for (const unit of ["__proto__", "invalid"]) assert.throws(() => request({ type: "interval", unit, amount: 1 }), RangeError);
+  assert.throws(() => request({ type: "interval", unit: "day", amount: Infinity }), RangeError);
+  await request({ type: "set", date: { year: 9999, month: 12, day: 30 } });
+  const before = game.time.worldTime;
+  await assert.rejects(request({ type: "interval", unit: "day", amount: 1 }), RangeError);
+  assert.equal(game.time.worldTime, before);
+});
+
+test("independent mode ignores external time and changes its own clock without moving the world", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 1, day: 1 } });
+  const originalAnchor = structuredClone(values.get("calendarDate"));
+  await request({ type: "configure", options: { integration: "none" }, speed: 1 });
+  await game.time.advance(86400);
+  assert.deepEqual(CalendarService.getDate(), { year: 22, month: 1, day: 1 });
+  assert.equal(CalendarService.getTime(), 82800);
+  const worldTime = game.time.worldTime;
+  await request({ type: "interval", unit: "day", amount: 1 });
+  assert.equal(game.time.worldTime, worldTime);
+  assert.deepEqual(CalendarService.getDate(), { year: 22, month: 1, day: 2 });
+  assert.deepEqual(values.get("calendarDate"), originalAnchor);
+  await request({ type: "configure", options: { integration: "mixed" }, speed: 1 });
+  assert.deepEqual(CalendarService.getDate(), { year: 22, month: 1, day: 2 });
+});
+
+test("authority mode ignores external edits and synchronizes its own next operation to the world", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 1, day: 1 } });
+  await request({ type: "configure", options: { integration: "self" }, speed: 1 });
+  await game.time.advance(86400);
+  assert.equal(CalendarService.getDate().day, 1);
+  await request({ type: "interval", unit: "minute", amount: 1 });
+  assert.equal(CalendarService.getTime(), 82860);
+  assert.equal(game.time.worldTime, 82860);
+});
+
+test("external integration follows the world and refuses all local time operations", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 1, day: 1 } });
+  await request({ type: "configure", options: { integration: "third-party" }, speed: 1 });
+  for (const operation of [{ type: "toggleClock" }, { type: "interval", unit: "hour", amount: 1 }, { type: "setTime", hours: 12, minutes: 0 }]) {
+    assert.throws(() => request(operation), /read-only/);
+  }
+  assert.equal(CalendarService.canControl(), false);
+  await game.time.advance(86400);
+  assert.equal(CalendarService.getDate().day, 2);
+  await request({ type: "configure", options: { integration: "mixed" }, speed: 1 });
+  assert.equal(CalendarService.canControl(), true);
+});
+
+test("GM may delegate time control to a user or role; configuration stays GM-only", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 1, day: 1 } });
+  await request({ type: "configure", options: { controlUsers: [player.id], controlRoles: [2] }, speed: 1 });
+  await request({ type: "interval", unit: "day", amount: 1 }, player);
+  await request({ type: "interval", unit: "day", amount: 1 }, trusted);
+  assert.equal(CalendarService.getDate().day, 3);
+  assert.throws(() => request({ type: "configure", options: {}, speed: 1 }, player), /Unauthorized/);
+  assert.throws(() => request({ type: "import", backup: CalendarService.exportConfiguration() }, trusted), /Unauthorized/);
+  await request({ type: "configure", options: { playerView: false }, speed: 1 });
+  game.user = player;
+  assert.equal(CalendarService.canView(), false);
+  assert.equal(CalendarService.canControl(), false);
+});
+
+test("manual pause, stop and combat suspension are separate and retain the saved date", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 1, day: 1 } });
+  assert.equal(CalendarService.getClockStatus(), "stopped");
+  await request({ type: "pauseResume" });
+  assert.equal(CalendarService.getClockStatus(), "running");
+  await request({ type: "pauseResume" });
+  assert.equal(CalendarService.getClockStatus(), "paused");
+  await request({ type: "pauseResume" });
+  assert.equal(CalendarService.getClockStatus(), "running");
+  values.set("calendarWorldOptions", { ...readCalendarWorldOptions(), combatPause: "active" });
+  globalThis.canvas = { scene: { id: "scene" } };
+  game.combats = [{ started: true, scene: { id: "scene" } }];
+  assert.equal(CalendarService.getClockStatus(), "paused");
+  assert.equal(CalendarService.canRunClock(), false);
+  game.combats = [{ started: false, scene: { id: "scene" } }];
+  assert.equal(CalendarService.getClockStatus(), "running", "drawing a weapon without starting combat does not pause time");
+  await request({ type: "clock", running: false });
+  assert.equal(CalendarService.getClockStatus(), "stopped");
+  assert.deepEqual(CalendarService.getDate(), { year: 22, month: 1, day: 1 });
+});
+
+test("calendar backup round trips explicitly and rejects invalid data without writes", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 8, day: 5 } });
+  const backup = CalendarService.exportConfiguration();
+  await request({ type: "interval", unit: "day", amount: 5 });
+  await request({ type: "import", backup });
+  assert.deepEqual(CalendarService.getDate(), backup.date);
+  assert.equal(CalendarService.getTime(), backup.time);
+  assert.equal(CalendarService.getClockStatus(), "stopped");
+  const before = writes.length;
+  assert.throws(() => request({ type: "import", backup: { ...backup, format: "unknown" } }), RangeError);
+  assert.throws(() => request({ type: "import", backup: { ...backup, time: Infinity } }), RangeError);
+  assert.equal(writes.length, before);
+});
+
+test("queued requests recheck delegated permission before moving any time", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 1, day: 1 } });
+  values.set("calendarWorldOptions", { ...readCalendarWorldOptions(), controlUsers: [player.id] });
+  let release;
+  const blocker = queueCalendarChange(() => new Promise(resolve => { release = resolve; }));
+  const pending = request({ type: "interval", unit: "day", amount: 1 }, player);
+  const rejection = assert.rejects(pending, /Unauthorized/);
+  await new Promise(resolve => setImmediate(resolve));
+  values.set("calendarWorldOptions", { ...readCalendarWorldOptions(), controlUsers: [] });
+  release(); await blocker; await rejection;
+  assert.deepEqual(advances, []);
+});
+
+test("authority mode receives native combat time without advancing the world twice", async () => {
+  setup(); await request({ type: "set", date: { year: 22, month: 1, day: 1 } });
+  await request({ type: "configure", options: { integration: "self" }, speed: 1 });
+  await game.time.advance(6);
+  for (const callback of hooks.get("updateCombat") ?? []) callback({}, { round: 2 }, { worldTime: { delta: 6 } });
+  await queueCalendarChange(async () => {});
+  assert.equal(CalendarService.getTime(), 82806);
+  assert.deepEqual(advances, [6]);
+  game.user = secondary;
+  for (const callback of hooks.get("updateCombat") ?? []) callback({}, { round: 3 }, { worldTime: { delta: 6 } });
+  await queueCalendarChange(async () => {});
+  assert.equal(CalendarService.getTime(), 82806, "secondary GMs do not duplicate combat time");
 });
