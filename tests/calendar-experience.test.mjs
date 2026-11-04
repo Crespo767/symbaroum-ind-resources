@@ -64,6 +64,16 @@ test("intervals use native round length and fixed Symbaroum months and years", (
   for (const amount of [0, Infinity, 0.5, "1", 10000]) assert.throws(() => calendarIntervalSeconds("day", amount), RangeError);
 });
 
+test("Foundry's zero round duration never blocks other calendar units", () => {
+  for (const [unit, seconds] of [["second", 1], ["minute", 60], ["hour", 3600], ["day", 86400], ["month", 30 * 86400], ["year", 360 * 86400]]) {
+    assert.equal(calendarIntervalSeconds(unit, 1, 0), seconds);
+    assert.equal(calendarIntervalSeconds(unit, -5, 0), -5 * seconds);
+  }
+  assert.equal(calendarIntervalSeconds("round", 1, 0), 0, "zero native round time remains a valid no-op");
+  assert.equal(calendarIntervalSeconds("day", 1, NaN), 86400, "unused round data cannot invalidate a day interval");
+  for (const seconds of [-1, NaN, Infinity, "6", 86401]) assert.throws(() => calendarIntervalSeconds("round", 1, seconds), RangeError);
+});
+
 test("12-hour display supports seconds, midnight, noon and negative timestamps", () => {
   assert.equal(formatCalendarTime(0, { hour12: true, seconds: true }), "12:00:00 AM");
   assert.equal(formatCalendarTime(43200, { hour12: true, seconds: false }), "12:00 PM");

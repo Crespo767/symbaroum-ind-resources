@@ -3,6 +3,20 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.1 — 04/11/2026
+
+- Corrige o aviso incorreto de data invalida ao usar controles de hora/dia
+  quando `CONFIG.time.roundTime` e zero, o padrao do core Foundry v13.351.
+  A validacao de duracao de rodada agora se aplica somente a essa unidade;
+  zero e valido e nao avanca tempo, conforme a configuracao nativa.
+- Regressao reproduzida antes do patch com dois testes falhando. Cobertura
+  inclui todas as outras unidades, avanco/recuo, meia-noite, virada do ano,
+  GM secundario, rodada zero e preservacao da ancora salva.
+- Validacao: 61 testes focados, 683 na suite local e 669 na copia isolada
+  de publicacao, todos aprovados; sintaxe de 155 modulos na publicacao,
+  14 arquivos JSON validos e paridade de 1278 chaves de idioma.
+- Testes visuais em sessoes reais continuam com o usuario, conforme pedido.
+
 ## Release v0.19.0 — 04/11/2026
 
 - Adapta a experiência do Simple Calendar Reborn ao calendário exclusivo de

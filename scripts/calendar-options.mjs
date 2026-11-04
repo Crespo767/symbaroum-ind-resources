@@ -88,7 +88,7 @@ export function calendarPresetDelta(date, time, preset, options = readCalendarWo
 }
 export function calendarIntervalSeconds(unit, amount, roundTime = 6) {
   if (!Object.hasOwn(CALENDAR_UNITS, unit) || !Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 9999
-    || !Number.isFinite(roundTime) || roundTime <= 0 || roundTime > 86400) throw new RangeError("Invalid calendar interval.");
+    || (unit === "round" && (!Number.isFinite(roundTime) || roundTime < 0 || roundTime > 86400))) throw new RangeError("Invalid calendar interval.");
   return amount * (unit === "round" ? roundTime : CALENDAR_UNITS[unit]);
 }
 export function formatCalendarTime(time, preferences = CALENDAR_CLIENT_DEFAULTS) {

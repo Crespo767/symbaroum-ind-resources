@@ -461,6 +461,28 @@ test("unit controls and next time-of-day presets preserve native world time and 
   assert.equal(game.time.worldTime, before);
 });
 
+test("hour and day actions work with Foundry's default CONFIG.time.roundTime zero", async (t) => {
+  const original = globalThis.CONFIG;
+  t.after(() => { if (original === undefined) delete globalThis.CONFIG; else globalThis.CONFIG = original; });
+  globalThis.CONFIG = { time: { roundTime: 0 } };
+  setup(); await request({ type: "set", date: { year: 22, month: 12, day: 30 } });
+  const anchor = structuredClone(values.get("calendarDate"));
+  await request({ type: "interval", unit: "hour", amount: 1 });
+  assert.equal(calendarClock(CalendarService.getTime()).fullText, "00:00:00");
+  assert.deepEqual(CalendarService.getDate(), { year: 23, month: 1, day: 1 });
+  await request({ type: "interval", unit: "day", amount: 1 });
+  assert.deepEqual(CalendarService.getDate(), { year: 23, month: 1, day: 2 });
+  await request({ type: "interval", unit: "day", amount: -1 }, secondary);
+  await request({ type: "interval", unit: "hour", amount: -1 });
+  assert.deepEqual(CalendarService.getDate(), { year: 22, month: 12, day: 30 });
+  assert.equal(calendarClock(CalendarService.getTime()).fullText, "23:00:00");
+  const beforeRound = game.time.worldTime;
+  await request({ type: "interval", unit: "round", amount: 1 });
+  assert.equal(game.time.worldTime, beforeRound);
+  assert.deepEqual(values.get("calendarDate"), anchor, "time adjustments never rewrite the saved date anchor");
+  assert.deepEqual(advances, [3600, 86400, -86400, -3600]);
+});
+
 test("independent mode ignores external time and changes its own clock without moving the world", async () => {
   setup(); await request({ type: "set", date: { year: 22, month: 1, day: 1 } });
   const originalAnchor = structuredClone(values.get("calendarDate"));
