@@ -32,15 +32,19 @@ test("categories follow their saved order, preserve page order and retain orphan
   const original = JSON.stringify({ categories, pages });
   const groups = journalCategoryGroups(journal, pages);
   assert.deepEqual(groups.map(g => [g.name, g.pages.map(p => p._id)]), [
-    ["Personagens", ["npc2", "npc1"]], ["Locais", ["town"]], ["Sem categoria", ["intro", "orphan"]]
+    ["Personagens", ["npc2", "npc1"]], ["Locais", ["town"]], ["Segredos", []], ["Sem categoria", ["intro", "orphan"]]
   ]);
   assert.equal(JSON.stringify({ categories, pages }), original, "rendering must not mutate persisted documents");
 });
 
-test("empty journals and categories without visible pages expose no headings", () => {
-  assert.deepEqual(journalCategoryGroups(journal, []), []);
+test("categories appear immediately even in a journal without pages", () => {
+  assert.deepEqual(journalCategoryGroups(journal, []).map(g => [g.name, g.pages]), [
+    ["Personagens", []], ["Locais", []], ["Segredos", []]
+  ]);
   const visible = pages.filter(p => p._id === "town");
-  assert.deepEqual(journalCategoryGroups(journal, visible).map(g => g.name), ["Locais"]);
+  const groups = journalCategoryGroups(journal, visible);
+  assert.deepEqual(groups.map(g => g.name), ["Personagens", "Locais", "Segredos"]);
+  assert.deepEqual(groups.flatMap(g => g.pages).map(p => p._id), ["town"], "native page visibility is still respected");
 });
 
 test("journals without categories keep the original native page data", () => {
@@ -68,6 +72,7 @@ class LegacySheet {
   _getHeaderButtons() { return [{ class: "share-image" }, { class: "configure-sheet" }]; }
   activateListeners() { this.listenersActivated = true; }
   _onSearchFilter() { this.nativeSearchCalled = true; }
+  createPage() { return "legacy-create-dialog"; }
 }
 
 function core() {
@@ -141,6 +146,73 @@ test("missing core category support leaves the native header intact", () => {
   assert.equal(new (withJournalCategories(LegacySheet))()._getHeaderButtons().length, 2);
 });
 
+test("create page uses the native category form and persists the selected category on creation", async () => {
+  core();
+  foundry.data = { fields: { StringField: class {
+    constructor(options, context) { Object.assign(this, options, context); }
+  } } };
+  const calls = [];
+  foundry.documents.JournalEntryPage = { implementation: { createDialog: async (data, options, dialog) => {
+    calls.push({ data, options, dialog });
+    // The native createDialog merges these submitted fields before creating.
+    return { ...data, name: "Nova página", type: "text", category: "places" };
+  } } };
+  const sheet = new (withJournalCategories(LegacySheet))();
+  sheet.object = { ...journal, pages: { contents: [{ sort: 500000 }, { sort: 100000 }] } };
+  sheet.element = [{ getBoundingClientRect: () => ({ bottom: 900, left: 300 }) }];
+  sheet._pages = [{ sort: 500000 }, { sort: 100000 }];
+  const created = await sheet.createPage();
+  assert.equal(calls.length, 1);
+  const { data, options, dialog } = calls[0];
+  assert.deepEqual(data, { sort: 600000 });
+  assert.equal(options.parent, sheet.object);
+  assert.equal(dialog.template, "templates/journal/pages/create-dialog.hbs");
+  assert.equal(dialog.context.categories.show, true);
+  assert.deepEqual(dialog.context.categories.options.map(c => c.value), ["", "people", "places", "secrets"]);
+  assert.equal(dialog.context.fields.category.name, "category");
+  assert.equal(dialog.context.fields.category.label, "JOURNALENTRYPAGE.Category");
+  assert.equal(created.category, "places");
+});
+
+test("create page falls back to the original method when the native category form API is unavailable", () => {
+  const sheet = new (withJournalCategories(LegacySheet))();
+  assert.equal(sheet.createPage(), "legacy-create-dialog");
+});
+
+test("create page hides the category field without categories and passes cancellation through", async () => {
+  core();
+  foundry.data = { fields: { StringField: class {} } };
+  let request;
+  foundry.documents.JournalEntryPage = { implementation: { createDialog: async (...args) => {
+    request = args;
+    return null;
+  } } };
+  const sheet = new (withJournalCategories(LegacySheet))();
+  sheet.object = { categories: { contents: [] }, pages: { contents: [] } };
+  assert.equal(await sheet.createPage(), null);
+  assert.equal(request[0].sort, 100000);
+  assert.equal(request[2].context.categories.show, false);
+});
+
+test("page creation preserves the native API failure instead of retrying a second creation", async () => {
+  core();
+  foundry.data = { fields: { StringField: class {} } };
+  let attempts = 0;
+  foundry.documents.JournalEntryPage = { implementation: { createDialog: async () => {
+    attempts++;
+    throw new Error("Creation denied");
+  } } };
+  const sheet = new (withJournalCategories(LegacySheet))();
+  await assert.rejects(sheet.createPage(), /Creation denied/);
+  assert.equal(attempts, 1);
+});
+
+test("create page cannot bypass read-only ownership or compendium restrictions", () => {
+  const sheet = new (withJournalCategories(LegacySheet))();
+  sheet.isEditable = false;
+  assert.equal(sheet.createPage(), undefined);
+});
+
 test("registration keeps existing sheet ID, label and default and runs only once", () => {
   const opened = core();
   const other = { cls: class OtherSheet {}, default: false };
@@ -170,19 +242,24 @@ test("registration leaves native AppV2 sheets, missing system and missing catego
   assert.deepEqual(opened, []);
 });
 
-function sidebar() {
+function sidebar(visiblePages = pages) {
   const nodes = [];
   const root = {
     ownerDocument: { createElement() { return {
-      remove() { nodes.splice(nodes.indexOf(this), 1); }
+      dataset: {},
+      remove() { nodes.splice(nodes.indexOf(this), 1); },
+      before(node) { nodes.splice(nodes.indexOf(this), 0, node); }
     }; } },
     querySelector() { return list; }
   };
-  const list = { querySelectorAll(selector) {
-    return nodes.filter(n => selector === ".tenebre-journal-category"
-      ? n.className === "tenebre-journal-category" : n.dataset?.pageId);
-  } };
-  for (const page of orderedJournalPages(journal, pages)) {
+  const list = {
+    querySelectorAll(selector) {
+      return nodes.filter(n => selector === ".tenebre-journal-category"
+        ? n.className === "tenebre-journal-category" : n.dataset?.pageId);
+    },
+    append(node) { nodes.push(node); }
+  };
+  for (const page of orderedJournalPages(journal, visiblePages)) {
     nodes.push({
       dataset: { pageId: page._id },
       filtered: false,
@@ -199,19 +276,33 @@ test("sidebar refresh inserts safe category headings without duplicating them or
   renderJournalCategories(root, entry, pages);
   renderJournalCategories(root, entry, pages);
   const headings = nodes.filter(n => n.className === "tenebre-journal-category");
-  assert.equal(headings.length, 3);
+  assert.equal(headings.length, 4);
   assert.equal(headings[0].textContent, "<img src=x onerror=bad()>Personagens");
   assert.equal(headings[0].innerHTML, undefined);
-  assert.equal(headings[0].dataset, undefined);
+  assert.deepEqual(headings[0].dataset, { categoryId: "people" });
   assert.equal(nodes[1].dataset.pageId, "npc2");
+});
+
+test("empty category headings keep their saved order before, between and after populated categories", () => {
+  const { root, nodes } = sidebar(pages.filter(p => p._id === "town"));
+  renderJournalCategories(root, journal, pages.filter(p => p._id === "town"));
+  assert.deepEqual(nodes.map(n => n.textContent ?? n.dataset.pageId), ["Personagens", "Locais", "town", "Segredos"]);
+  assert.equal(nodes.some(n => n.hidden), false);
+});
+
+test("all named category headings are rendered when the journal has no pages", () => {
+  const { root, nodes } = sidebar([]);
+  renderJournalCategories(root, journal, []);
+  renderJournalCategories(root, journal, []);
+  assert.deepEqual(nodes.map(n => n.textContent), ["Personagens", "Locais", "Segredos"]);
 });
 
 test("search hides only categories with no matching pages, restoring them when cleared", () => {
   const { root, nodes } = sidebar();
   for (const node of nodes) node.filtered = node.dataset.pageId !== "town";
-  renderJournalCategories(root, journal, pages);
+  renderJournalCategories(root, journal, pages, { searching: true });
   assert.deepEqual(nodes.filter(n => n.className).map(n => [n.textContent, n.hidden]), [
-    ["Personagens", true], ["Locais", false], ["Sem categoria", true]
+    ["Personagens", true], ["Locais", false], ["Segredos", true], ["Sem categoria", true]
   ]);
   for (const node of nodes.filter(n => n.dataset)) node.filtered = false;
   renderJournalCategories(root, journal, pages);

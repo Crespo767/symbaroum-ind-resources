@@ -11,8 +11,9 @@ export function journalCategoryGroups(journal, pages) {
   const byId = new Map(groups.map(group => [group.id, group]));
   const uncategorized = { id: "", name: game.i18n.localize("JOURNAL.Uncategorized"), pages: [] };
   for (const page of pages) (byId.get(page.category) ?? uncategorized).pages.push(page);
-  // Only group pages already admitted by the native visibility checks.
-  return [...groups, uncategorized].filter(group => group.pages.length);
+  // Native journals show named categories even before their first page.
+  // Pages still come exclusively from the native visibility checks.
+  return [...groups, ...(uncategorized.pages.length ? [uncategorized] : [])];
 }
 
 export function orderedJournalPages(journal, pages) {
@@ -21,22 +22,26 @@ export function orderedJournalPages(journal, pages) {
   return groups.flatMap(group => group.pages).map((page, number) => ({ ...page, number }));
 }
 
-export function renderJournalCategories(root, journal, pages) {
+export function renderJournalCategories(root, journal, pages, { searching = false } = {}) {
   const list = root?.querySelector?.(".pages-list .directory-list");
   if (!list) return;
   list.querySelectorAll(".tenebre-journal-category").forEach(node => node.remove());
   const nodes = new Map([...list.querySelectorAll(".directory-item[data-page-id]")]
     .map(node => [node.dataset.pageId, node]));
-  for (const group of journalCategoryGroups(journal, pages)) {
+  let anchor = null;
+  for (const group of journalCategoryGroups(journal, pages).reverse()) {
     const members = group.pages.map(page => nodes.get(page._id)).filter(Boolean);
-    if (!members.length) continue;
+    if (members.length) anchor = members[0];
     const heading = root.ownerDocument.createElement("li");
     heading.className = "tenebre-journal-category";
+    heading.dataset.categoryId = group.id;
     heading.textContent = group.name;
-    heading.hidden = members.every(node => node.classList.contains("hidden"));
+    heading.hidden = searching && members.every(node => node.classList.contains("hidden"));
     // A category is not a directory-item: core page search, drag and context
     // menus must never try to resolve it as a JournalEntryPage.
-    members[0].before(heading);
+    if (anchor) anchor.before(heading);
+    else list.append(heading);
+    anchor = heading;
   }
 }
 
@@ -61,6 +66,35 @@ export function withJournalCategories(BaseSheet) {
       return orderedJournalPages(this.object, super._getPageData());
     }
 
+    createPage() {
+      if (!this.isEditable) return;
+      const Page = globalThis.foundry?.documents?.JournalEntryPage?.implementation;
+      const StringField = globalThis.foundry?.data?.fields?.StringField;
+      if (!Page?.createDialog || !StringField) return super.createPage();
+      const { bottom = 200, left = 0 } = (this.element?.[0] ?? this.element)?.getBoundingClientRect?.() ?? {};
+      const density = globalThis.CONST?.SORT_INTEGER_DENSITY ?? 100000;
+      const sort = Math.max(0, ...Array.from(this.object.pages?.contents ?? [], page => Number(page.sort) || 0)) + density;
+      const categories = [...(this.object.categories?.contents ?? [])].sort((a, b) => a.sort - b.sort);
+      // Use the same public createDialog API, template and category field as
+      // the core AppV2 journal. Core submits the category with the new page.
+      return Page.createDialog({ sort }, { parent: this.object }, {
+        template: "templates/journal/pages/create-dialog.hbs",
+        context: {
+          categories: {
+            show: categories.length > 0,
+            options: [{ value: "", label: "JOURNAL.Uncategorized", rule: true },
+              ...categories.map(category => ({ value: category.id, label: category.name }))]
+          },
+          fields: {
+            category: new StringField({ label: "JOURNALENTRYPAGE.Category" }, { name: "category" }),
+            name: new StringField({ required: true, blank: false, label: "Name" }, { name: "name" }),
+            type: new StringField({ required: true, blank: false, label: "Type" }, { name: "type" })
+          }
+        },
+        position: { width: 320, top: bottom - 200, left: left + 10 }
+      });
+    }
+
     _getHeaderButtons() {
       const buttons = super._getHeaderButtons();
       const CategoryConfig = globalThis.foundry?.applications?.sheets?.journal?.JournalEntryCategoryConfig;
@@ -80,12 +114,14 @@ export function withJournalCategories(BaseSheet) {
 
     activateListeners(html) {
       super.activateListeners(html);
-      renderJournalCategories(html[0] ?? html, this.object, this._pages ?? []);
+      renderJournalCategories(html[0] ?? html, this.object, this._pages ?? [], {
+        searching: Boolean(this._searchFilters?.[0]?.query)
+      });
     }
 
     _onSearchFilter(event, query, rgx, html) {
       super._onSearchFilter(event, query, rgx, html);
-      renderJournalCategories(this.element?.[0] ?? this.element, this.object, this._pages ?? []);
+      renderJournalCategories(this.element?.[0] ?? this.element, this.object, this._pages ?? [], { searching: Boolean(query) });
     }
   };
 }

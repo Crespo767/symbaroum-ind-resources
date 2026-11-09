@@ -2,6 +2,7 @@
   padding: 10px 8px 4px;
   border-bottom: 1px solid currentColor;
   font-weight: bold;
+  font-family: "Primitive", serif;
   list-style: none;
   overflow-wrap: anywhere;
 }
@@ -14,4 +15,22 @@
    category selector. Restore only that control, also in page editor windows. */
 .symbaroum-mod.journal-sheet form .page-category select[name="category"] {
   display: block;
+}
+
+/* Keep the system's typography inside the optional wide journal only.
+   Page titles use the main face regardless of their native heading level. */
+.tenebre-journal-categories .window-title,
+.tenebre-journal-categories .journal-header input.title,
+.tenebre-journal-categories .journal-page-header :is(h1, h2, h3),
+.tenebre-journal-categories .journal-page-content h1 {
+  font-family: "Primitive", serif;
+}
+
+.tenebre-journal-categories .journal-page-content h2 {
+  font-family: "Jim Nightshade", cursive;
+}
+
+/* Heading 3 retains Symbaroum's Fondamento face and its existing styling. */
+.tenebre-journal-categories .journal-page-content h3 {
+  font-family: "Fondamento", cursive;
 }

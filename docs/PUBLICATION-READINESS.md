@@ -3,6 +3,28 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.4 — 09/11/2026
+
+- Corrige categorias vazias ausentes do indice: a adaptacao anterior filtrava
+  grupos sem paginas. Agora segue o diario nativo, mantendo categorias nomeadas
+  vazias e preservando a filtragem nativa de acesso as paginas. Durante busca,
+  cabecalhos sem paginas correspondentes ficam ocultos.
+- O Diario Amplo passa a usar a API publica createDialog e o formulario nativo
+  de paginas com campo Categoria, incluindo a atribuicao na criacao. Preserva
+  tipos nativos, cancelamento, bloqueios de edicao e fallback da interface antiga.
+  A ordem inicial usa o maior sort existente, independente da ordem dos grupos.
+- Tema restrito ao Diario Amplo: Primitive no titulo da janela/pagina e no
+  Cabecalho 1, Jim Nightshade no Cabecalho 2 e Fondamento mantida no Cabecalho 3.
+  O conteudo salvo das paginas nao e reescrito; outras fichas nao sao tematizadas.
+- Reproduzidas falhas de categoria vazia, ausencia do seletor na criacao e
+  protecao de criacao somente leitura antes da correcao. Validacao: 29 testes
+  focados, 707 na instalacao local e 693 na copia isolada da publicacao, todos
+  aprovados; sintaxe de 157 modulos publicados, 15 JSON validos e paridade de
+  1279 chaves de idioma na publicacao.
+- Conferencia visual das fontes, criacao real no Foundry, usuarios simultaneos
+  e execucao real em v14 ficam pendentes; testes visuais permanecem com o usuario.
+  Alteracoes locais de expedicao e anotacoes no checklist nao entram no release.
+
 ## Release v0.19.3 — 09/11/2026
 
 - Habilita as categorias nativas no diario personalizado SymbaroumWide,

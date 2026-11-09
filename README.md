@@ -118,7 +118,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.19.3 |
+| Modulo | 0.19.4 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -1048,8 +1048,9 @@ as utilidades internas equivalentes para evitar disputa de namespace.
 
 O diario personalizado do sistema Symbaroum passa a oferecer **Configurar
 categorias** no cabecalho. O botao abre o gerenciador nativo do Foundry para
-criar, renomear, ordenar e excluir categorias. Ao editar uma pagina, use o
-campo **Categoria** para atribui-la a um grupo.
+criar, renomear, ordenar e excluir categorias. As categorias aparecem no indice
+mesmo quando ainda estao vazias. Ao criar ou editar uma pagina, use o campo
+**Categoria** para atribui-la a um grupo.
 
 O indice agrupa as paginas pela ordem das categorias; paginas sem categoria
 ficam ao final. A busca continua funcionando dentro dos grupos. O acesso a
@@ -1058,6 +1059,11 @@ edicao segue as permissoes nativas, incluindo o bloqueio de compendios.
 Nao exige reimportar diarios nem trocar a ficha selecionada. Os dados usam
 as categorias nativas do Foundry; desativar o modulo preserva esses dados.
 Outras fichas de diario continuam com seu comportamento existente.
+
+O Diario Amplo usa a fonte principal **Primitive** no titulo da janela, titulo
+da pagina e Cabecalho 1. O Cabecalho 2 usa **Jim Nightshade**, a fonte que o
+sistema aplica ao Cabecalho 4, e o Cabecalho 3 conserva **Fondamento**.
+O ajuste e visual e nao reescreve o conteudo das paginas.
 
 <a id="importador-experimental-de-journals"></a>
 ## Importador experimental de Journals
