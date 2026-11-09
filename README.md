@@ -52,6 +52,7 @@ sua explicacao detalhada:
 - [Registro do Mestre](#registro-do-mestre)
 - [Macros, tabelas e Gerar Sombra](#macros-e-utilidades)
 - [Importador experimental de Journals](#importador-experimental-de-journals)
+- [Auditoria funcional e checklist completo de testes manuais](docs/AUDITORIA-FUNCIONAL-2026-11-09.md)
 - [Dice So Nice, Automated Animations e Token Action HUD](#integracoes)
 - [Compatibilidade e blindagem contra conflitos](#compatibilidade-e-blindagem)
 - [Arquivos de dados editaveis](#arquivos-de-dados-editaveis)
