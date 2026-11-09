@@ -36,6 +36,7 @@ import { StatusEffectPickerService } from "./status-effect-picker.mjs";
 import { BerserkerChatService } from "./berserker-chat.mjs";
 import { ResistanceChatService } from "./resistance-chat.mjs";
 import { JournalIntegrationService } from "./journal-integration.mjs";
+import { JournalCategoryService } from "./journal-categories.mjs";
 import { MoneyService } from "./money.mjs";
 import { PainThresholdChoiceService } from "./pain-threshold-choice.mjs";
 import { StandUpService } from "./stand-up.mjs";
@@ -124,6 +125,14 @@ Hooks.once("init", () => {
 
 Hooks.once("setup", () => {
   exposePublicApi();
+});
+
+Hooks.once("ready", () => {
+  try {
+    JournalCategoryService.register();
+  } catch (err) {
+    console.error("Symbaroum Ind Resources | Falha ao habilitar categorias dos diários:", err);
+  }
 });
 
 Hooks.on("createItem", (item, _options, userId) => {

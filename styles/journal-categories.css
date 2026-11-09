@@ -1,0 +1,17 @@
+.tenebre-journal-categories .pages-list .tenebre-journal-category {
+  padding: 10px 8px 4px;
+  border-bottom: 1px solid currentColor;
+  font-weight: bold;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.tenebre-journal-categories .pages-list .tenebre-journal-category[hidden] {
+  display: none;
+}
+
+/* The system hides every select in its journal forms, including the native
+   category selector. Restore only that control, also in page editor windows. */
+.symbaroum-mod.journal-sheet form .page-category select[name="category"] {
+  display: block;
+}

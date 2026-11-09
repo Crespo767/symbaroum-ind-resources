@@ -117,7 +117,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.19.2 |
+| Modulo | 0.19.3 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -1042,6 +1042,21 @@ Quando o modulo oficial **Bithir's Symbaroum Mods** esta ativo, o Tenebre deslig
 as utilidades internas equivalentes para evitar disputa de namespace.
 
 ---
+
+## Categorias nos diarios de Symbaroum
+
+O diario personalizado do sistema Symbaroum passa a oferecer **Configurar
+categorias** no cabecalho. O botao abre o gerenciador nativo do Foundry para
+criar, renomear, ordenar e excluir categorias. Ao editar uma pagina, use o
+campo **Categoria** para atribui-la a um grupo.
+
+O indice agrupa as paginas pela ordem das categorias; paginas sem categoria
+ficam ao final. A busca continua funcionando dentro dos grupos. O acesso a
+edicao segue as permissoes nativas, incluindo o bloqueio de compendios.
+
+Nao exige reimportar diarios nem trocar a ficha selecionada. Os dados usam
+as categorias nativas do Foundry; desativar o modulo preserva esses dados.
+Outras fichas de diario continuam com seu comportamento existente.
 
 <a id="importador-experimental-de-journals"></a>
 ## Importador experimental de Journals

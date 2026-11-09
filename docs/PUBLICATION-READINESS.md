@@ -3,6 +3,26 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.3 — 09/11/2026
+
+- Habilita as categorias nativas no diario personalizado SymbaroumWide,
+  que ainda usa a interface AppV1 sem gerenciador ou agrupamento de categorias.
+  Restaura tambem o seletor de categoria ocultado pelo CSS do sistema.
+- Reutiliza JournalEntryCategoryConfig e as permissoes nativas de edicao,
+  incluindo compendios bloqueados. Preserva identificacao, aparencia, ficha
+  padrao e dados existentes, sem migracao ou escrita em renderizacao.
+- Indice, ordem das paginas e navegacao seguem a ordem das categorias;
+  paginas sem categoria ou com referencia removida continuam acessiveis.
+  A busca oculta cabecalhos sem resultados e nao expoe paginas invisiveis.
+- Impede emissao duplicada de hooks ao preservar o nome da ficha original.
+  Outras fichas e uma eventual implementacao AppV2 nativa nao sao alteradas.
+- Validacao: 22 testes focados, 700 testes na instalacao local e 686 na
+  copia isolada de publicacao, todos aprovados; sintaxe de 157 modulos na
+  publicacao, 14 JSON validos e paridade de 1279 chaves entre idiomas.
+- Teste visual, persistencia apos recarregar, compartilhar paginas entre
+  clientes e verificacao real no Foundry v13/v14 ficam pendentes com o
+  usuario, conforme a orientacao de deixar os testes visuais a cargo dele.
+
 ## Release v0.19.2 — 04/11/2026
 
 - Reorganiza a janela para se aproximar do Simple Calendar: mes/ano e estacao
