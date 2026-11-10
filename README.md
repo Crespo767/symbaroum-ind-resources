@@ -118,7 +118,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.19.4 |
+| Modulo | 0.19.5 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -1064,6 +1064,10 @@ O Diario Amplo usa a fonte principal **Primitive** no titulo da janela, titulo
 da pagina e Cabecalho 1. O Cabecalho 2 usa **Jim Nightshade**, a fonte que o
 sistema aplica ao Cabecalho 4, e o Cabecalho 3 conserva **Fondamento**.
 O ajuste e visual e nao reescreve o conteudo das paginas.
+
+Listas com marcadores usam um losango duplo marrom-avermelhado, adaptado do
+motivo ornamental de *Tomb of Dying Dreams* (p. 30). O marcador e desenhado por
+CSS, sem copiar imagens do livro; listas numeradas mantem seus numeros.
 
 <a id="importador-experimental-de-journals"></a>
 ## Importador experimental de Journals

@@ -3,6 +3,23 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.5 — 10/11/2026
+
+- Substitui o ponto de listas nao numeradas do Diario Amplo por um losango
+  duplo marrom-avermelhado. Referencia visual: ornamento de Tomb of Dying
+  Dreams, p. 30 (pagina 3 do PDF consultado), conferido em renderizacao local.
+  A forma geometrica e representada pelo glifo Unicode U+25C8 em CSS; nao
+  distribui recorte, imagem ou pagina do livro.
+- Seletor restrito ao conteudo das paginas do Diario Amplo, com exclusao
+  das classes/atributos usuais de listas de tarefas. Listas numeradas,
+  indice, fichas e chat mantem seus controles e marcadores existentes.
+- Alteracao exclusivamente visual, sem reescrever HTML ou criar hooks.
+  Validacao: CSS analisado por PostCSS, 29 testes focados e 693 testes na
+  copia isolada de publicacao, todos aprovados; sintaxe de 157 modulos,
+  15 JSON validos e paridade de 1279 chaves de idioma.
+- Conferencia visual do marcador no Foundry, inclusive listas aninhadas,
+  e execucao real em v14 seguem pendentes com o usuario.
+
 ## Release v0.19.4 — 09/11/2026
 
 - Corrige categorias vazias ausentes do indice: a adaptacao anterior filtrava

@@ -34,3 +34,12 @@
 .tenebre-journal-categories .journal-page-content h3 {
   font-family: "Fondamento", cursive;
 }
+
+/* Adapt the double-diamond ornament in Tomb of Dying Dreams (p. 30) as a
+   text marker. No book artwork is copied; numbered lists keep their counters. */
+.tenebre-journal-categories .journal-page-content ul:not(.task-list):not([data-type="taskList"]) > li:not(.task-list-item):not([data-type="taskItem"])::marker {
+  content: "◈  ";
+  color: hsl(8, 56%, 30%);
+  font-family: "Segoe UI Symbol", "DejaVu Sans", sans-serif;
+  font-size: 0.85em;
+}
