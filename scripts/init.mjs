@@ -49,6 +49,18 @@ import { getWeaponRollForDialog } from "./roll-context.mjs";
 import { registerDiceHooks } from "./dice.mjs";
 import { getActorTokens, getCanvasCreatureTokens, isActiveGM, normalizeText } from "./utils.mjs";
 
+// Load the native constructor before installing lifecycle hooks. Top-level
+// await guarantees it is available at setup; no async hook races or late
+// sheet-cache repair are needed. A relative URL also preserves route prefixes.
+let NativeSymbaroumWide;
+try {
+  ({ SymbaroumWide: NativeSymbaroumWide } = await import(
+    new URL("../../../systems/symbaroum/script/sheet/journal.js", import.meta.url).href
+  ));
+} catch (err) {
+  console.error("Symbaroum Ind Resources | Falha ao carregar a ficha nativa dos diários:", err);
+}
+
 Hooks.once("init", () => {
   registerDiceHooks();
   try {
@@ -124,15 +136,12 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("setup", () => {
-  exposePublicApi();
-});
-
-Hooks.once("ready", () => {
   try {
-    JournalCategoryService.register();
+    if (game.system.id === "symbaroum") JournalCategoryService.register(NativeSymbaroumWide);
   } catch (err) {
     console.error("Symbaroum Ind Resources | Falha ao habilitar categorias dos diários:", err);
   }
+  exposePublicApi();
 });
 
 Hooks.on("createItem", (item, _options, userId) => {

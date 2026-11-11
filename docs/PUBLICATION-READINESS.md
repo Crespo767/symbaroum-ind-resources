@@ -3,6 +3,31 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.6 — 11/11/2026
+
+- Corrige a integracao registrada mas ausente em diarios cuja janela nativa
+  foi instanciada antes do registro da ficha aprimorada. O cache de sheet do
+  Document sobrevive a registerSheet no Foundry v13. Diagnostico do usuario
+  confirmou ficha registrada integrada, janela antiga nao integrada e duas
+  categorias ainda salvas. A recriacao nativa da janela restaurou tudo, com
+  confirmacao do usuario no Foundry online.
+- Corrige a origem: o registro sai de ready e passa para setup, antes de
+  initializeSheets do Foundry. O construtor nativo e carregado antecipadamente,
+  com import aguardado antes dos hooks, pois o registro CONFIG ainda nao esta
+  preenchido em setup. A API publica enfileira a integracao depois do init do
+  sistema, preservando o ID symbaroum.SymbaroumWide e a preferencia de ficha.
+- Nao percorre diarios ou compendios, nao recria janelas e nao executa reparo de
+  cache em cada carregamento. O primeiro acesso a ficha ja recebe a integracao.
+  O registro e idempotente mesmo enquanto a fila do Foundry ainda esta pendente.
+- Validacao: 35 testes focados, 713 locais e 699 na copia isolada da publicacao,
+  todos aprovados; sintaxe de 157 modulos, 15 JSON validos e paridade de 1279
+  chaves de idioma. Inclui simulacao da fila init/setup/initializeSheets,
+  acesso anterior a ready, defaults salvos, idempotencia e ausencia de varredura.
+- A restauracao manual foi confirmada no ambiente real pelo usuario; a nova
+  inicializacao antecipada no proximo carregamento e a execucao real em v14 ainda
+  precisam de verificacao no Foundry. Alteracoes locais de expedicao e anotacoes
+  do checklist permanecem fora da publicacao.
+
 ## Release v0.19.5 — 10/11/2026
 
 - Substitui o ponto de listas nao numeradas do Diario Amplo por um losango

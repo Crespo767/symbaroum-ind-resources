@@ -2,6 +2,7 @@
 // category documents and configuration window without migrating any journals.
 const SHEET_ID = "symbaroum.SymbaroumWide";
 const SHEET_CLASS = "tenebre-journal-categories";
+const registeredCollections = new WeakSet();
 
 export function journalCategoryGroups(journal, pages) {
   const categories = [...(journal.categories?.contents ?? [])]
@@ -127,21 +128,25 @@ export function withJournalCategories(BaseSheet) {
 }
 
 export class JournalCategoryService {
-  static register() {
+  static register(NativeSheet) {
     const registration = globalThis.CONFIG?.JournalEntry?.sheetClasses?.base?.[SHEET_ID];
-    const BaseSheet = registration?.cls;
+    const BaseSheet = NativeSheet ?? registration?.cls;
     const Journal = globalThis.foundry?.documents?.collections?.Journal;
-    if (!BaseSheet || BaseSheet.tenebreJournalCategories || !Journal?.registerSheet) return false;
+    if (!BaseSheet || BaseSheet.tenebreJournalCategories || registration?.cls?.tenebreJournalCategories
+      || !Journal?.registerSheet || registeredCollections.has(Journal)) return false;
     // A future Symbaroum AppV2 sheet already has native category support.
     if (typeof BaseSheet.prototype._getPageData !== "function") return false;
     if (!globalThis.foundry?.applications?.sheets?.journal?.JournalEntryCategoryConfig) return false;
     Journal.registerSheet("symbaroum", withJournalCategories(BaseSheet), {
-      label: registration.label,
-      makeDefault: registration.default,
-      canBeDefault: registration.canBeDefault,
-      canConfigure: registration.canConfigure,
-      themes: registration.themes
+      label: registration?.label ?? game.i18n.localize("SYMBAROUM.OPTIONAL_CUSTOMSHEETJOURNAL"),
+      // During setup the public API queues this registration after the native
+      // system's init registration. Core applies the saved default by sheet ID.
+      makeDefault: registration?.default ?? false,
+      canBeDefault: registration?.canBeDefault,
+      canConfigure: registration?.canConfigure,
+      themes: registration?.themes
     });
+    registeredCollections.add(Journal);
     return true;
   }
 }

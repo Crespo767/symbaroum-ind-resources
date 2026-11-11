@@ -118,7 +118,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.19.5 |
+| Modulo | 0.19.6 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -1059,6 +1059,10 @@ edicao segue as permissoes nativas, incluindo o bloqueio de compendios.
 Nao exige reimportar diarios nem trocar a ficha selecionada. Os dados usam
 as categorias nativas do Foundry; desativar o modulo preserva esses dados.
 Outras fichas de diario continuam com seu comportamento existente.
+
+A integracao e registrada em setup, antes da inicializacao das fichas pelo
+Foundry. Assim, o primeiro acesso ao Diario Amplo ja inclui categorias e tema,
+sem varrer documentos nem recriar janelas durante o carregamento do mundo.
 
 O Diario Amplo usa a fonte principal **Primitive** no titulo da janela, titulo
 da pagina e Cabecalho 1. O Cabecalho 2 usa **Jim Nightshade**, a fonte que o

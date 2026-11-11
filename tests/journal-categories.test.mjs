@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   JournalCategoryService, journalCategoryGroups, orderedJournalPages,
   renderJournalCategories, withJournalCategories
@@ -240,6 +241,103 @@ test("registration leaves native AppV2 sheets, missing system and missing catego
   delete foundry.applications.sheets.journal.JournalEntryCategoryConfig;
   assert.equal(JournalCategoryService.register(), false);
   assert.deepEqual(opened, []);
+});
+
+const initSource = readFileSync(new URL("../scripts/init.mjs", import.meta.url), "utf8");
+const setupBody = initSource.match(/Hooks\.once\("setup", \(\) => \{([\s\S]*?)\n\}\);/)[1];
+const runSetup = new Function("JournalCategoryService", "NativeSymbaroumWide", "game", "exposePublicApi", setupBody);
+
+function queuedCore(defaultId) {
+  core();
+  game.ready = false;
+  game.system = { id: "symbaroum" };
+  globalThis.CONFIG = { JournalEntry: {} }; // Sheet registry is not populated during setup.
+  const NativeSheet = class SymbaroumWide extends LegacySheet {};
+  const OtherSheet = class OtherSheet extends LegacySheet {};
+  const pending = [];
+  foundry.documents.collections.Journal.registerSheet = (scope, cls, options) => {
+    pending.push({ id: `${scope}.${cls.name}`, cls, ...options });
+  };
+  // System init precedes module setup. Core applies this queue before ready.
+  foundry.documents.collections.Journal.registerSheet("core", OtherSheet, { makeDefault: true });
+  foundry.documents.collections.Journal.registerSheet("symbaroum", NativeSheet, { makeDefault: false });
+  return {
+    NativeSheet, OtherSheet, pending,
+    setup() { runSetup(JournalCategoryService, NativeSheet, game, () => {}); },
+    initializeSheets() {
+      const registry = CONFIG.JournalEntry.sheetClasses = { base: {} };
+      for (const entry of pending) {
+        const isDefault = defaultId ? defaultId === entry.id : Boolean(entry.makeDefault);
+        if (isDefault) Object.values(registry.base).forEach(sheet => { sheet.default = false; });
+        registry.base[entry.id] = { cls: entry.cls, default: isDefault };
+      }
+    }
+  };
+}
+
+test("setup registers categories before the first journal sheet is constructed, including pre-ready access", () => {
+  const lifecycle = queuedCore("symbaroum.SymbaroumWide");
+  lifecycle.setup();
+  lifecycle.initializeSheets();
+  const entry = { categories: journal.categories, pages };
+  const original = JSON.stringify(entry);
+  const Sheet = CONFIG.JournalEntry.sheetClasses.base["symbaroum.SymbaroumWide"].cls;
+  const firstSheet = new Sheet();
+  firstSheet.object = entry;
+  assert.equal(game.ready, false);
+  assert.equal(firstSheet.constructor.tenebreJournalCategories, true);
+  assert(Sheet.defaultOptions.classes.includes("tenebre-journal-categories"));
+  assert.equal(firstSheet._getHeaderButtons()[0].class, "tenebre-configure-journal-categories");
+  assert.equal(JSON.stringify(entry), original);
+  assert.equal(entry.categories, journal.categories);
+});
+
+test("queued registration preserves saved native and other default sheets without changing their IDs", () => {
+  for (const defaultId of [undefined, "symbaroum.SymbaroumWide", "core.OtherSheet"]) {
+    const lifecycle = queuedCore(defaultId);
+    lifecycle.setup();
+    lifecycle.initializeSheets();
+    const registry = CONFIG.JournalEntry.sheetClasses.base;
+    assert.deepEqual(Object.keys(registry), ["core.OtherSheet", "symbaroum.SymbaroumWide"]);
+    assert.equal(registry["core.OtherSheet"].cls, lifecycle.OtherSheet);
+    assert.equal(registry["symbaroum.SymbaroumWide"].default, defaultId === "symbaroum.SymbaroumWide");
+    assert.equal(registry["core.OtherSheet"].default, defaultId !== "symbaroum.SymbaroumWide");
+  }
+});
+
+test("registration is idempotent while core has not applied pending sheet registrations", () => {
+  const lifecycle = queuedCore();
+  lifecycle.setup();
+  lifecycle.setup();
+  assert.equal(lifecycle.pending.length, 3);
+  assert.equal(CONFIG.JournalEntry.sheetClasses, undefined);
+});
+
+test("setup does not register a Symbaroum sheet for another system", () => {
+  const lifecycle = queuedCore();
+  game.system.id = "another-system";
+  lifecycle.setup();
+  assert.equal(lifecycle.pending.length, 2);
+});
+
+test("startup registration never enumerates world journals or cached compendium documents", () => {
+  const lifecycle = queuedCore();
+  for (const key of ["journal", "packs"]) {
+    Object.defineProperty(game, key, { get() { throw new Error(`Unexpected access to ${key}`); } });
+  }
+  lifecycle.setup();
+  assert.equal(lifecycle.pending.length, 3);
+});
+
+test("native constructor is awaited before lifecycle hooks and registration has no late repair path", () => {
+  const load = initSource.indexOf("await import(");
+  assert(load > 0 && load < initSource.indexOf('Hooks.once("init"'));
+  const moduleUrl = new URL("https://example.test/foundry/modules/symbaroum-ind-resources/scripts/init.mjs");
+  const relativeUrl = initSource.match(/new URL\("([^"]+systems\/symbaroum[^\"]+)", import\.meta\.url\)/)[1];
+  assert.equal(new URL(relativeUrl, moduleUrl).href, "https://example.test/foundry/systems/symbaroum/script/sheet/journal.js");
+  const serviceSource = readFileSync(new URL("../scripts/journal-categories.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(initSource + serviceSource, /refreshCachedSheets|_onSheetChange/);
+  assert.equal((initSource.match(/JournalCategoryService\.register\(/g) ?? []).length, 1);
 });
 
 function sidebar(visiblePages = pages) {
