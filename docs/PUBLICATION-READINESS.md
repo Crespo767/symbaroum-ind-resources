@@ -3,6 +3,18 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.7 — 14/11/2026
+
+- Aumenta o losango das listas do Diario Amplo de 0.85em para 1.1em,
+  aproximadamente 29%, mantendo o tamanho proporcional ao texto.
+  Alteracao restrita a uma declaracao CSS, com o mesmo glifo, cor e seletor.
+- Validacao: 35 testes focados, 713 locais e 699 na copia isolada da publicacao,
+  todos aprovados; sintaxe de 157 modulos, 15 JSON validos e paridade de 1279
+  chaves de idioma. Nenhum hook, documento ou dado salvo foi alterado.
+- Conferencia visual do novo tamanho e alinhamento no Foundry, incluindo listas
+  aninhadas e execucao real em v14, permanece com o usuario. Alteracoes locais
+  de expedicao e anotacoes do checklist ficam fora desta publicacao.
+
 ## Release v0.19.6 — 11/11/2026
 
 - Corrige a integracao registrada mas ausente em diarios cuja janela nativa
