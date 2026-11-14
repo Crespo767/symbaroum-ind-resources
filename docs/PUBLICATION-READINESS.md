@@ -3,6 +3,24 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.8 — 14/11/2026
+
+- Adiciona botoes com seta nos titulos das categorias do Diario Amplo para
+  recolher ou expandir as paginas e seus subtitulos apenas no indice lateral.
+  Botoes nativos com aria-expanded, foco por teclado e texto seguro via
+  textContent. A lista de paginas continua vindo da filtragem nativa de acesso.
+- Estado em memoria por instancia de ficha, preservado em rerenderizacoes e
+  independente entre janelas. Nao grava flags, settings ou dados do diario.
+  Durante a busca, resultados ficam expandidos e botoes desabilitados; limpar
+  a busca restaura o estado anterior, preservando a filtragem nativa.
+- Validacao: 39 testes focados, 717 locais e 703 no pacote isolado aprovados;
+  sintaxe de 157 modulos, 15 JSON validos e paridade de 1279 chaves de idioma.
+  Cobre alternancia, grupos sem categoria, busca, rerender sem duplicacao,
+  isolamento entre fichas e remocao de categorias sem paginas presas ocultas.
+- Teste visual e interacao real com mouse/teclado, GM/jogadores, listas com
+  subtitulos e execucao real em v14 ficam pendentes com o usuario. Alteracoes
+  locais de expedicao e checklist permanecem fora deste release.
+
 ## Release v0.19.7 — 14/11/2026
 
 - Aumenta o losango das listas do Diario Amplo de 0.85em para 1.1em,

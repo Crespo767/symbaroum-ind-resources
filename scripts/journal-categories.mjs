@@ -23,12 +23,14 @@ export function orderedJournalPages(journal, pages) {
   return groups.flatMap(group => group.pages).map((page, number) => ({ ...page, number }));
 }
 
-export function renderJournalCategories(root, journal, pages, { searching = false } = {}) {
+export function renderJournalCategories(root, journal, pages, { searching = false, collapsed = new Set() } = {}) {
   const list = root?.querySelector?.(".pages-list .directory-list");
   if (!list) return;
   list.querySelectorAll(".tenebre-journal-category").forEach(node => node.remove());
   const nodes = new Map([...list.querySelectorAll(".directory-item[data-page-id]")]
     .map(node => [node.dataset.pageId, node]));
+  // Clear only our visibility state; native permission and search filtering stay intact.
+  for (const node of nodes.values()) node.classList.remove("tenebre-category-collapsed");
   let anchor = null;
   for (const group of journalCategoryGroups(journal, pages).reverse()) {
     const members = group.pages.map(page => nodes.get(page._id)).filter(Boolean);
@@ -36,7 +38,27 @@ export function renderJournalCategories(root, journal, pages, { searching = fals
     const heading = root.ownerDocument.createElement("li");
     heading.className = "tenebre-journal-category";
     heading.dataset.categoryId = group.id;
-    heading.textContent = group.name;
+    const toggle = root.ownerDocument.createElement("button");
+    toggle.type = "button";
+    toggle.className = "tenebre-journal-category-toggle";
+    toggle.textContent = group.name;
+    toggle.disabled = searching;
+    const update = () => {
+      const isCollapsed = !searching && collapsed.has(group.id);
+      toggle.setAttribute("aria-expanded", String(!isCollapsed));
+      toggle.title = `${game.i18n.localize(isCollapsed ? "Expand" : "Collapse")}: ${group.name}`;
+      for (const node of members) node.classList.toggle("tenebre-category-collapsed", isCollapsed);
+    };
+    toggle.onclick = event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (searching) return;
+      if (collapsed.has(group.id)) collapsed.delete(group.id);
+      else collapsed.add(group.id);
+      update();
+    };
+    update();
+    heading.append(toggle);
     heading.hidden = searching && members.every(node => node.classList.contains("hidden"));
     // A category is not a directory-item: core page search, drag and context
     // menus must never try to resolve it as a JournalEntryPage.
@@ -51,6 +73,7 @@ export function withJournalCategories(BaseSheet) {
   // the world's default sheet preference continue to select the same sheet.
   return class SymbaroumWide extends BaseSheet {
     static tenebreJournalCategories = true;
+    #collapsedCategories = new Set();
 
     static _getInheritanceChain() {
       // AppV1 dispatches hooks by class name. Keeping the saved sheet ID
@@ -116,13 +139,15 @@ export function withJournalCategories(BaseSheet) {
     activateListeners(html) {
       super.activateListeners(html);
       renderJournalCategories(html[0] ?? html, this.object, this._pages ?? [], {
-        searching: Boolean(this._searchFilters?.[0]?.query)
+        searching: Boolean(this._searchFilters?.[0]?.query), collapsed: this.#collapsedCategories
       });
     }
 
     _onSearchFilter(event, query, rgx, html) {
       super._onSearchFilter(event, query, rgx, html);
-      renderJournalCategories(this.element?.[0] ?? this.element, this.object, this._pages ?? [], { searching: Boolean(query) });
+      renderJournalCategories(this.element?.[0] ?? this.element, this.object, this._pages ?? [], {
+        searching: Boolean(query), collapsed: this.#collapsedCategories
+      });
     }
   };
 }

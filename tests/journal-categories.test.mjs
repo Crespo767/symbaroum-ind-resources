@@ -345,6 +345,11 @@ function sidebar(visiblePages = pages) {
   const root = {
     ownerDocument: { createElement() { return {
       dataset: {},
+      children: [],
+      append(child) { this.children.push(child); },
+      setAttribute(name, value) { this[name] = value; },
+      get textContent() { return this.children.length ? this.children.map(child => child.textContent).join("") : this.text; },
+      set textContent(value) { this.text = value; this.children = []; },
       remove() { nodes.splice(nodes.indexOf(this), 1); },
       before(node) { nodes.splice(nodes.indexOf(this), 0, node); }
     }; } },
@@ -358,10 +363,15 @@ function sidebar(visiblePages = pages) {
     append(node) { nodes.push(node); }
   };
   for (const page of orderedJournalPages(journal, visiblePages)) {
+    const classes = new Set();
     nodes.push({
       dataset: { pageId: page._id },
       filtered: false,
-      classList: { contains() { return nodes.find(n => n.dataset?.pageId === page._id).filtered; } },
+      classList: {
+        contains(name) { return name === "hidden" ? nodes.find(n => n.dataset?.pageId === page._id).filtered : classes.has(name); },
+        remove(name) { classes.delete(name); },
+        toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); }
+      },
       before(heading) { nodes.splice(nodes.indexOf(this), 0, heading); }
     });
   }
@@ -414,4 +424,71 @@ test("native listeners and native search are preserved, even without a rendered 
   assert.equal(sheet.listenersActivated, true);
   assert.equal(sheet.nativeSearchCalled, true);
   renderJournalCategories(null, journal, pages);
+});
+
+const clickToggle = heading => heading.children[0].onclick({ preventDefault() {}, stopPropagation() {} });
+const collapsedPageIds = nodes => nodes.filter(node => node.dataset.pageId
+  && node.classList.contains("tenebre-category-collapsed")).map(node => node.dataset.pageId);
+
+test("category buttons collapse and expand only their pages, including uncategorized pages", () => {
+  const { root, nodes } = sidebar();
+  const before = JSON.stringify(journal);
+  renderJournalCategories(root, journal, pages);
+  const headings = nodes.filter(node => node.className);
+  clickToggle(headings[0]);
+  assert.deepEqual(collapsedPageIds(nodes), ["npc2", "npc1"]);
+  assert.equal(headings[0].children[0]["aria-expanded"], "false");
+  clickToggle(headings[3]);
+  assert.deepEqual(collapsedPageIds(nodes), ["npc2", "npc1", "intro", "orphan"]);
+  clickToggle(headings[0]);
+  assert.deepEqual(collapsedPageIds(nodes), ["intro", "orphan"]);
+  assert.equal(headings[0].children[0]["aria-expanded"], "true");
+  assert.equal(JSON.stringify(journal), before, "collapse must not change persisted categories");
+});
+
+test("search temporarily reveals collapsed results and restores collapse when cleared", () => {
+  const { root, nodes } = sidebar();
+  const collapsed = new Set(["people"]);
+  renderJournalCategories(root, journal, pages, { collapsed });
+  assert.deepEqual(collapsedPageIds(nodes), ["npc2", "npc1"]);
+  for (const node of nodes.filter(n => n.dataset.pageId)) node.filtered = node.dataset.pageId !== "npc2";
+  renderJournalCategories(root, journal, pages, { collapsed, searching: true });
+  assert.deepEqual(collapsedPageIds(nodes), []);
+  const heading = nodes.find(node => node.dataset.categoryId === "people");
+  assert.equal(heading.hidden, false);
+  assert.equal(heading.children[0].disabled, true);
+  assert.equal(heading.children[0]["aria-expanded"], "true");
+  clickToggle(heading);
+  assert.deepEqual([...collapsed], ["people"]);
+  assert.equal(nodes.find(node => node.dataset.pageId === "npc1").classList.contains("hidden"), true);
+  renderJournalCategories(root, journal, pages, { collapsed });
+  assert.deepEqual(collapsedPageIds(nodes), ["npc2", "npc1"]);
+});
+
+test("sheet rerenders retain collapse per instance without sharing it with another journal window", () => {
+  const Sheet = withJournalCategories(LegacySheet);
+  const first = new Sheet();
+  const second = new Sheet();
+  first._pages = second._pages = pages;
+  const view = sidebar();
+  first.activateListeners([view.root]);
+  clickToggle(view.nodes.find(node => node.dataset.categoryId === "people"));
+  const rerender = sidebar();
+  first.activateListeners([rerender.root]);
+  assert.deepEqual(collapsedPageIds(rerender.nodes), ["npc2", "npc1"]);
+  clickToggle(rerender.nodes.find(node => node.dataset.categoryId === "people"));
+  assert.deepEqual(collapsedPageIds(rerender.nodes), [], "one click after rerender must toggle exactly once");
+  const other = sidebar();
+  second.activateListeners([other.root]);
+  assert.deepEqual(collapsedPageIds(other.nodes), []);
+});
+
+test("removing categories clears module visibility state from formerly collapsed pages", () => {
+  const { root, nodes } = sidebar();
+  const collapsed = new Set(["people", "places"]);
+  renderJournalCategories(root, journal, pages, { collapsed });
+  assert.equal(collapsedPageIds(nodes).length, 3);
+  renderJournalCategories(root, { categories: { contents: [] } }, pages, { collapsed });
+  assert.deepEqual(collapsedPageIds(nodes), []);
+  assert.equal(nodes.some(node => node.className), false);
 });

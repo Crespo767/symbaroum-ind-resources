@@ -118,7 +118,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.19.7 |
+| Modulo | 0.19.8 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 
@@ -1055,6 +1055,12 @@ mesmo quando ainda estao vazias. Ao criar ou editar uma pagina, use o campo
 O indice agrupa as paginas pela ordem das categorias; paginas sem categoria
 ficam ao final. A busca continua funcionando dentro dos grupos. O acesso a
 edicao segue as permissoes nativas, incluindo o bloqueio de compendios.
+
+Clique no titulo ou na seta de uma categoria para recolher ou expandir suas
+paginas e subtitulos na lateral. Cada janela mantem seu proprio estado enquanto
+a ficha existir; recarregar o Foundry restaura os grupos expandidos. Durante a
+busca, os grupos com resultados aparecem expandidos e os botoes ficam
+temporariamente desabilitados. Limpar a busca restaura o estado anterior.
 
 Nao exige reimportar diarios nem trocar a ficha selecionada. Os dados usam
 as categorias nativas do Foundry; desativar o modulo preserva esses dados.

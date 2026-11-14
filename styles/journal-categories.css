@@ -11,6 +11,50 @@
   display: none;
 }
 
+.tenebre-journal-categories .pages-list .tenebre-journal-category-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.tenebre-journal-categories .pages-list .tenebre-journal-category-toggle::after {
+  content: "";
+  flex: 0 0 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  margin: 0 4px 4px;
+}
+
+.tenebre-journal-categories .pages-list .tenebre-journal-category-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.tenebre-journal-categories .pages-list .tenebre-journal-category-toggle[aria-expanded="false"]::after {
+  transform: rotate(-45deg);
+  margin-bottom: 0;
+}
+
+.tenebre-journal-categories .pages-list .tenebre-category-collapsed {
+  display: none !important;
+}
+
 /* The system hides every select in its journal forms, including the native
    category selector. Restore only that control, also in page editor windows. */
 .symbaroum-mod.journal-sheet form .page-category select[name="category"] {
