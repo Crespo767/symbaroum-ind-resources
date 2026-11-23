@@ -1,0 +1,196 @@
+<section class="ind-davokar" data-davokar-panel {{#if revision}}data-revision="{{revision}}"{{/if}}>
+  {{#if showKey}}
+    <button type="button" data-davokar-action="key">{{localize "TENEBRE.Davokar.Key.Title"}}</button>
+  {{/if}}
+  {{#if player}}
+    {{#if grant}}
+      <button type="button" data-davokar-action="orient" data-grant="{{grant}}">
+        <i class="fas fa-dice-d20" aria-hidden="true"></i> {{localize "TENEBRE.Davokar.Action.orientation"}}
+      </button>
+    {{else}}
+      <p>{{localize "TENEBRE.Davokar.PlayerWaiting"}}</p>
+    {{/if}}
+  {{else if error}}
+    <p role="alert">{{error}}</p>
+  {{else if start}}
+    <button type="button" data-davokar-action="start">
+      <i class="fas fa-compass" aria-hidden="true"></i> {{localize "TENEBRE.Davokar.Start"}}
+    </button>
+  {{else}}
+    <header class="ind-davokar-header">
+      <h3>{{localize "TENEBRE.Davokar.Day"}} {{day}}</h3>
+      <button type="button" data-davokar-action="next">{{localize "TENEBRE.Davokar.NextDay"}}</button>
+    </header>
+    <section>
+      <h4>{{localize "TENEBRE.Davokar.Prepare"}}</h4>
+      <fieldset {{#if started}}disabled{{/if}}>
+        <div class="ind-davokar-fields">
+          <label>{{localize "TENEBRE.Davokar.Guide"}}
+            <select data-davokar-field="guide">
+              <option value="">{{localize "TENEBRE.Davokar.NoGuide"}}</option>
+              {{#each guideOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label>{{localize "TENEBRE.Davokar.RegionLabel"}}
+            <select data-davokar-field="region">
+              {{#each regionOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label>{{localize "TENEBRE.Davokar.PreparationLabel"}}
+            <select data-davokar-field="preparation">
+              {{#each preparationOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label>{{localize "TENEBRE.Davokar.SearchLabel"}}
+            <select data-davokar-field="search">
+              {{#each searchOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+          <label>{{localize "TENEBRE.Davokar.Modifier.cartographer"}}
+            <input type="number" min="0" max="3" step="1" value="{{config.cartographer}}" data-davokar-field="cartographer">
+          </label>
+          <label>{{localize "TENEBRE.Davokar.Modifier.circumstance"}}
+            <input type="number" min="-100" max="100" step="1" value="{{config.circumstance}}" data-davokar-field="circumstance">
+          </label>
+          <label>{{localize "TENEBRE.Davokar.Visibility"}}
+            <select data-davokar-field="mode">
+              {{#each modeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+            </select>
+          </label>
+        </div>
+        <div class="ind-davokar-actions">
+          <label><input type="checkbox" data-davokar-field="river" {{#if config.river}}checked{{/if}}> {{localize "TENEBRE.Davokar.River"}}</label>
+          <label><input type="checkbox" data-davokar-field="staying" {{#if config.staying}}checked{{/if}}> {{localize "TENEBRE.Davokar.Staying"}}</label>
+          <label><input type="checkbox" data-davokar-field="allowPlayer" {{#if config.allowPlayer}}checked{{/if}}> {{localize "TENEBRE.Davokar.AllowPlayer"}}</label>
+          {{#unless started}}<button type="button" data-davokar-action="configure">{{localize "TENEBRE.Davokar.Save"}}</button>{{/unless}}
+        </div>
+      </fieldset>
+    </section>
+    <section>
+      <h4>{{localize "TENEBRE.Davokar.Action.orientation"}}</h4>
+      {{#if guide}}
+        <p><strong>{{guide}}</strong> · {{localize "TENEBRE.Davokar.Vigilant"}} {{profile.vigilant}} · {{localize "TENEBRE.Davokar.Bushcraft"}} {{profile.bushcraft}} / {{plan.tier}}</p>
+        {{#if profile.hungry}}<p>{{localize "TENEBRE.Davokar.Hunger"}}</p>{{else if profile.pathfinder}}<p>{{localize "TENEBRE.Davokar.Pathfinder"}}</p>{{/if}}
+        {{#if profile.cartographerIncluded}}<p>{{localize "TENEBRE.Davokar.CartographerIncluded"}} {{profile.cartographerIncluded}}</p>{{/if}}
+        {{#if plan.eligible}}
+          <ul class="ind-davokar-modifiers">
+            {{#each planModifiers}}<li>{{label}} {{amount}}</li>{{/each}}
+          </ul>
+          <p><strong>{{localize "TENEBRE.Davokar.Target"}} {{plan.target}}</strong></p>
+        {{else}}<p>{{localize "TENEBRE.Davokar.Error.Ineligible"}}</p>{{/if}}
+      {{else}}
+        <p>{{#if missingGuide}}{{localize "TENEBRE.Davokar.Error.GuideUnavailable"}}{{else}}{{localize "TENEBRE.Davokar.NoGuide"}}{{/if}}</p>
+      {{/if}}
+      <div class="ind-davokar-actions">
+        {{#if mayOrient}}<button type="button" data-davokar-action="orient">{{localize "TENEBRE.Davokar.RollOrientation"}}</button>{{/if}}
+        {{#if maySkip}}<button type="button" data-davokar-action="skip">{{localize "TENEBRE.Davokar.Skip"}}</button>{{/if}}
+        {{#if started}}<button type="button" data-davokar-action="retry">{{localize "TENEBRE.Davokar.Retry"}}</button>{{/if}}
+      </div>
+    </section>
+    <section>
+      <h4>{{localize "TENEBRE.Davokar.Tables"}} <small>{{localize "TENEBRE.Davokar.TablesSource"}}</small></h4>
+      <div class="ind-davokar-tables">
+        {{#each events}}
+          <article data-davokar-table>
+            <h5>{{name}}</h5>
+            {{#if source}}<p>{{source}}</p>{{/if}}
+            {{#if missing}}<p class="ind-davokar-hint">{{localize "TENEBRE.Davokar.Error.MissingTable"}}</p>{{/if}}
+            {{#if nonreplacement}}<p class="ind-davokar-hint">{{localize "TENEBRE.Davokar.NonReplacement"}}</p>{{/if}}
+            {{#if formula}}<p class="ind-davokar-formula">{{formula}}</p>{{/if}}
+            <ul class="ind-davokar-modifiers">{{#each modifiers}}<li>{{label}} {{amount}}</li>{{/each}}</ul>
+            <details>
+              <summary>{{localize "TENEBRE.Davokar.ChangeTable"}}</summary>
+              <label>{{localize "TENEBRE.Davokar.TableUuid"}}<input type="text" maxlength="240" value="{{reference}}" data-table-reference></label>
+              <label>{{localize "TENEBRE.Davokar.WorldTables"}}
+                <select data-table-picker>
+                  <option value="">{{localize "TENEBRE.Davokar.DefaultTable"}}</option>
+                  {{#each choices}}<option value="{{uuid}}">{{name}}</option>{{/each}}
+                </select>
+              </label>
+              <button type="button" data-davokar-action="table" data-key="{{key}}">{{localize "TENEBRE.Davokar.SaveTable"}}</button>
+            </details>
+            <button type="button" data-davokar-action="{{button}}" data-key="{{key}}" {{#unless enabled}}disabled{{/unless}}>{{localize "TENEBRE.Davokar.Roll"}}</button>
+          </article>
+        {{/each}}
+      </div>
+    </section>
+    {{#if results}}
+      <section>
+        <h4>{{localize "TENEBRE.Davokar.Results"}}</h4>
+        <div class="ind-davokar-actions">
+          {{#if mayDetect}}
+            {{#if customDetection}}
+              <label>{{localize "TENEBRE.Davokar.DetectionModifier"}}<input type="number" min="-100" max="100" step="1" data-detection-modifier></label>
+            {{/if}}
+            <button type="button" data-davokar-action="detect">{{localize "TENEBRE.Davokar.Action.detect"}}</button>
+          {{/if}}
+          {{#if findings}}<button type="button" data-davokar-action="finds">{{localize "TENEBRE.Davokar.Action.finds"}} ({{findings}})</button>{{/if}}
+          {{#if mayStay}}<button type="button" data-davokar-action="stay">{{localize "TENEBRE.Davokar.Action.stay"}}</button>{{/if}}
+          {{#if mayStayEnemies}}<button type="button" data-davokar-action="stayEnemies">{{localize "TENEBRE.Davokar.Action.stayEnemies"}}</button>{{/if}}
+          {{#if advances.mishaps}}<button type="button" data-davokar-action="mishapExtra">{{localize "TENEBRE.Davokar.Action.mishapExtra"}} ({{advances.mishaps}})</button>{{/if}}
+          {{#if advances.enemies}}<button type="button" data-davokar-action="mishapEnemies">{{localize "TENEBRE.Davokar.Action.mishapEnemies"}} ({{advances.enemies}})</button>{{/if}}
+          {{#if advances.nature}}<p>{{localize "TENEBRE.Davokar.NaturePending"}} {{advances.nature}}</p>{{/if}}
+        </div>
+        {{#each results}}
+          <article class="ind-davokar-result" data-davokar-result>
+            <h5>{{name}} · {{summary}}</h5>
+            {{#if record.benefits}}<p>{{localize "TENEBRE.Davokar.Margin"}} {{record.margin}}</p>{{/if}}
+            {{#if record.actor}}<p>{{record.actor}}</p>{{/if}}
+            {{#if rollDetails}}<p>{{rollDetails}}</p>{{/if}}
+            {{#if critical}}<p>{{critical}}</p>{{/if}}
+            {{#if record.tableUuid}}
+              <button type="button" class="ind-davokar-link" data-davokar-action="open" data-reference="{{record.tableUuid}}">{{record.table}}</button>
+            {{/if}}
+            {{#each record.rows}}
+              <p><strong>{{name}}</strong> {{text}}
+                {{#if uuid}}<button type="button" class="ind-davokar-link" data-davokar-action="open" data-reference="{{uuid}}">{{localize "TENEBRE.Davokar.OpenReference"}}</button>{{/if}}
+              </p>
+            {{/each}}
+            <ul class="ind-davokar-modifiers">{{#each modifiers}}<li>{{label}} {{amount}}</li>{{/each}}</ul>
+            {{#each notes}}<p class="ind-davokar-note">{{note}}</p>{{/each}}
+            <details>
+              <summary>{{localize "TENEBRE.Davokar.Resolution"}}</summary>
+              <label>{{localize "TENEBRE.Davokar.ResolutionNote"}}<textarea maxlength="2000"></textarea></label>
+              <button type="button" data-davokar-action="resolve" data-key="{{key}}">{{localize "TENEBRE.Davokar.SaveResolution"}}</button>
+            </details>
+          </article>
+        {{/each}}
+      </section>
+    {{/if}}
+    {{#each attempts}}
+      <details>
+        <summary>{{localize "TENEBRE.Davokar.Attempt"}} {{number}}</summary>
+        {{#each results}}
+          <p><strong>{{name}} · {{summary}}</strong> {{rollDetails}}</p>
+          {{#each record.rows}}<p>{{name}} {{text}}</p>{{/each}}
+          {{#each notes}}<p>{{note}}</p>{{/each}}
+        {{/each}}
+      </details>
+    {{/each}}
+    {{#if history}}
+      <section>
+        <h4>{{localize "TENEBRE.Davokar.History"}}</h4>
+        {{#each history}}
+          <details>
+            <summary>{{localize "TENEBRE.Davokar.Day"}} {{number}} · {{region}}</summary>
+            {{#each results}}
+              <p><strong>{{name}} · {{summary}}</strong> {{rollDetails}}</p>
+              {{#each record.rows}}<p>{{name}} {{text}}</p>{{/each}}
+              {{#each notes}}<p>{{note}}</p>{{/each}}
+            {{/each}}
+            {{#each attempts}}
+              <details>
+                <summary>{{localize "TENEBRE.Davokar.Attempt"}} {{number}}</summary>
+                {{#each results}}
+                  <p><strong>{{name}} · {{summary}}</strong> {{rollDetails}}</p>
+                  {{#each record.rows}}<p>{{name}} {{text}}</p>{{/each}}
+                  {{#each notes}}<p>{{note}}</p>{{/each}}
+                {{/each}}
+              </details>
+            {{/each}}
+          </details>
+        {{/each}}
+      </section>
+    {{/if}}
+  {{/if}}
+</section>

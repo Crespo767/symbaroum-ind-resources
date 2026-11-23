@@ -43,6 +43,7 @@ import { DeathAutomationService, isDeathIncapacitated } from "./death-automation
 import { ActorCreationService } from "./actor-creation.mjs";
 import { HerbalCureService, isHerbalCureItem } from "./herbal-cure.mjs";
 import { PartyActorService } from "./party-actor.mjs";
+import { DavokarExpedition } from "./davokar-expedition.mjs";
 import { ActorPreparation } from "./actor-preparation.mjs";
 import { getWeaponRollForDialog } from "./roll-context.mjs";
 import { registerDiceHooks } from "./dice.mjs";
@@ -80,6 +81,7 @@ Hooks.once("init", () => {
 
   try {
     PartyActorService.register();
+    DavokarExpedition.register();
   } catch (err) {
     console.error("Symbaroum Ind Resources | Falha ao registrar PartyActorService:", err);
   }

@@ -9,12 +9,11 @@ globalThis.ActorSheet = class {
 };
 globalThis.foundry = { utils: { deepClone: structuredClone } };
 
-const { MODULE_ID, DEFAULTS, CANONICAL_EXPEDITION_TABLE_IDS, OFFICIAL_DAVOKAR_EVENT_TABLE_IDS } = await import("../scripts/constants.mjs");
-const { PartyActorSheet, PARTY_ACTOR_TYPE, getActorExpeditionData, resolveMishapsTable, resolveDavokarEventTable } = await import("../scripts/party-actor.mjs");
-const { readPrivateExpeditionResult } = await import("../scripts/expedition-private.mjs");
+const { MODULE_ID, DEFAULTS } = await import("../scripts/constants.mjs");
+const { PartyActorSheet, PARTY_ACTOR_TYPE } = await import("../scripts/party-actor.mjs");
 const { RationService } = await import("../scripts/rations.mjs");
 const { createChatMessageAfterDice, showDice3dRoll, registerDiceHooks } = await import("../scripts/dice.mjs");
-const { actorReference, actorStateKey, resolveActorReference } = await import("../scripts/actor-references.mjs");
+const { actorReference, resolveActorReference } = await import("../scripts/actor-references.mjs");
 
 let settings, messages;
 beforeEach(() => {
@@ -81,44 +80,6 @@ function bread(owner, id, { number = 1, description = id, storedIn = "" } = {}) 
   return item;
 }
 
-function expedition() {
-  const party = actor("party", PARTY_ACTOR_TYPE);
-  const state = {
-    active: true, day: 2, guideId: "guide", activeSearch: false, tables: { ruins: "RollTable.custom" },
-    dayState: { orientation: { rolled: true }, rations: { hero: { fed: true } }, events: { ruins: { rolled: true }, terrain: { rolled: true } } }
-  };
-  party.system.expedition = structuredClone(state);
-  party.flags[MODULE_ID] = { expedition: structuredClone(state), unrelated: "keep" };
-  return party;
-}
-
-test("manual expedition days preserve readable results saved by the frozen calendar", async () => {
-  const party = expedition();
-  party.system.expedition.dayState.revision = "day-two";
-  const binding = { startWorldDay: 9, worldDay: 10 };
-  party.flags[MODULE_ID].expedition.calendar = binding;
-  const reference = { privateId: "saved", revision: "result" };
-  const record = { party: party.uuid, slot: "orientation", day: '[true,2,"day-two",10]', revision: reference.revision };
-  game.user = game.users[0];
-  game.packs = new Map([["world." + MODULE_ID + "-expeditions", {
-    metadata: { type: "JournalEntry", packageType: "world" },
-    ownership: { GAMEMASTER: "OWNER", ASSISTANT: "OWNER", TRUSTED: "NONE", PLAYER: "NONE" },
-    getDocument: async () => ({ flags: { [MODULE_ID]: { expeditionResult: record } } })
-  }]]);
-  game.time = { worldTime: 30 * 86400 };
-  assert.equal(await readPrivateExpeditionResult(reference, party, "orientation"), record);
-  const previousDay = record.day;
-  record.day = '[true,2,"day-two",9]';
-  assert.equal(await readPrivateExpeditionResult(reference, party, "orientation"), null);
-  record.day = previousDay;
-
-  await new PartyActorSheet(party)._onNextExpeditionDay();
-  assert.equal(party.system.expedition.day, 3);
-  assert.equal(game.time.worldTime, 30 * 86400);
-  assert.deepEqual(party.flags[MODULE_ID].expedition.calendar, binding);
-  assert.equal(await readPrivateExpeditionResult(reference, party, "orientation"), null);
-});
-
 function mixedFood(owner) {
   bread(owner, "bread");
   settings.enableOtherRations = true;
@@ -129,10 +90,8 @@ function mixedFood(owner) {
 }
 
 test("mixed foods contribute to the group total and fund a complete request across rules", async () => {
-  const party = expedition(); mixedFood(party);
+  const party = actor("party", PARTY_ACTOR_TYPE); mixedFood(party);
   assert.equal(RationService.getTotalUses(party), 9);
-  const view = await new PartyActorSheet(party).getData();
-  assert.equal(view.expedition.rations.groupTotal, 9);
   assert.equal(await RationService.consumeDay(party, null, { days: 8, requireFull: true }), true);
   assert.equal(RationService.getTotalUses(party), 1);
   assert.equal(party.items.get("bread").system.number, 0);
@@ -159,7 +118,7 @@ test("selecting a ration item never silently spends another food type", async ()
 });
 
 test("compendium references survive drop, card rendering and removal without colliding with world IDs", async () => {
-  const party = expedition(), world = actor("same"), compendium = actor("same");
+  const party = actor("party", PARTY_ACTOR_TYPE), world = actor("same"), compendium = actor("same");
   compendium.uuid = "Compendium.example.actors.same"; compendium.pack = "example.actors";
   game.actors.set(world.id, world);
   globalThis.fromUuid = async ref => ref === compendium.uuid ? compendium : null;
@@ -169,15 +128,12 @@ test("compendium references survive drop, card rendering and removal without col
   let view = await sheet.getData();
   assert.equal(view.members[0].actor, compendium);
   assert.equal(view.members[0].id, compendium.uuid);
-  await sheet._onSetGuide(compendium.uuid);
-  view = await sheet.getData(); assert.equal(view.members[0].isGuide, true);
-  assert.equal(view.expedition.guide.actor, compendium);
   await sheet._onRemoveMember(view.members[0].id);
   assert.deepEqual(party.system.members, []);
 });
 
-test("synthetic actor cards preserve UUIDs through toggle and manual feeding", async () => {
-  const party = expedition(), tokenActor = actor("base");
+test("synthetic actor cards preserve UUIDs when moving to companions", async () => {
+  const party = actor("party", PARTY_ACTOR_TYPE), tokenActor = actor("base");
   tokenActor.uuid = "Scene.scene.Token.token.Actor.base";
   globalThis.fromUuid = async uuid => uuid === tokenActor.uuid ? tokenActor : null;
   const sheet = new PartyActorSheet(party);
@@ -186,89 +142,20 @@ test("synthetic actor cards preserve UUIDs through toggle and manual feeding", a
   assert.equal(view.members[0].id, actorReference(tokenActor));
   await sheet._onToggleMemberType(tokenActor.uuid);
   assert.deepEqual(party.system.companions, [tokenActor.uuid]);
-  await sheet._onToggleFeedMember(tokenActor.uuid);
-  assert.equal(party.system.expedition.dayState.rations[actorStateKey(tokenActor)].fed, true);
 });
 
 test("missing explicit actor UUIDs and non-actor documents never resolve to a world namesake", async () => {
   game.actors.set("same", actor("same"));
   globalThis.fromUuid = async () => ({ documentName: "Item", system: {} });
   assert.equal(await resolveActorReference("Compendium.removed.actors.same"), null);
-  const party = expedition(); party.system.expedition.guideId = "same";
-  party.system.expedition.guideUuid = "Compendium.removed.actors.same";
+  const party = actor("party", PARTY_ACTOR_TYPE);
+  party.system.members = ["Compendium.removed.actors.same"];
   const view = await new PartyActorSheet(party).getData();
-  assert.equal(view.expedition.guide.hasGuide, false);
+  assert.deepEqual(view.members, []);
 });
-
-test("automatic mishaps lookup recognizes the historical adventure ID without replacing it", async () => {
-  const table = { id: "tblMishDav0000001", uuid: "RollTable.tblMishDav0000001" };
-  game.tables = [table];
-  assert.equal(await resolveMishapsTable(), table);
-  assert.equal(await resolveMishapsTable("RollTable.removed"), null);
-});
-
-for (const [action, day, active] of [
-  ["_onStartExpedition", 1, true], ["_onNextExpeditionDay", 3, true],
-  ["_onPrevExpeditionDay", 1, true], ["_onEndExpedition", 0, false]
-]) {
-  test(`${action} replaces daily state in system and flags without removing expedition settings`, async () => {
-    const party = expedition();
-    await new PartyActorSheet(party)[action]();
-    for (const exp of [party.system.expedition, party.flags[MODULE_ID].expedition]) {
-      assert.equal(exp.day, day);
-      assert.equal(exp.active, active);
-      const { revision, ...dayState } = exp.dayState;
-      assert.equal(typeof revision, "string");
-      assert.deepEqual(dayState, { orientation: null, rations: {}, events: {} });
-      assert.equal(exp.guideId, "guide");
-      assert.equal(exp.activeSearch, false);
-      assert.equal(exp.tables.ruins, "RollTable.custom");
-    }
-    assert.equal(party.flags[MODULE_ID].unrelated, "keep");
-    // Simula reabertura/releitura depois da atualização persistida.
-    assert.deepEqual(getActorExpeditionData(structuredClone({ system: party.system, flags: party.flags })).dayState,
-      party.system.expedition.dayState);
-  });
-}
-
-test("resetting one event actually deletes it and preserves other slots", async () => {
-  const party = expedition();
-  game.user.active = true;
-  game.users.get = id => game.users.find(user => user.id === id);
-  party.testUserPermission = user => user.id === game.user.id;
-  globalThis.fromUuid = async uuid => uuid === party.uuid ? party : null;
-  await new PartyActorSheet(party)._onResetSingleEvent("ruins");
-  for (const exp of [party.system.expedition, party.flags[MODULE_ID].expedition]) {
-    assert.equal(exp.dayState.events.ruins, undefined);
-    assert.equal(exp.dayState.events.terrain.rolled, true);
-    assert.equal(exp.dayState.rations.hero.fed, true);
-  }
-});
-
-test("read-only sheets cannot reset days or events", async () => {
-  const party = expedition(), before = structuredClone(party.system);
-  const sheet = new PartyActorSheet(party); sheet.isEditable = false;
-  await sheet._onNextExpeditionDay();
-  await sheet._onResetSingleEvent("ruins");
-  assert.deepEqual(party.system, before);
-});
-
-for (const [slot, resolve] of [
-  ["mishaps", reference => resolveMishapsTable(reference)],
-  ["ruins", reference => resolveDavokarEventTable("ruins", reference)]
-]) {
-  test(`a missing configured ${slot} table does not silently use the available default`, async () => {
-    const fallback = { id: (OFFICIAL_DAVOKAR_EVENT_TABLE_IDS[slot] ?? CANONICAL_EXPEDITION_TABLE_IDS[slot]), name: "Default" };
-    game.tables = [fallback];
-    globalThis.fromUuid = async () => { throw new Error("pack removed"); };
-    assert.equal(await resolve("Compendium.removed.tables.custom"), null);
-    assert.equal(await resolve("RollTable.removed"), null);
-    assert.equal(await resolve(), fallback, "automatic selection keeps its default lookup");
-  });
-}
 
 test("group inventory preserves legitimate zero weight and zero quantity", async () => {
-  const party = expedition();
+  const party = actor("party", PARTY_ACTOR_TYPE);
   const zeroWeight = bread(party, "light", { number: 5 });
   zeroWeight.getFlag = (_scope, key) => key === "encumbranceManual" ? true : key === "encumbranceSlots" ? 0 : undefined;
   bread(party, "empty", { number: 0 });
@@ -436,16 +323,14 @@ test("animation failure preserves blind visibility in the chat roll fallback", a
   } finally { console.warn = warn; }
 });
 
-test("delete and guide dialogs treat user-controlled names as text", async () => {
-  const party = expedition(), captured = [];
+test("item deletion dialogs treat user-controlled names as text", async () => {
+  const party = actor("party", PARTY_ACTOR_TYPE), captured = [];
   const name = '<img src=x onerror="alert(1)">';
   const item = bread(party, "a"); item.name = name;
   globalThis.Dialog = class { constructor(data) { captured.push(data); } render() { return this; } };
   const sheet = new PartyActorSheet(party);
   await sheet._onDeleteItem(item.id);
-  party.system.members = ["guide"];
-  sheet._resolveActor = id => ({ id, name });
-  await sheet._onSelectGuide();
+  assert.equal(captured.length, 1);
   for (const dialog of captured) {
     assert.ok(!dialog.content.includes(name));
     assert.ok(dialog.content.includes("&lt;img"));

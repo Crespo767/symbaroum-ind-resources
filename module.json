@@ -76,7 +76,8 @@
   ],
   "styles": [
     "styles/symbaroum-ind-resources.css",
-    "styles/journal-categories.css"
+    "styles/journal-categories.css",
+    "styles/davokar-expedition.css"
   ],
   "languages": [
     {

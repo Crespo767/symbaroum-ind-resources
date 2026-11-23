@@ -2,10 +2,7 @@ import { FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { changeItemQuantity, findRationItems, getRationRule, itemQuantity, sumItemQuantities } from "./item-flags.mjs";
 import { SocketService, getRequestUser, hasOwnerPermission } from "./sockets.mjs";
-import { assertSafeBatch } from "./socket-policy.mjs";
-import { getActorExpeditionData, expeditionDayKey, runExpeditionOperation } from "./expedition-state.mjs";
 import { escapeHtml, normalize } from "./utils.mjs";
-import { actorReference, actorStateKey, actorMatchesReference, resolveActorReference } from "./actor-references.mjs";
 
 const pendingActorOperations = new Map();
 
@@ -16,7 +13,6 @@ export class RationService {
     if (this.#registered) return;
     SocketService.registerHandler("consumeRations", consumeRationsAsAuthority);
     SocketService.registerHandler("consolidateRations", consolidateRationsAsAuthority);
-    SocketService.registerHandler("feedExpeditionRations", feedExpeditionRationsAsAuthority);
     this.#registered = true;
   }
 
@@ -101,7 +97,7 @@ export class RationService {
     return Boolean(updates.length || deleteIds.length);
   }
 
-  static async consumeDay(actor, item = null, { days = 1, requireFull = false, syncExpedition = true } = {}) {
+  static async consumeDay(actor, item = null, { days = 1, requireFull = false } = {}) {
     if (!TenebreSettings.get("enableRations")) return false;
     if (!actor) return false;
     days = normalizeRationDays(days);
@@ -112,14 +108,7 @@ export class RationService {
       return consumed;
     }
 
-    const result = await this.#enqueue(actor, async () => {
-      const expeditions = syncExpedition ? activeExpeditionMemberships(actor) : [];
-      const consumed = await this.#consumeDay(actor, item, days, requireFull);
-      return { consumed, expeditions };
-    });
-    // A sincronização não segura a fila do estoque: alimentação já segura a fila do Grupo.
-    if (result.consumed && syncExpedition) await this.#syncExpeditionRation(actor, result.expeditions);
-    return result.consumed;
+    return this.#enqueue(actor, () => this.#consumeDay(actor, item, days, requireFull));
   }
 
   static async #enqueue(actor, operation) {
@@ -200,27 +189,6 @@ export class RationService {
 
   }
 
-  static async #syncExpeditionRation(actor, expeditions) {
-    for (const { party, dayKey } of expeditions) {
-      try {
-        await runExpeditionOperation(party, async () => {
-          if (!SocketService.canModify(party) || expeditionDayKey(party) !== dayKey || !partyIncludesActor(party, actor)) return;
-          if (getActorExpeditionData(party).dayState.rations[actorStateKey(actor)]?.fed) return;
-          await party.update(fedMemberUpdates([actorStateKey(actor)], "personal"));
-        });
-      } catch (err) {
-        console.warn("[Tenebre] Falha ao sincronizar ração com expedição:", err);
-      }
-    }
-  }
-
-  static async feedExpedition(party, memberIds, source = "group", dayKey = expeditionDayKey(party)) {
-    if (SocketService.hasActiveGM()) {
-      return SocketService.executeAsPrimaryGM("feedExpeditionRations", party.uuid, memberIds, source, dayKey);
-    }
-    return feedExpeditionRationsAsAuthority.call({ socketdata: { userId: game.user?.id } }, party.uuid, memberIds, source, dayKey);
-  }
-
   static async #postRationChat(actor, newState) {
     const actorName = escapeHtml(actor.name);
     const itemName = escapeHtml(newState.itemName);
@@ -296,71 +264,6 @@ async function consumeRationsAsAuthority(actorUuid, itemId, days, requireFull = 
 async function consolidateRationsAsAuthority(actorUuid) {
   const actor = await getOwnedRationActor(this, actorUuid);
   return RationService.consolidate(actor);
-}
-
-function partyIncludesActor(party, actor) {
-  const refs = [...(party.system?.members ?? []), ...(party.system?.companions ?? [])];
-  return refs.some(ref => actorMatchesReference(actor, ref));
-}
-
-function activeExpeditionMemberships(actor) {
-  return Array.from(globalThis.game?.actors?.values?.() ?? globalThis.game?.actors ?? [])
-    .filter(party => party.type === `${FLAG_SCOPE}.party` && partyIncludesActor(party, actor)
-      && getActorExpeditionData(party).active)
-    .map(party => ({ party, dayKey: expeditionDayKey(party) }));
-}
-
-function fedMemberUpdates(memberIds, source) {
-  const updates = {};
-  const timestamp = Date.now();
-  for (const id of memberIds) {
-    const value = { fed: true, source, timestamp };
-    updates[`system.expedition.dayState.rations.${id}`] = value;
-    updates[`flags.${FLAG_SCOPE}.expedition.dayState.rations.${id}`] = value;
-  }
-  return updates;
-}
-
-async function feedExpeditionRationsAsAuthority(partyUuid, memberIds, source, dayKey) {
-  assertRationExecutor();
-  const user = getRequestUser(this);
-  assertSafeBatch(memberIds, "Expedition members");
-  if (!memberIds.every(id => typeof id === "string" && /^[A-Za-z0-9_.-]{1,300}$/.test(id))
-    || !["group", "personal"].includes(source) || (source === "personal" && memberIds.length !== 1)
-    || typeof dayKey !== "string" || dayKey.length > 300) throw new Error("Invalid expedition feeding request.");
-  const party = await globalThis.fromUuid?.(partyUuid);
-  if (party?.documentName !== "Actor" || party.type !== `${FLAG_SCOPE}.party` || party.pack || party.compendium) {
-    throw new Error("Invalid expedition party.");
-  }
-  if (!SocketService.canModify(party)) throw new Error("No authorized executor can update the expedition party.");
-  if (source === "group" && !user.isGM && !hasOwnerPermission(party, user)) throw new Error("Expedition party is not owned.");
-
-  return runExpeditionOperation(party, async () => {
-    const exp = getActorExpeditionData(party);
-    if (!exp.active || expeditionDayKey(party) !== dayKey) return { status: "stale", count: 0 };
-    const members = new Map();
-    for (const ref of [...(party.system.members ?? []), ...(party.system.companions ?? [])]) {
-      const member = await resolveActorReference(ref);
-      if (member?.documentName === "Actor") {
-        members.set(actorReference(member), member);
-        members.set(member.uuid, member);
-      }
-    }
-    const selected = [...new Set(memberIds)].map(id => members.get(id));
-    if (selected.some(member => !member)) throw new Error("Requested actor is not an expedition member.");
-    if (source === "personal" && !user.isGM && !hasOwnerPermission(selected[0], user)) {
-      throw new Error("Personal provisions are not owned by the requester.");
-    }
-    if (source === "personal" && (selected[0].pack || selected[0].compendium)) throw new Error("Compendium provisions cannot be consumed.");
-    const unfed = [...new Set(selected)].filter(member => !exp.dayState.rations[actorStateKey(member)]?.fed);
-    if (!unfed.length) return { status: "alreadyFed", count: 0 };
-    const stock = source === "group" ? party : unfed[0];
-    const consumed = await RationService.consumeDay(stock, null, { days: unfed.length, requireFull: true, syncExpedition: false });
-    if (!consumed) return { status: "insufficient", count: 0 };
-    if (expeditionDayKey(party) !== dayKey) return { status: "stale", count: 0 };
-    await party.update(fedMemberUpdates(unfed.map(actorStateKey), source));
-    return { status: "fed", count: unfed.length };
-  });
 }
 
 function buildState(_actor, rule, items, current) {
