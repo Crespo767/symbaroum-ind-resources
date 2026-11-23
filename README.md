@@ -64,6 +64,10 @@ recursos adequados para sua mesa.
 
 ## Calendario de Symbaroum
 
+O calendário do Ind Resources está congelado e fora do módulo ativo.
+Os controles manuais de dia estão disponíveis na ficha de Grupo. A descrição
+abaixo registra o funcionamento anterior.
+
 Desde a versao **0.19.0**, o calendario incorpora a experiencia do Simple
 Calendar Reborn para o preset de Symbaroum, sem notas e sem outros calendarios.
 A [analise tecnica e o inventario da referencia](docs/CALENDARIO-SIMPLE-CALENDAR-ANALISE.md)
@@ -118,7 +122,7 @@ Validacao visual no Foundry e testes com modulos temporais concretos pendentes.
 | --- | --- |
 | Foundry VTT | v13.350 no manifesto; carregamento testado no build 351; adaptacoes tecnicas para v14 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.19.8 |
+| Modulo | 0.19.9 |
 | Manifest | `https://raw.githubusercontent.com/Crespo767/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo767/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 

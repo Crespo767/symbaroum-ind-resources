@@ -1,4 +1,3 @@
-import { CalendarService } from "./calendar.mjs";
 import { MODULE_ID, AMMO_TYPES } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { patchWeaponRolls } from "./weapon-wrapper.mjs";
@@ -63,11 +62,6 @@ try {
 
 Hooks.once("init", () => {
   registerDiceHooks();
-  try {
-    CalendarService.register();
-  } catch (err) {
-    console.error("Symbaroum Ind Resources | Falha ao registrar CalendarService:", err);
-  }
   try {
     TenebreSettings.register();
   } catch (err) {
@@ -330,7 +324,6 @@ function exposePublicApi() {
   const api = game.tenebreResources ?? {};
   Object.assign(api, {
     rations: RationService,
-    calendar: CalendarService,
     ammo: AmmoService,
     rest: RestService,
     hotbar: HotbarService,

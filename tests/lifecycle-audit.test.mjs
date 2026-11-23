@@ -30,6 +30,17 @@ test("the public API is exposed during setup and shared with the module package"
   assert.match(initSource, /game\.tenebreResources = api;/);
 });
 
+test("the installed module does not load the frozen calendar or its services", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../module.json", import.meta.url), "utf8"));
+  const partySource = await readFile(new URL("../scripts/party-actor.mjs", import.meta.url), "utf8");
+  const expeditionState = await readFile(new URL("../scripts/expedition-state.mjs", import.meta.url), "utf8");
+
+  assert.equal(manifest.styles.includes("styles/calendar.css"), false);
+  for (const source of [initSource, partySource, expeditionState]) {
+    assert.doesNotMatch(source, /CalendarService|from "\.\/(?:expedition-)?calendar/);
+  }
+});
+
 test("sheet UI does not register redundant V1 inheritance render hooks", () => {
   assert.doesNotMatch(sheetSource, /ACTOR_SHEET_HOOKS|ITEM_SHEET_HOOKS/);
   assert.doesNotMatch(sheetSource, /Hooks\.on\("renderApplication"/);

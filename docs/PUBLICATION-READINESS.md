@@ -3,6 +3,14 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.19.9 — 23/11/2026
+
+- Congela o calendário no módulo ativo e preserva as configurações dos mundos.
+- A ficha de Grupo permite avançar e voltar dias da expedição manualmente, sem
+  alterar o tempo do Foundry. Resultados privados existentes continuam legíveis.
+- Validação automatizada do candidato isolado incluída na preparação da release.
+  A conferência em um mundo real do Foundry v13/v14 segue pendente.
+
 ## Release v0.19.8 — 14/11/2026
 
 - Adiciona botoes com seta nos titulos das categorias do Diario Amplo para

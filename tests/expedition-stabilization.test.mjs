@@ -11,6 +11,7 @@ globalThis.foundry = { utils: { deepClone: structuredClone } };
 
 const { MODULE_ID, DEFAULTS, CANONICAL_EXPEDITION_TABLE_IDS, OFFICIAL_DAVOKAR_EVENT_TABLE_IDS } = await import("../scripts/constants.mjs");
 const { PartyActorSheet, PARTY_ACTOR_TYPE, getActorExpeditionData, resolveMishapsTable, resolveDavokarEventTable } = await import("../scripts/party-actor.mjs");
+const { readPrivateExpeditionResult } = await import("../scripts/expedition-private.mjs");
 const { RationService } = await import("../scripts/rations.mjs");
 const { createChatMessageAfterDice, showDice3dRoll, registerDiceHooks } = await import("../scripts/dice.mjs");
 const { actorReference, actorStateKey, resolveActorReference } = await import("../scripts/actor-references.mjs");
@@ -90,6 +91,33 @@ function expedition() {
   party.flags[MODULE_ID] = { expedition: structuredClone(state), unrelated: "keep" };
   return party;
 }
+
+test("manual expedition days preserve readable results saved by the frozen calendar", async () => {
+  const party = expedition();
+  party.system.expedition.dayState.revision = "day-two";
+  const binding = { startWorldDay: 9, worldDay: 10 };
+  party.flags[MODULE_ID].expedition.calendar = binding;
+  const reference = { privateId: "saved", revision: "result" };
+  const record = { party: party.uuid, slot: "orientation", day: '[true,2,"day-two",10]', revision: reference.revision };
+  game.user = game.users[0];
+  game.packs = new Map([["world." + MODULE_ID + "-expeditions", {
+    metadata: { type: "JournalEntry", packageType: "world" },
+    ownership: { GAMEMASTER: "OWNER", ASSISTANT: "OWNER", TRUSTED: "NONE", PLAYER: "NONE" },
+    getDocument: async () => ({ flags: { [MODULE_ID]: { expeditionResult: record } } })
+  }]]);
+  game.time = { worldTime: 30 * 86400 };
+  assert.equal(await readPrivateExpeditionResult(reference, party, "orientation"), record);
+  const previousDay = record.day;
+  record.day = '[true,2,"day-two",9]';
+  assert.equal(await readPrivateExpeditionResult(reference, party, "orientation"), null);
+  record.day = previousDay;
+
+  await new PartyActorSheet(party)._onNextExpeditionDay();
+  assert.equal(party.system.expedition.day, 3);
+  assert.equal(game.time.worldTime, 30 * 86400);
+  assert.deepEqual(party.flags[MODULE_ID].expedition.calendar, binding);
+  assert.equal(await readPrivateExpeditionResult(reference, party, "orientation"), null);
+});
 
 function mixedFood(owner) {
   bread(owner, "bread");
