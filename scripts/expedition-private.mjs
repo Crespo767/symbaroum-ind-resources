@@ -43,7 +43,15 @@ export async function readPrivateExpeditionResult(reference, party, slot) {
   const doc = await pack?.getDocument(reference.privateId);
   const record = doc?.flags?.[MODULE_ID]?.expeditionResult;
   // Referências editáveis do Actor não podem apontar para outro grupo ou dia.
-  if (!record || record.party !== party.uuid || record.slot !== slot || record.day !== expeditionDayKey(party) || record.revision !== reference.revision) return null;
+  if (!record || record.party !== party.uuid || record.slot !== slot || record.revision !== reference.revision) return null;
+  const day = expeditionDayKey(party);
+  if (record.day === day) return record;
+
+  // The frozen calendar integration also stored the linked world day in the key.
+  const linkedDay = party.flags?.[MODULE_ID]?.expedition?.calendar?.worldDay;
+  const expeditionDay = JSON.parse(day);
+  if (!expeditionDay[0] || !Number.isSafeInteger(linkedDay)) return null;
+  if (record.day !== JSON.stringify([...expeditionDay, linkedDay])) return null;
   return record;
 }
 
