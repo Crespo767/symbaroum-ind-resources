@@ -3,6 +3,16 @@
 Este documento registra o estado técnico verificado antes da publicação do
 Symbaroum Ind Resources. Ele deve ser atualizado a cada release pública.
 
+## Release v0.20.0 - 24/11/2026
+
+- Nova aba Expedição na Ficha de Grupo para preparar um dia na Davokar, rolar Orientação,
+  Infortúnios e os quatro eventos diários. O Mestre pode delegar a Orientação ao jogador do guia.
+- O histórico por dia e as mensagens privadas usam criptografia. A chave pode ser copiada
+  na aba de Expedição para recuperar o histórico em outro navegador. Leia
+  [DAVOKAR-EXPEDICAO.md](DAVOKAR-EXPEDICAO.md) para a configuração e as regras.
+- Testes com Mestre e jogador executados em Foundry v13.351 com Symbaroum 6.1.6.
+  Execução real em v14 pendente.
+
 ## Release v0.19.9 — 23/11/2026
 
 - Congela o calendário no módulo ativo e preserva as configurações dos mundos.

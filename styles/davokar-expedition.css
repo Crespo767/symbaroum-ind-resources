@@ -1,0 +1,78 @@
+/* Davokar controls inside the Group actor sheet. */
+.tenebre-party-sheet .ind-davokar {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  color: #2e2116;
+}
+.tenebre-party-sheet .ind-davokar :is(h3, h4, h5, p, ul) { margin: 0; }
+.tenebre-party-sheet .ind-davokar h4 { margin-bottom: 5px; border-bottom: 1px solid #927d60; }
+.tenebre-party-sheet .ind-davokar h5 { font-weight: 700; }
+.tenebre-party-sheet .ind-davokar small { font-weight: 400; }
+.tenebre-party-sheet .ind-davokar-header,
+.tenebre-party-sheet .ind-davokar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.tenebre-party-sheet .ind-davokar-header { justify-content: space-between; }
+.tenebre-party-sheet .ind-davokar-fields,
+.tenebre-party-sheet .ind-davokar-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 165px), 1fr));
+  gap: 8px;
+}
+.tenebre-party-sheet .ind-davokar fieldset {
+  padding: 8px;
+  border: 1px solid #aa977c;
+}
+.tenebre-party-sheet .ind-davokar-actions { margin-block: 6px; }
+.tenebre-party-sheet .ind-davokar-fields label,
+.tenebre-party-sheet .ind-davokar details label { display: grid; gap: 3px; }
+.tenebre-party-sheet .ind-davokar :is(select, textarea, input:not([type="checkbox"])) {
+  width: 100%;
+  min-width: 0;
+  color: #2e2116;
+  background: #f9ecd5;
+}
+.tenebre-party-sheet .ind-davokar button {
+  width: auto;
+  min-height: 28px;
+  padding: 2px 8px;
+  color: #2e2116;
+  background: #efe0c5;
+  border: 1px solid #927d60;
+  border-radius: 3px;
+  line-height: 1.2;
+}
+.tenebre-party-sheet .ind-davokar button:disabled { opacity: .55; }
+.tenebre-party-sheet .ind-davokar :is(button, input, select, summary, textarea):focus-visible {
+  outline: 2px solid #873f30;
+  outline-offset: 1px;
+}
+.tenebre-party-sheet .ind-davokar article {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid #aa977c;
+  background: #f4e6cc;
+  overflow-wrap: anywhere;
+}
+.tenebre-party-sheet .ind-davokar details { max-width: 100%; }
+.tenebre-party-sheet .ind-davokar summary { cursor: pointer; }
+.tenebre-party-sheet .ind-davokar .ind-davokar-result { margin-top: 5px; }
+.tenebre-party-sheet .ind-davokar .ind-davokar-modifiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  padding: 0;
+  list-style: none;
+  font-size: .88em;
+}
+.tenebre-party-sheet .ind-davokar .ind-davokar-formula { font-variant-numeric: tabular-nums; }
+.tenebre-party-sheet .ind-davokar .ind-davokar-hint { color: #722b20; }
+.tenebre-party-sheet .ind-davokar .ind-davokar-note { white-space: pre-wrap; }

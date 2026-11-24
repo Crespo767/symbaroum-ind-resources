@@ -3,10 +3,6 @@ export function actorReference(actor) {
   return actor?.uuid && actor.uuid !== `Actor.${actor.id}` ? actor.uuid : actor?.id;
 }
 
-export function actorStateKey(actor) {
-  return encodeURIComponent(actorReference(actor)).replaceAll(".", "%2E");
-}
-
 export function actorMatchesReference(actor, reference) {
   return Boolean(actor && reference && (reference === actorReference(actor) || reference === actor.uuid));
 }
